@@ -1,0 +1,26 @@
+import { supabase } from "@/lib/supabase";
+
+/** Singleton settings row (id = 1) for company-wide configuration. */
+export const settingsService = {
+  async get() {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from("settings")
+      .select("*")
+      .eq("id", 1)
+      .single();
+    if (error && error.code !== "PGRST116") throw new Error(error.message);
+    return data;
+  },
+
+  async upsert(payload) {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase
+      .from("settings")
+      .upsert({ id: 1, ...payload })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+};
