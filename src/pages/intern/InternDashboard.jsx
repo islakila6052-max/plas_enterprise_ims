@@ -17,17 +17,16 @@ const ICONS = {
 };
 
 export default function InternDashboard() {
-  const { profile, user } = useAuth();
+  const { profile, internId } = useAuth();
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
     let active = true;
-    const internId = profile?.intern_id ?? user?.id;
     dashboardService.internStats(internId).then((s) => active && setStats(s));
     return () => {
       active = false;
     };
-  }, [profile, user]);
+  }, [profile, internId]);
 
   if (!stats) return <Spinner label="Loading dashboard…" />;
 

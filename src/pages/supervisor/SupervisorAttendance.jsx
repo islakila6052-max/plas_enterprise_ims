@@ -14,7 +14,7 @@ import { formatDate, formatTime, formatHours } from "@/utils/format";
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
 export default function SupervisorAttendance() {
-  const { isConfigured, profile, user } = useAuth();
+  const { isConfigured, profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -25,7 +25,7 @@ export default function SupervisorAttendance() {
     setLoading(true);
     try {
       const res = await attendanceService.adminList({ page: 1, pageSize: 100 });
-      const sid = profile?.supervisor_id ?? user?.id;
+      const sid = supervisorId;
       let filtered = res.data.filter((r) => r.intern?.supervisor_id === sid);
       if (status) filtered = filtered.filter((r) => r.status === status);
       if (search) {

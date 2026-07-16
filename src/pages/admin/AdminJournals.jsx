@@ -62,7 +62,7 @@ export default function AdminJournals() {
     if (!reviewing) return;
     setSaving(true);
     try {
-      await journalService.review(reviewing.id, decision, user?.id, comment);
+      await journalService.review(reviewing.id, decision, null, comment);
       toast.success(`Journal ${decision}.`);
       setReviewing(null);
       load();

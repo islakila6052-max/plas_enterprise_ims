@@ -290,17 +290,17 @@ const profiles = [
   {
     id: "user-hr", full_name: "Maria Santos", email: "hr@company.com", avatar_url: null,
     contact_number: "+63 917 123 4567", bio: "HR Administrator overseeing the company internship program.",
-    role: "admin",
+    role: "admin", intern_id: null, supervisor_id: null,
   },
   {
     id: "user-sup", full_name: "James Reyes", email: "supervisor@company.com", avatar_url: null,
     contact_number: "+63 918 234 5678", bio: "IT Department Supervisor and internship mentor.",
-    role: "supervisor",
+    role: "supervisor", intern_id: null, supervisor_id: "sup-1",
   },
   {
     id: "user-int", full_name: "Angela Cruz", email: "intern@company.com", avatar_url: null,
     contact_number: "+63 919 345 6789", bio: "Intern from the University of the Philippines.",
-    role: "intern",
+    role: "intern", intern_id: "int-1", supervisor_id: null,
   },
 ];
 

@@ -17,12 +17,12 @@ const ICONS = {
 };
 
 export default function SupervisorDashboard() {
-  const { profile, user } = useAuth();
+  const { profile, supervisorId } = useAuth();
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
     let active = true;
-    const supervisorId = profile?.supervisor_id ?? user?.id;
+    const supervisorId = supervisorId;
     dashboardService.supervisorStats(supervisorId).then((s) => active && setStats(s));
     return () => {
       active = false;

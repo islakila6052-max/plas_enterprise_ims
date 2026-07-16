@@ -14,8 +14,7 @@ import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
 export default function InternAttendance() {
-  const { isConfigured, profile, user } = useAuth();
-  const internId = profile?.intern_id ?? user?.id;
+  const { isConfigured, profile, internId } = useAuth();
   const [open, setOpen] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);

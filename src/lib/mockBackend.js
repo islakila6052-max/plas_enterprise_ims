@@ -150,6 +150,11 @@ const mockBackend = {
       ...payload,
     };
     db.interns.push(row);
+    // Mirror the DB sync_profile_links trigger: cache the link on the profile.
+    if (row.profile_id) {
+      const p = db.profiles.find((x) => x.id === row.profile_id);
+      if (p) p.intern_id = row.id;
+    }
     saveDB(db);
     return clone(row);
   },
@@ -161,6 +166,9 @@ const mockBackend = {
   },
   async removeIntern(id) {
     db.interns = db.interns.filter((i) => i.id !== id);
+    db.profiles.forEach((p) => {
+      if (p.intern_id === id) p.intern_id = null;
+    });
     saveDB(db);
   },
 
@@ -324,7 +332,7 @@ const mockBackend = {
     return { data, count: total, page, pageSize };
   },
   async createEvaluation(payload) {
-    const row = { id: uid("ev"), created_at: new Date().toISOString(), status: "completed", ...payload };
+    const row = { id: uid("ev"), created_at: new Date().toISOString(), status: "pending", ...payload };
     db.evaluations.push(row);
     saveDB(db);
     return clone(row);

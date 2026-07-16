@@ -18,7 +18,7 @@ import { formatDate } from "@/utils/format";
 const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
 export default function SupervisorEvaluations() {
-  const { isConfigured, profile, user } = useAuth();
+  const { isConfigured, profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function SupervisorEvaluations() {
     if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
-      const sid = profile?.supervisor_id ?? user?.id;
+      const sid = supervisorId;
       const res = await evaluationService.list({ supervisorId: sid, page: 1, pageSize: 100 });
       setRows(res.data);
       const internsRes = await internService.list({ supervisorId: sid, page: 1 });
@@ -60,7 +60,7 @@ export default function SupervisorEvaluations() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      const sid = profile?.supervisor_id ?? user?.id;
+      const sid = supervisorId;
       const criteria = {};
       EVALUATION_CRITERIA.forEach((c) => {
         criteria[c.key] = Number(values[c.key]) || 0;
@@ -72,7 +72,7 @@ export default function SupervisorEvaluations() {
         overall_rating: Number(values.overall_rating) || 0,
         comments: values.comments,
         final_recommendation: values.final_recommendation,
-        status: "completed",
+        status: "pending",
       });
       toast.success("Evaluation submitted.");
       setModalOpen(false);

@@ -16,8 +16,7 @@ import { formatDate, todayISO } from "@/utils/format";
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function InternJournal() {
-  const { isConfigured, profile, user } = useAuth();
-  const internId = profile?.intern_id ?? user?.id;
+  const { isConfigured, profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

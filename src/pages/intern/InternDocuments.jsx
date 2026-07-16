@@ -28,8 +28,7 @@ function fileIcon(type) {
 }
 
 export default function InternDocuments() {
-  const { isConfigured, profile, user } = useAuth();
-  const internId = profile?.intern_id ?? user?.id;
+  const { isConfigured, profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);

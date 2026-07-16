@@ -16,7 +16,7 @@ import { formatDate } from "@/utils/format";
 const TONE = { active: "green", completed: "blue", archived: "gray" };
 
 export default function SupervisorInterns() {
-  const { isConfigured, profile, user } = useAuth();
+  const { isConfigured, profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -26,7 +26,7 @@ export default function SupervisorInterns() {
     if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
-      const res = await internService.list({ page: 1, pageSize: 100, supervisorId: profile?.supervisor_id ?? user?.id });
+      const res = await internService.list({ page: 1, pageSize: 100, supervisorId: supervisorId });
       let data = res.data;
       if (search) {
         const q = search.toLowerCase();

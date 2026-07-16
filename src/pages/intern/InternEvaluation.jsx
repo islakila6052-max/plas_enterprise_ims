@@ -10,8 +10,7 @@ import { EVALUATION_CRITERIA } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
 export default function InternEvaluation() {
-  const { isConfigured, profile, user } = useAuth();
-  const internId = profile?.intern_id ?? user?.id;
+  const { isConfigured, profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 

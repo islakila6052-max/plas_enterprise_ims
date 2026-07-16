@@ -16,7 +16,7 @@ import { formatDate } from "@/utils/format";
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function SupervisorJournals() {
-  const { isConfigured, profile, user } = useAuth();
+  const { isConfigured, profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -29,7 +29,7 @@ export default function SupervisorJournals() {
     if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
-      const sid = profile?.supervisor_id ?? user?.id;
+      const sid = supervisorId;
       const res = await journalService.list({ supervisorId: sid, page: 1, pageSize: 100 });
       let data = res.data;
       if (status) data = data.filter((r) => r.status === status);
@@ -58,7 +58,7 @@ export default function SupervisorJournals() {
     if (!reviewing) return;
     setSaving(true);
     try {
-      const sid = profile?.supervisor_id ?? user?.id;
+      const sid = supervisorId;
       await journalService.review(reviewing.id, status, sid, comment);
       toast.success(`Journal ${status}.`);
       setReviewing(null);

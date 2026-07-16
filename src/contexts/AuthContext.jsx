@@ -69,10 +69,17 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => {
     const role = profile?.role ?? null;
+    // Resolved linked record ids. In the DB these live on profiles.intern_id /
+    // profiles.supervisor_id (kept in sync by the sync_profile_links trigger).
+    // The mock backend mirrors the same shape (see mockBackend/sampleData).
+    const internId = profile?.intern_id ?? null;
+    const supervisorId = profile?.supervisor_id ?? null;
     return {
       user,
       profile,
       role,
+      internId,
+      supervisorId,
       loading,
       isConfigured: isSupabaseConfigured,
       isAuthenticated: Boolean(user),
