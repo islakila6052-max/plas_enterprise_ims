@@ -10,12 +10,11 @@ import { EVALUATION_CRITERIA } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
 export default function InternEvaluation() {
-  const { isConfigured, profile, internId } = useAuth();
+  const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await evaluationService.list({ internId, page: 1, pageSize: 20 });
@@ -25,7 +24,7 @@ export default function InternEvaluation() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, internId]);
+  }, [internId]);
 
   useEffect(() => {
     load();

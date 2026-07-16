@@ -14,14 +14,13 @@ import { formatDate, formatTime, formatHours } from "@/utils/format";
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
 export default function SupervisorAttendance() {
-  const { isConfigured, profile, supervisorId } = useAuth();
+  const { profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await attendanceService.adminList({ page: 1, pageSize: 100 });
@@ -38,7 +37,7 @@ export default function SupervisorAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, profile, user, status, search]);
+  }, [supervisorId, status, search]);
 
   useEffect(() => {
     load();

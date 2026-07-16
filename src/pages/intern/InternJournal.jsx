@@ -16,7 +16,7 @@ import { formatDate, todayISO } from "@/utils/format";
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function InternJournal() {
-  const { isConfigured, profile, internId } = useAuth();
+  const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,7 +32,6 @@ export default function InternJournal() {
   });
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await journalService.list({ internId, page: 1, pageSize: 30 });
@@ -47,7 +46,7 @@ export default function InternJournal() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, internId, search]);
+  }, [internId, search]);
 
   useEffect(() => {
     load();

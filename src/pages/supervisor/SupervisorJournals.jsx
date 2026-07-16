@@ -16,7 +16,7 @@ import { formatDate } from "@/utils/format";
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function SupervisorJournals() {
-  const { isConfigured, profile, supervisorId } = useAuth();
+  const { profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -26,7 +26,6 @@ export default function SupervisorJournals() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const sid = supervisorId;
@@ -43,7 +42,7 @@ export default function SupervisorJournals() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, profile, user, status, search]);
+  }, [supervisorId, status, search]);
 
   useEffect(() => {
     load();

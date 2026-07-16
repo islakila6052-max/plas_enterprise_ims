@@ -28,7 +28,7 @@ function fileIcon(type) {
 }
 
 export default function InternDocuments() {
-  const { isConfigured, profile, internId } = useAuth();
+  const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -37,7 +37,6 @@ export default function InternDocuments() {
   const [preview, setPreview] = useState(null);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await documentService.list({ internId, page: 1, pageSize: 50 });
@@ -47,7 +46,7 @@ export default function InternDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, internId]);
+  }, [internId]);
 
   useEffect(() => {
     load();

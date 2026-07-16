@@ -10,14 +10,14 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { evaluationService } from "@/services/evaluationService";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
 const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
 export default function AdminEvaluations() {
-  const { isConfigured } = useAuth();
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -26,7 +26,6 @@ export default function AdminEvaluations() {
   const [detail, setDetail] = useState(null);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await evaluationService.list({ page });
@@ -42,7 +41,7 @@ export default function AdminEvaluations() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, search, page]);
+  }, [search, page]);
 
   useEffect(() => {
     load();

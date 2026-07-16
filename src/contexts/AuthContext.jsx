@@ -86,8 +86,13 @@ export function AuthProvider({ children }) {
       isAdmin: role === ROLES.ADMIN || role === ROLES.HR_STAFF,
       isSupervisor: role === ROLES.SUPERVISOR,
       isIntern: role === ROLES.INTERN,
-      // Returns the freshly loaded profile so callers can read role immediately.
-      refreshProfile: () => loadProfile(user),
+      // Re-reads the current auth user (works in both Supabase and demo mode)
+      // and refreshes the linked profile so callers can read role immediately.
+      refreshProfile: async () => {
+        const current = await authService.getCurrentUser();
+        setUser(current ?? null);
+        return loadProfile(current);
+      },
       signIn: authService.signIn,
       signOut: async () => {
         await authService.signOut();

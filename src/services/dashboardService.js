@@ -51,9 +51,15 @@ export const dashboardService = {
     if (supabase) {
       const today = new Date().toISOString().slice(0, 10);
       const [hoursRows, required, attendanceToday, announcements] = await Promise.all([
-        internId ? supabase?.from("attendance").select("total_hours").eq("intern_id", internId) : { data: [] },
+        internId
+          ? supabase
+              .from("attendance")
+              .select("total_hours")
+              .eq("intern_id", internId)
+              .then((r) => r.data ?? [])
+          : [],
         supabase
-          ?.from("interns")
+          .from("interns")
           .select("required_hours")
           .eq("id", internId)
           .single()
@@ -62,7 +68,10 @@ export const dashboardService = {
         count("attendance", (q) => q.eq("intern_id", internId).eq("date", today)),
         count("announcements"),
       ]);
-      const rendered = hoursRows?.data?.reduce((sum, r) => sum + (Number(r.total_hours) || 0), 0) ?? 0;
+      const rendered = (hoursRows ?? []).reduce(
+        (sum, r) => sum + (Number(r.total_hours) || 0),
+        0,
+      );
       const requiredHours = Number(required) || 0;
       return {
         hoursRendered: Math.round(rendered * 100) / 100,

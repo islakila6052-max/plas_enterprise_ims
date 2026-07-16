@@ -18,7 +18,7 @@ import { formatDate } from "@/utils/format";
 const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
 export default function SupervisorEvaluations() {
-  const { isConfigured, profile, supervisorId } = useAuth();
+  const { profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,6 @@ export default function SupervisorEvaluations() {
   } = useForm();
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const sid = supervisorId;
@@ -46,7 +45,7 @@ export default function SupervisorEvaluations() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, profile, user]);
+  }, [supervisorId]);
 
   useEffect(() => {
     load();

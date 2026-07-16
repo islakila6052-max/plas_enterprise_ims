@@ -70,10 +70,21 @@ export default function AdminReports() {
         }));
       }
       case "hours": {
-        const res = await internService.list({ page: 1, pageSize: 1000 });
-        return res.data.map((r) => ({
+        const [internsRes, attRes] = await Promise.all([
+          internService.list({ page: 1, pageSize: 1000 }),
+          attendanceService.adminList({ page: 1, pageSize: 5000 }),
+        ]);
+        const renderedByIntern = (attRes.data ?? []).reduce((acc, r) => {
+          if (r.intern?.full_name) {
+            acc[r.intern.full_name] =
+              (acc[r.intern.full_name] ?? 0) + (Number(r.total_hours) || 0);
+          }
+          return acc;
+        }, {});
+        return internsRes.data.map((r) => ({
           Name: r.full_name,
           RequiredHours: r.required_hours,
+          RenderedHours: Math.round((renderedByIntern[r.full_name] ?? 0) * 100) / 100,
         }));
       }
       default:

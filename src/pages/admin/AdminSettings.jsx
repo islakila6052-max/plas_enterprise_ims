@@ -37,7 +37,6 @@ export default function AdminSettings() {
   } = useForm();
 
   useEffect(() => {
-    if (!isConfigured) return setLoading(false);
     departmentService
       .list()
       .then(setDepartments)

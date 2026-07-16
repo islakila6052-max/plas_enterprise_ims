@@ -9,14 +9,14 @@ import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { attendanceService } from "@/services/attendanceService";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate, formatTime, formatHours } from "@/utils/format";
 
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
 export default function AdminAttendance() {
-  const { isConfigured } = useAuth();
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -25,7 +25,6 @@ export default function AdminAttendance() {
   const [status, setStatus] = useState("");
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await attendanceService.adminList({ date, page });
@@ -38,7 +37,7 @@ export default function AdminAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, date, status, page]);
+  }, [date, status, page]);
 
   useEffect(() => {
     load();

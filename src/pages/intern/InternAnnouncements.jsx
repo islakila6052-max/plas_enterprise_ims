@@ -5,19 +5,18 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import { announcementService } from "@/services/announcementService";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
 import { formatDateTime, timeAgo } from "@/utils/format";
 
 const catLabel = Object.fromEntries(ANNOUNCEMENT_CATEGORIES.map((c) => [c.value, c.label]));
 
 export default function InternAnnouncements() {
-  const { isConfigured } = useAuth();
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await announcementService.list({});
@@ -27,7 +26,7 @@ export default function InternAnnouncements() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured]);
+  }, []);
 
   useEffect(() => {
     load();

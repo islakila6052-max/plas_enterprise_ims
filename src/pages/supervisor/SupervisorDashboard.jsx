@@ -22,12 +22,11 @@ export default function SupervisorDashboard() {
 
   useEffect(() => {
     let active = true;
-    const supervisorId = supervisorId;
     dashboardService.supervisorStats(supervisorId).then((s) => active && setStats(s));
     return () => {
       active = false;
     };
-  }, [profile, user]);
+  }, [profile, supervisorId]);
 
   if (!stats) return <Spinner label="Loading dashboard…" />;
 

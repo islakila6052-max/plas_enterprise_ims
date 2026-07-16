@@ -16,14 +16,13 @@ import { formatDate } from "@/utils/format";
 const TONE = { active: "green", completed: "blue", archived: "gray" };
 
 export default function SupervisorInterns() {
-  const { isConfigured, profile, supervisorId } = useAuth();
+  const { profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [detail, setDetail] = useState(null);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await internService.list({ page: 1, pageSize: 100, supervisorId: supervisorId });
@@ -38,7 +37,7 @@ export default function SupervisorInterns() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, profile, user, search]);
+  }, [supervisorId, search]);
 
   useEffect(() => {
     load();

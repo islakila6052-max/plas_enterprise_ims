@@ -16,7 +16,6 @@ import Avatar from "@/components/ui/Avatar";
 import { internService } from "@/services/internService";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
-import { useAuth } from "@/contexts/AuthContext";
 import { INTERN_STATUS, INTERN_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
@@ -39,7 +38,6 @@ const EMPTY = {
 };
 
 export default function InternManagement() {
-  const { isConfigured } = useAuth();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -66,10 +64,6 @@ export default function InternManagement() {
   } = useForm({ defaultValues: EMPTY });
 
   const load = useCallback(async () => {
-    if (!isConfigured) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const res = await internService.list({ search, departmentId, status, page });
@@ -87,10 +81,9 @@ export default function InternManagement() {
   }, [load]);
 
   useEffect(() => {
-    if (!isConfigured) return;
     departmentService.list().then(setDepartments).catch(() => {});
     supervisorService.list().then(setSupervisors).catch(() => {});
-  }, [isConfigured]);
+  }, []);
 
   function openCreate() {
     setEditing(null);

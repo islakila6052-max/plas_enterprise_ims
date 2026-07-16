@@ -9,7 +9,7 @@ import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
@@ -28,7 +28,7 @@ function fileIcon(type) {
 }
 
 export default function AdminDocuments() {
-  const { isConfigured } = useAuth();
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -36,7 +36,6 @@ export default function AdminDocuments() {
   const [preview, setPreview] = useState(null);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await documentService.list({ page });
@@ -47,7 +46,7 @@ export default function AdminDocuments() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, page]);
+  }, [page]);
 
   useEffect(() => {
     load();

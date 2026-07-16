@@ -14,14 +14,13 @@ import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
 export default function InternAttendance() {
-  const { isConfigured, profile, internId } = useAuth();
+  const { profile, internId } = useAuth();
   const [open, setOpen] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const [openRec, res] = await Promise.all([
@@ -35,7 +34,7 @@ export default function InternAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, internId]);
+  }, [internId]);
 
   useEffect(() => {
     load();

@@ -10,14 +10,14 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { journalService } from "@/services/journalService";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function AdminJournals() {
-  const { isConfigured, user } = useAuth();
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -30,7 +30,6 @@ export default function AdminJournals() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await journalService.list({ page });
@@ -47,7 +46,7 @@ export default function AdminJournals() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, status, search, page]);
+  }, [status, search, page]);
 
   useEffect(() => {
     load();

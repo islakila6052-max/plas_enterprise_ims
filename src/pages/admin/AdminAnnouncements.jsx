@@ -15,7 +15,7 @@ import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
 import { formatDateTime, timeAgo } from "@/utils/format";
 
 export default function AdminAnnouncements() {
-  const { isConfigured, user } = useAuth();
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,7 +31,6 @@ export default function AdminAnnouncements() {
   } = useForm({ defaultValues: { title: "", body: "", category: "company_news" } });
 
   const load = useCallback(async () => {
-    if (!isConfigured) return setLoading(false);
     setLoading(true);
     try {
       const res = await announcementService.list({});
@@ -41,7 +40,7 @@ export default function AdminAnnouncements() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured]);
+  }, []);
 
   useEffect(() => {
     load();
