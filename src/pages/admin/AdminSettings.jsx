@@ -8,8 +8,10 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { departmentService } from "@/services/departmentService";
 import { settingsService } from "@/services/settingsService";
+import { resetDemoDB } from "@/lib/mockBackend";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminSettings() {
@@ -19,6 +21,7 @@ export default function AdminSettings() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const {
     register,
@@ -81,7 +84,6 @@ export default function AdminSettings() {
   }
 
   async function removeDept(d) {
-    if (!confirm(`Delete department "${d.name}"?`)) return;
     try {
       await departmentService.remove(d.id);
       setDepartments((prev) => prev.filter((x) => x.id !== d.id));
@@ -104,81 +106,85 @@ export default function AdminSettings() {
     }
   }
 
+  function handleResetDemo() {
+    resetDemoDB();
+    toast.success("Demo data reset. Reloading…");
+    setTimeout(() => window.location.reload(), 800);
+  }
+
   if (loading) return <Spinner label="Loading settings…" />;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Settings"
-        description="Manage departments and company information."
-      />
+      <PageHeader title="Settings" description="Manage departments and company information." />
 
       <Card>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-brand-100 px-5 py-4">
           <h3 className="text-base font-semibold text-slate-800">Departments</h3>
           <Button onClick={openCreate}>+ Add Department</Button>
         </div>
         <Table
           columns={[
             { key: "name", header: "Name" },
-            {
-              key: "description",
-              header: "Description",
-              render: (d) => d.description || "—",
-            },
+            { key: "description", header: "Description", render: (d) => d.description || "—" },
             {
               key: "actions",
               header: "Actions",
               render: (d) => (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => openEdit(d)}>
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => removeDept(d)}>
-                    Delete
-                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => openEdit(d)}>Edit</Button>
+                  <Button size="sm" variant="danger" onClick={() => removeDept(d)}>Delete</Button>
                 </div>
               ),
             },
           ]}
           rows={departments}
           rowKey={(d) => d.id}
-          empty={
-            <div className="p-4 text-center text-sm text-slate-500">
-              No departments yet.
-            </div>
-          }
+          empty={<div className="p-4 text-center text-sm text-slate-500">No departments yet.</div>}
         />
       </Card>
 
       <Card>
-        <div className="border-b border-slate-100 px-5 py-4">
-          <h3 className="text-base font-semibold text-slate-800">
-            Company Information
-          </h3>
+        <div className="border-b border-brand-100 px-5 py-4">
+          <h3 className="text-base font-semibold text-slate-800">Company Information</h3>
         </div>
-        <form
-          onSubmit={submitSettings(onSettingsSubmit)}
-          className="space-y-4 p-5">
+        <form onSubmit={submitSettings(onSettingsSubmit)} className="space-y-4 p-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Company name"
-              {...regSettings("company_name", { required: "Required" })}
-            />
-            <Input
-              label="Internship duration"
-              placeholder="e.g. 6 months"
-              {...regSettings("internship_duration")}
-            />
-            <Input
-              label="Required hours"
-              type="number"
-              {...regSettings("required_hours", { required: "Required" })}
-            />
+            <Input label="Company name" {...regSettings("company_name", { required: "Required" })} />
+            <Input label="Internship duration" placeholder="e.g. 6 months" {...regSettings("internship_duration")} />
+            <Input label="Required hours" type="number" {...regSettings("required_hours", { required: "Required" })} />
           </div>
           <Button type="submit">Save Settings</Button>
         </form>
       </Card>
+
+      <Card>
+        <div className="border-b border-brand-100 px-5 py-4">
+          <h3 className="text-base font-semibold text-slate-800">Theme</h3>
+          <p className="mt-0.5 text-sm text-slate-500">The system uses a green palette by default.</p>
+        </div>
+        <div className="flex items-center gap-3 p-5">
+          <span className="h-8 w-8 rounded-lg bg-brand-700" />
+          <span className="h-8 w-8 rounded-lg bg-brand-600" />
+          <span className="h-8 w-8 rounded-lg bg-brand-500" />
+          <span className="h-8 w-8 rounded-lg bg-brand-100" />
+          <span className="text-sm text-slate-500">Primary #15803D · Secondary #16A34A · Accent #22C55E</span>
+        </div>
+      </Card>
+
+      {!isConfigured && (
+        <Card>
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Demo Data</h3>
+          </div>
+          <div className="flex items-center justify-between p-5">
+            <p className="text-sm text-slate-500">
+              Running in demo mode with sample data. Reset to restore the original seed data.
+            </p>
+            <Button variant="secondary" onClick={() => setConfirmReset(true)}>Reset Demo Data</Button>
+          </div>
+        </Card>
+      )}
 
       <Modal
         open={modalOpen}
@@ -186,23 +192,25 @@ export default function AdminSettings() {
         title={editing ? "Edit Department" : "Add Department"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit(onDeptSubmit)} loading={saving}>
-              Save
-            </Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit(onDeptSubmit)} loading={saving}>Save</Button>
           </>
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onDeptSubmit)}>
-          <Input
-            label="Name"
-            error={errors.name?.message}
-            {...register("name", { required: "Name is required" })}
-          />
+          <Input label="Name" error={errors.name?.message} {...register("name", { required: "Name is required" })} />
           <Textarea label="Description" {...register("description")} />
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        onConfirm={handleResetDemo}
+        title="Reset demo data?"
+        message="This restores the original sample data and clears any changes you made in this session."
+        confirmLabel="Reset"
+        tone="primary"
+      />
     </div>
   );
 }

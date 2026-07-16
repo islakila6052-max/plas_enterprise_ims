@@ -133,6 +133,7 @@ create table if not exists public.documents (
   label text,
   file_path text,
   file_url text,
+  file_name text,
   status document_status not null default 'pending',
   created_at timestamptz not null default now ()
 );
@@ -172,8 +173,11 @@ create table if not exists public.announcements (
   body text not null,
   category text not null default 'company_news',
   published_by uuid references public.profiles (id) on delete set null,
+  pinned boolean not null default false,
   created_at timestamptz not null default now ()
 );
+
+create index if not exists announcements_pinned_idx on public.announcements (pinned);
 
 
 -- ---------------------------------------------------------------------------

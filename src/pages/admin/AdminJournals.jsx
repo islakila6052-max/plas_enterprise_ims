@@ -8,10 +8,10 @@ import Spinner from "@/components/ui/Spinner";
 import Pagination from "@/components/ui/Pagination";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
-import { Textarea } from "@/components/ui/Input";
+import { Input, Select, Textarea } from "@/components/ui/Input";
 import { journalService } from "@/services/journalService";
 import { useAuth } from "@/contexts/AuthContext";
-import { JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
+import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
@@ -22,6 +22,9 @@ export default function AdminJournals() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+
   const [reviewing, setReviewing] = useState(null);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
@@ -31,14 +34,20 @@ export default function AdminJournals() {
     setLoading(true);
     try {
       const res = await journalService.list({ page });
-      setRows(res.data);
+      let data = res.data;
+      if (status) data = data.filter((r) => r.status === status);
+      if (search) {
+        const q = search.toLowerCase();
+        data = data.filter((r) => (r.intern?.full_name ?? "").toLowerCase().includes(q));
+      }
+      setRows(data);
       setTotal(res.count);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, page]);
+  }, [isConfigured, status, search, page]);
 
   useEffect(() => {
     load();
@@ -49,12 +58,12 @@ export default function AdminJournals() {
     setComment(row.supervisor_comment ?? "");
   }
 
-  async function decide(status) {
+  async function decide(decision) {
     if (!reviewing) return;
     setSaving(true);
     try {
-      await journalService.review(reviewing.id, status, user?.id, comment);
-      toast.success(`Journal ${status}.`);
+      await journalService.review(reviewing.id, decision, user?.id, comment);
+      toast.success(`Journal ${decision}.`);
       setReviewing(null);
       load();
     } catch (err) {
@@ -76,34 +85,18 @@ export default function AdminJournals() {
       ),
     },
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-    {
-      key: "activities",
-      header: "Activities",
-      render: (r) => (
-        <p className="max-w-xs truncate text-slate-600">{r.activities}</p>
-      ),
-    },
-    {
-      key: "hours_worked",
-      header: "Hours",
-      render: (r) => r.hours_worked ?? "—",
-    },
+    { key: "activities", header: "Activities", render: (r) => <p className="max-w-xs truncate text-slate-600">{r.activities}</p> },
+    { key: "hours_worked", header: "Hours", render: (r) => r.hours_worked ?? "—" },
     {
       key: "status",
       header: "Status",
-      render: (r) => (
-        <Badge tone={TONE[r.status] ?? "gray"}>
-          {JOURNAL_STATUS_LABELS[r.status] ?? r.status}
-        </Badge>
-      ),
+      render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{JOURNAL_STATUS_LABELS[r.status] ?? r.status}</Badge>,
     },
     {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <button
-          className="text-sm font-medium text-brand-600 hover:text-brand-700"
-          onClick={() => openReview(r)}>
+        <button className="text-sm font-medium text-brand-700 hover:text-brand-800" onClick={() => openReview(r)}>
           Review
         </button>
       ),
@@ -112,11 +105,30 @@ export default function AdminJournals() {
 
   return (
     <div>
-      <PageHeader
-        title="Daily Journals"
-        description="Review internship daily journals."
-      />
+      <PageHeader title="Daily Journals" description="Review internship daily journals." />
       <Card>
+        <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2">
+          <Input
+            placeholder="Search intern name…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <Select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-xs">
+            <option value="">All Statuses</option>
+            {Object.values(JOURNAL_STATUS).map((s) => (
+              <option key={s} value={s}>{JOURNAL_STATUS_LABELS[s]}</option>
+            ))}
+          </Select>
+        </div>
         {loading ? (
           <Spinner label="Loading journals…" />
         ) : (
@@ -124,20 +136,11 @@ export default function AdminJournals() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={
-              <div className="p-4 text-center text-sm text-slate-500">
-                No journals submitted.
-              </div>
-            }
+            empty={<div className="p-4 text-center text-sm text-slate-500">No journals submitted.</div>}
           />
         )}
         {rows.length > 0 && (
-          <Pagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            onPageChange={setPage}
-          />
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         )}
       </Card>
 
@@ -147,47 +150,27 @@ export default function AdminJournals() {
         title="Review Journal"
         footer={
           <>
-            <Button variant="danger" onClick={() => decide("rejected")} loading={saving}>
-              Reject
-            </Button>
-            <Button onClick={() => decide("approved")} loading={saving}>
-              Approve
-            </Button>
+            <Button variant="danger" onClick={() => decide("rejected")} loading={saving}>Reject</Button>
+            <Button onClick={() => decide("approved")} loading={saving}>Approve</Button>
           </>
         }>
         {reviewing && (
           <div className="space-y-3 text-sm">
-            <p>
-              <span className="text-slate-500">Intern: </span>
-              {reviewing.intern?.full_name}
-            </p>
-            <p>
-              <span className="text-slate-500">Date: </span>
-              {formatDate(reviewing.date)}
-            </p>
+            <p><span className="text-slate-500">Intern: </span>{reviewing.intern?.full_name}</p>
+            <p><span className="text-slate-500">Date: </span>{formatDate(reviewing.date)}</p>
             <div>
               <p className="mb-1 font-medium text-slate-700">Activities</p>
-              <p className="whitespace-pre-wrap text-slate-600">
-                {reviewing.activities}
-              </p>
+              <p className="whitespace-pre-wrap text-slate-600">{reviewing.activities}</p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Challenges</p>
-              <p className="whitespace-pre-wrap text-slate-600">
-                {reviewing.challenges || "—"}
-              </p>
+              <p className="whitespace-pre-wrap text-slate-600">{reviewing.challenges || "—"}</p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Learnings</p>
-              <p className="whitespace-pre-wrap text-slate-600">
-                {reviewing.learnings || "—"}
-              </p>
+              <p className="whitespace-pre-wrap text-slate-600">{reviewing.learnings || "—"}</p>
             </div>
-            <Textarea
-              label="Supervisor comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
+            <Textarea label="Supervisor comment" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
         )}
       </Modal>

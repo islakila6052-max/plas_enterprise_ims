@@ -7,13 +7,8 @@ import Spinner from "@/components/ui/Spinner";
  * Redirects to /login (preserving the attempted location) when unauthenticated.
  */
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, role, loading, isConfigured } = useAuth();
+  const { isAuthenticated, role, loading } = useAuth();
   const location = useLocation();
-
-  if (!isConfigured) {
-    // Allow the app to render (with a banner) even without Supabase configured.
-    return children;
-  }
 
   if (loading) {
     return (

@@ -9,7 +9,12 @@ const AuthContext = createContext(null);
 /**
  * Provides authentication state, the current user's profile, and role helpers.
  *
- * - `user`        : Supabase auth user (or null)
+ * Works in two modes:
+ * - Supabase mode: real auth + profile lookup.
+ * - Demo mode (no Supabase env): a localStorage session + in-memory mock backend
+ *   so the prototype is fully functional without a backend.
+ *
+ * - `user`        : auth user (or null)
  * - `profile`     : linked profile row (or null)
  * - `role`        : profile.role (or null)
  * - `loading`     : initial bootstrap in progress
@@ -23,13 +28,15 @@ export function AuthProvider({ children }) {
   async function loadProfile(authUser) {
     if (!authUser) {
       setProfile(null);
-      return;
+      return null;
     }
     try {
       const p = await profileService.getByUserId(authUser.id);
       setProfile(p);
+      return p;
     } catch {
       setProfile(null);
+      return null;
     }
   }
 
@@ -37,10 +44,6 @@ export function AuthProvider({ children }) {
     let active = true;
 
     async function bootstrap() {
-      if (!isSupabaseConfigured) {
-        setLoading(false);
-        return;
-      }
       const current = await authService.getCurrentUser();
       if (!active) return;
       setUser(current ?? null);
@@ -76,9 +79,14 @@ export function AuthProvider({ children }) {
       isAdmin: role === ROLES.ADMIN || role === ROLES.HR_STAFF,
       isSupervisor: role === ROLES.SUPERVISOR,
       isIntern: role === ROLES.INTERN,
+      // Returns the freshly loaded profile so callers can read role immediately.
       refreshProfile: () => loadProfile(user),
       signIn: authService.signIn,
-      signOut: authService.signOut,
+      signOut: async () => {
+        await authService.signOut();
+        setUser(null);
+        setProfile(null);
+      },
     };
   }, [user, profile, loading]);
 

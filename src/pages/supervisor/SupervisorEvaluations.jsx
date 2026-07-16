@@ -12,11 +12,10 @@ import Modal from "@/components/ui/Modal";
 import { internService } from "@/services/internService";
 import { evaluationService } from "@/services/evaluationService";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  EVALUATION_CRITERIA,
-  EVALUATION_RECOMMENDATIONS,
-} from "@/lib/constants";
+import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+
+const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
 export default function SupervisorEvaluations() {
   const { isConfigured, profile, user } = useAuth();
@@ -25,6 +24,7 @@ export default function SupervisorEvaluations() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [detail, setDetail] = useState(null);
 
   const {
     register,
@@ -88,19 +88,17 @@ export default function SupervisorEvaluations() {
     {
       key: "intern",
       header: "Intern",
-      render: (r) => r.intern?.full_name ?? "—",
+      render: (r) => (
+        <button onClick={() => setDetail(r)} className="text-left font-medium text-slate-800 hover:text-brand-700">
+          {r.intern?.full_name ?? "—"}
+        </button>
+      ),
     },
-    {
-      key: "overall",
-      header: "Overall",
-      render: (r) => r.overall_rating ?? "—",
-    },
+    { key: "overall", header: "Overall", render: (r) => `${r.overall_rating ?? "—"}/5` },
     {
       key: "rec",
       header: "Recommendation",
-      render: (r) => (
-        <Badge tone="brand">{r.final_recommendation ?? "—"}</Badge>
-      ),
+      render: (r) => <Badge tone="brand">{REC_LABEL[r.final_recommendation] ?? r.final_recommendation ?? "—"}</Badge>,
     },
     { key: "date", header: "Date", render: (r) => formatDate(r.created_at) },
   ];
@@ -120,11 +118,7 @@ export default function SupervisorEvaluations() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={
-              <div className="p-4 text-center text-sm text-slate-500">
-                No evaluations yet.
-              </div>
-            }
+            empty={<div className="p-4 text-center text-sm text-slate-500">No evaluations yet.</div>}
           />
         )}
       </Card>
@@ -136,53 +130,57 @@ export default function SupervisorEvaluations() {
         title="New Evaluation"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit(onSubmit)} loading={saving}>
-              Submit
-            </Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit(onSubmit)} loading={saving}>Submit</Button>
           </>
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          <Select
-            label="Intern"
-            {...register("intern_id", { required: "Select an intern" })}>
+          <Select label="Intern" {...register("intern_id", { required: "Select an intern" })}>
             <option value="">Select intern…</option>
             {interns.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.full_name}
-              </option>
+              <option key={i.id} value={i.id}>{i.full_name}</option>
             ))}
           </Select>
           {EVALUATION_CRITERIA.map((c) => (
-            <Input
-              key={c.key}
-              label={`${c.label} (1-5)`}
-              type="number"
-              min={1}
-              max={5}
-              {...register(c.key, { required: true })}
-            />
+            <Input key={c.key} label={`${c.label} (1-5)`} type="number" min={1} max={5} {...register(c.key, { required: true })} />
           ))}
-          <Input
-            label="Overall rating (1-5)"
-            type="number"
-            min={1}
-            max={5}
-            {...register("overall_rating", { required: true })}
-          />
-          <Select
-            label="Final recommendation"
-            {...register("final_recommendation", { required: true })}>
+          <Input label="Overall rating (1-5)" type="number" min={1} max={5} {...register("overall_rating", { required: true })} />
+          <Select label="Final recommendation" {...register("final_recommendation", { required: true })}>
             {EVALUATION_RECOMMENDATIONS.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
+              <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </Select>
           <Textarea label="Comments" {...register("comments")} />
         </form>
+      </Modal>
+
+      <Modal open={Boolean(detail)} onClose={() => setDetail(null)} title="Evaluation Details" size="md">
+        {detail && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-slate-800">{detail.intern?.full_name}</p>
+              <Badge tone="brand">{REC_LABEL[detail.final_recommendation] ?? detail.final_recommendation}</Badge>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {EVALUATION_CRITERIA.map((c) => (
+                <div key={c.key} className="flex items-center justify-between rounded-lg bg-brand-50/50 px-3 py-2 text-sm">
+                  <span className="text-slate-600">{c.label}</span>
+                  <span className="font-semibold text-slate-800">{detail[c.key] ?? "—"}/5</span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm">
+              <span className="text-slate-600">Overall: </span>
+              <span className="font-semibold text-brand-700">{detail.overall_rating ?? "—"}/5</span>
+            </div>
+            {detail.comments && (
+              <div>
+                <p className="mb-1 text-sm font-medium text-slate-700">Comments</p>
+                <p className="whitespace-pre-wrap text-sm text-slate-600">{detail.comments}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );

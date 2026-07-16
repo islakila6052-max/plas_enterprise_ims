@@ -4,9 +4,10 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/authService";
 import Button from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, Select } from "@/components/ui/Input";
 import SetupBanner from "@/components/ui/SetupBanner";
-import { ROLES } from "@/lib/constants";
+import { ROLES, ROLE_LABELS } from "@/lib/constants";
+import { DEMO_ACCOUNTS } from "@/lib/sampleData";
 
 const ROLE_HOME = {
   [ROLES.ADMIN]: "/admin",
@@ -25,8 +26,9 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
-  } = useForm({ defaultValues: { email: "", password: "" } });
+  } = useForm({ defaultValues: { email: "", password: "", role: "auto" } });
 
   const from = location.state?.from?.pathname;
 
@@ -35,10 +37,9 @@ export default function Login() {
     setSubmitting(true);
     try {
       await authService.signIn(values.email, values.password);
-      // Wait for the auth listener to resolve the profile.
-      await new Promise((r) => setTimeout(r, 400));
-      await refreshProfile();
-      const target = from || ROLE_HOME[role] || "/";
+      // Wait for the auth listener to resolve the profile, then read its role.
+      const loaded = await refreshProfile();
+      const target = from || ROLE_HOME[loaded?.role] || "/";
       navigate(target, { replace: true });
     } catch (err) {
       setServerError(err.message);
@@ -47,13 +48,20 @@ export default function Login() {
     }
   }
 
+  function fillDemo(account) {
+    setValue("email", account.email);
+    setValue("password", account.password);
+    setValue("role", "auto");
+    setServerError("");
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-brand-50 via-canvas to-brand-100">
       {!isConfigured && <SetupBanner />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-lg font-black text-white">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-700 text-xl font-black text-white shadow-lg shadow-brand-700/30">
               IMS
             </div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -64,7 +72,7 @@ export default function Login() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="surface space-y-4 p-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="surface animate-fade-up space-y-4 p-6">
             {serverError && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {serverError}
@@ -92,10 +100,18 @@ export default function Login() {
               error={errors.password?.message}
               {...register("password", { required: "Password is required" })}
             />
+            <Select label="Role" {...register("role")}>
+              <option value="auto">Auto-detect from account</option>
+              {Object.values(ROLES).map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </Select>
             <div className="flex justify-end">
               <Link
                 to="/forgot-password"
-                className="text-sm font-medium text-brand-600 hover:text-brand-700">
+                className="text-sm font-medium text-brand-700 hover:text-brand-800">
                 Forgot password?
               </Link>
             </div>
@@ -103,6 +119,30 @@ export default function Login() {
               Sign In
             </Button>
           </form>
+
+          <div className="surface mt-4 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Demo accounts
+            </p>
+            <div className="grid gap-2">
+              {DEMO_ACCOUNTS.map((a) => (
+                <button
+                  key={a.email}
+                  type="button"
+                  onClick={() => fillDemo(a)}
+                  className="flex items-center justify-between rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50">
+                  <span>
+                    <span className="font-medium text-slate-700">{a.label}</span>
+                    <span className="block text-xs text-slate-400">{a.email}</span>
+                  </span>
+                  <span className="text-xs font-medium text-brand-700">Use</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-center text-xs text-slate-400">
+              Password for all demo accounts: <span className="font-medium text-slate-500">password123</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

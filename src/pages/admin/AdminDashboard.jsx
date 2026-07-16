@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
+import { BarChart, DonutChart } from "@/components/ui/Chart";
 import { dashboardService } from "@/services/dashboardService";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatNumber } from "@/utils/format";
@@ -39,9 +40,20 @@ export default function AdminDashboard() {
     { label: "Attendance Today", value: formatNumber(stats.attendanceToday), icon: ICONS.attendance, tone: "red" },
   ];
 
+  const internStatusData = [
+    { label: "Active", value: stats.activeInterns },
+    { label: "Completed", value: stats.completedInternships },
+    { label: "Pending Evals", value: stats.pendingEvaluations },
+  ];
+
+  const attendanceData = [
+    { label: "Present", value: stats.attendanceToday },
+    { label: "Pending", value: Math.max(0, stats.totalInterns - stats.attendanceToday) },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
+      <div className="animate-fade-up">
         <h2 className="text-xl font-bold text-slate-800">
           Welcome back, {profile?.full_name?.split(" ")[0] ?? "Admin"}
         </h2>
@@ -56,44 +68,66 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="animate-fade-up lg:col-span-2">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Intern Status</h3>
+            <p className="mt-0.5 text-sm text-slate-500">Breakdown of current interns.</p>
+          </div>
+          <div className="p-5">
+            <DonutChart
+              data={internStatusData}
+              centerValue={stats.totalInterns}
+              centerLabel="Total interns"
+            />
+          </div>
+        </Card>
+
+        <Card className="animate-fade-up">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Attendance Today</h3>
+            <p className="mt-0.5 text-sm text-slate-500">Checked-in vs not yet.</p>
+          </div>
+          <div className="p-5">
+            <BarChart data={attendanceData} />
+          </div>
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">
-              Quick actions
-            </h3>
+        <Card className="animate-fade-up">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Quick actions</h3>
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Link
               to="/admin/interns"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               + Add / Manage Interns
             </Link>
             <Link
               to="/admin/attendance"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               Review Attendance
             </Link>
             <Link
               to="/admin/reports"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               Generate Reports
             </Link>
             <Link
               to="/admin/settings"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               System Settings
             </Link>
           </div>
         </Card>
 
-        <Card>
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">
-              Program summary
-            </h3>
+        <Card className="animate-fade-up">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Program summary</h3>
           </div>
-          <dl className="divide-y divide-slate-100 p-5 text-sm">
+          <dl className="divide-y divide-brand-50 p-5 text-sm">
             <div className="flex justify-between py-2">
               <dt className="text-slate-500">Active vs Completed</dt>
               <dd className="font-medium text-slate-700">
@@ -102,15 +136,11 @@ export default function AdminDashboard() {
             </div>
             <div className="flex justify-between py-2">
               <dt className="text-slate-500">Evaluations awaiting review</dt>
-              <dd className="font-medium text-slate-700">
-                {stats.pendingEvaluations}
-              </dd>
+              <dd className="font-medium text-slate-700">{stats.pendingEvaluations}</dd>
             </div>
             <div className="flex justify-between py-2">
               <dt className="text-slate-500">Checked in today</dt>
-              <dd className="font-medium text-slate-700">
-                {stats.attendanceToday}
-              </dd>
+              <dd className="font-medium text-slate-700">{stats.attendanceToday}</dd>
             </div>
           </dl>
         </Card>

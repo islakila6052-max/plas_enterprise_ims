@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
+import { BarChart } from "@/components/ui/Chart";
 import { dashboardService } from "@/services/dashboardService";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatHours, formatNumber } from "@/utils/format";
@@ -30,6 +31,10 @@ export default function InternDashboard() {
 
   if (!stats) return <Spinner label="Loading dashboard…" />;
 
+  const progress = stats.requiredHours
+    ? Math.min(100, (stats.hoursRendered / stats.requiredHours) * 100)
+    : 0;
+
   const cards = [
     { label: "Hours Rendered", value: formatHours(stats.hoursRendered), icon: ICONS.hours, tone: "brand" },
     { label: "Required Hours", value: formatHours(stats.requiredHours), icon: ICONS.required, tone: "blue" },
@@ -38,9 +43,14 @@ export default function InternDashboard() {
     { label: "Latest Announcements", value: formatNumber(stats.latestAnnouncements), icon: ICONS.announce, tone: "red" },
   ];
 
+  const progressData = [
+    { label: "Rendered", value: Math.round(stats.hoursRendered) },
+    { label: "Remaining", value: Math.round(stats.remainingHours) },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
+      <div className="animate-fade-up">
         <h2 className="text-xl font-bold text-slate-800">
           Hi, {profile?.full_name?.split(" ")[0] ?? "Intern"} 👋
         </h2>
@@ -56,62 +66,53 @@ export default function InternDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">
-              Progress to completion
-            </h3>
+        <Card className="animate-fade-up">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Progress to completion</h3>
           </div>
           <div className="p-5">
             <div className="mb-2 flex justify-between text-sm text-slate-500">
               <span>{formatHours(stats.hoursRendered)}</span>
               <span>{formatHours(stats.requiredHours)}</span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-brand-50">
               <div
                 className="h-full rounded-full bg-brand-500 transition-all"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    stats.requiredHours
-                      ? (stats.hoursRendered / stats.requiredHours) * 100
-                      : 0,
-                  )}%`,
-                }}
+                style={{ width: `${progress}%` }}
               />
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              {formatHours(stats.remainingHours)} remaining to finish your
-              internship.
+              {formatHours(stats.remainingHours)} remaining to finish your internship.
             </p>
+            <div className="mt-4">
+              <BarChart data={progressData} />
+            </div>
           </div>
         </Card>
 
-        <Card>
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">
-              Quick links
-            </h3>
+        <Card className="animate-fade-up">
+          <div className="border-b border-brand-100 px-5 py-4">
+            <h3 className="text-base font-semibold text-slate-800">Quick links</h3>
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Link
               to="/intern/attendance"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               Time In / Out
             </Link>
             <Link
               to="/intern/journal"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               Submit Journal
             </Link>
             <Link
               to="/intern/documents"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               Upload Documents
             </Link>
             <Link
               to="/intern/announcements"
-              className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
+              className="rounded-lg border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50">
               View Announcements
             </Link>
           </div>

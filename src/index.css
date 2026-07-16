@@ -1,15 +1,11 @@
+/* Entry styles are provided by src/styles/global.css (imported in main.jsx).
+   This file is kept in sync with the light green theme for consistency. */
 @import "tailwindcss";
 
 :root {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  color: #e2e8f0;
-  background: #020617;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f7fcf8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

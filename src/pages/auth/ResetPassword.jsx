@@ -36,7 +36,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-brand-50 via-canvas to-brand-100">
       {!isConfigured && <SetupBanner />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md">
