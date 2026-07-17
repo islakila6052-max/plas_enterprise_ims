@@ -31,16 +31,34 @@ export const supervisorService = {
   },
 
   // NEW: Create supervisor
+  // In supervisorService.js
   async create(payload) {
     if (supabase) {
+      // First create the supervisor
       const { data, error } = await supabase
         .from("supervisors")
-        .insert(payload)
+        .insert({
+          profile_id: payload.profile_id,
+          department_id: payload.department_id,
+          full_name: payload.full_name,
+          email: payload.email,
+          created_by: payload.created_by,
+        })
         .select(
           "*, profile:profiles(full_name, email), department:departments(name)",
         )
         .single();
+
       if (error) throw new Error(error.message);
+
+      // Then manually update the profile with supervisor_id (in case trigger didn't fire)
+      if (data?.profile_id) {
+        await supabase
+          .from("profiles")
+          .update({ supervisor_id: data.id })
+          .eq("id", data.profile_id);
+      }
+
       return data;
     }
     return mockBackend.createSupervisor?.(payload) || null;
