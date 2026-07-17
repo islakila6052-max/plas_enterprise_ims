@@ -75,7 +75,7 @@ export default function InternManagement() {
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, search, departmentId, status, page]);
+  }, [search, departmentId, status, page]);
 
   useEffect(() => {
     load();
