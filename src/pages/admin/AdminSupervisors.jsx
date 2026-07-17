@@ -38,14 +38,25 @@ export default function AdminSupervisors() {
       department_id: "",
     },
   });
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [supData, deptData] = await Promise.all([
-        supervisorService.list(),
-        departmentService.list(),
-      ]);
+      // Load separately so one failure doesn't block the other.
+      let supData = [];
+      let deptData = [];
+
+      try {
+        supData = await supervisorService.list();
+      } catch (err) {
+        toast.error("Failed to load supervisors: " + err.message);
+      }
+
+      try {
+        deptData = await departmentService.list();
+      } catch (err) {
+        toast.error("Failed to load departments: " + err.message);
+      }
+
       setSupervisors(supData);
       setDepartments(deptData);
     } catch (err) {

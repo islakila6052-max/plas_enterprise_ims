@@ -1,3 +1,4 @@
+// supervisorService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 
@@ -7,34 +8,56 @@ export const supervisorService = {
       const { data, error } = await supabase
         .from("supervisors")
         .select(
-          "*, profile:profiles(full_name, email), department:departments(name)",
+          `
+          *,
+          profile:profile_id (
+            full_name,
+            email
+          ),
+          department:departments (
+            name
+          )
+        `,
         )
         .order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        throw new Error(error.message);
+      }
       return data ?? [];
     }
     return mockBackend.listSupervisors();
   },
 
-  // NEW: Fetch a single supervisor by id (with department joined)
   async getById(id) {
     if (supabase) {
       const { data, error } = await supabase
         .from("supervisors")
-        .select("*, department:departments(name)")
+        .select(
+          `
+          *,
+          profile:profile_id (
+            full_name,
+            email
+          ),
+          department:departments (
+            name
+          )
+        `,
+        )
         .eq("id", id)
         .single();
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        throw new Error(error.message);
+      }
       return data ?? null;
     }
     return mockBackend.getSupervisorById?.(id) ?? null;
   },
 
-  // NEW: Create supervisor
-  // In supervisorService.js
   async create(payload) {
     if (supabase) {
-      // First create the supervisor
       const { data, error } = await supabase
         .from("supervisors")
         .insert({
@@ -45,13 +68,24 @@ export const supervisorService = {
           created_by: payload.created_by,
         })
         .select(
-          "*, profile:profiles(full_name, email), department:departments(name)",
+          `
+          *,
+          profile:profile_id (
+            full_name,
+            email
+          ),
+          department:departments (
+            name
+          )
+        `,
         )
         .single();
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      // Then manually update the profile with supervisor_id (in case trigger didn't fire)
+      // Manually update profile with supervisor_id
       if (data?.profile_id) {
         await supabase
           .from("profiles")
@@ -64,29 +98,46 @@ export const supervisorService = {
     return mockBackend.createSupervisor?.(payload) || null;
   },
 
-  // NEW: Update supervisor
   async update(id, payload) {
     if (supabase) {
+      const updateData = {
+        department_id: payload.department_id,
+        full_name: payload.full_name,
+        email: payload.email,
+      };
+
       const { data, error } = await supabase
         .from("supervisors")
-        .update(payload)
+        .update(updateData)
         .eq("id", id)
         .select(
-          "*, profile:profiles(full_name, email), department:departments(name)",
+          `
+          *,
+          profile:profile_id (
+            full_name,
+            email
+          ),
+          department:departments (
+            name
+          )
+        `,
         )
         .single();
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        throw new Error(error.message);
+      }
 
       // Also update profile if full_name or email changed
       if (payload.full_name || payload.email) {
-        const updateData = {};
-        if (payload.full_name) updateData.full_name = payload.full_name;
-        if (payload.email) updateData.email = payload.email;
+        const profileUpdate = {};
+        if (payload.full_name) profileUpdate.full_name = payload.full_name;
+        if (payload.email) profileUpdate.email = payload.email;
 
-        if (data?.profile_id) {
+        if (data?.profile_id && Object.keys(profileUpdate).length > 0) {
           await supabase
             .from("profiles")
-            .update(updateData)
+            .update(profileUpdate)
             .eq("id", data.profile_id);
         }
       }
@@ -96,10 +147,9 @@ export const supervisorService = {
     return mockBackend.updateSupervisor?.(id, payload) || null;
   },
 
-  // NEW: Remove supervisor
   async remove(id) {
     if (supabase) {
-      // First get the profile_id to delete the auth user
+      // First get the profile_id
       const { data: supData, error: fetchError } = await supabase
         .from("supervisors")
         .select("profile_id")
@@ -116,8 +166,14 @@ export const supervisorService = {
 
       if (deleteError) throw new Error(deleteError.message);
 
-      // Note: Deleting the auth user would require admin API
-      // For now, just delete the supervisor record
+      // Update the profile to remove supervisor_id
+      if (supData?.profile_id) {
+        await supabase
+          .from("profiles")
+          .update({ supervisor_id: null })
+          .eq("id", supData.profile_id);
+      }
+
       return;
     }
     return mockBackend.removeSupervisor?.(id) || null;
