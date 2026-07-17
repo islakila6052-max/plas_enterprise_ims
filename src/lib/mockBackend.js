@@ -125,6 +125,9 @@ const mockBackend = {
     saveDB(db);
     return clone(row);
   },
+  async getSupervisorById(id) {
+    return db.supervisors.find((s) => s.id === id) ?? null;
+  },
   async updateSupervisor(id, payload) {
     const row = db.supervisors.find((s) => s.id === id);
     if (row) Object.assign(row, payload);

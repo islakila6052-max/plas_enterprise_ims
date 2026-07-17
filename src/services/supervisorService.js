@@ -27,7 +27,7 @@ export const supervisorService = {
       if (error) throw new Error(error.message);
       return data ?? null;
     }
-    return db.supervisors.find((s) => s.id === id) ?? null;
+    return mockBackend.getSupervisorById?.(id) ?? null;
   },
 
   // NEW: Create supervisor
