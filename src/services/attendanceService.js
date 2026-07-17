@@ -72,6 +72,7 @@ export const attendanceService = {
         .from("attendance")
         .select("*", { count: "exact" })
         .order("date", { ascending: false })
+        .order("time_in", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (internId) query = query.eq("intern_id", internId);
       if (date) query = query.eq("date", date);
@@ -88,6 +89,7 @@ export const attendanceService = {
         .from("attendance")
         .select("*, intern:interns(full_name, student_number)", { count: "exact" })
         .order("date", { ascending: false })
+        .order("time_in", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (date) query = query.eq("date", date);
       const { data, error, count } = await query;

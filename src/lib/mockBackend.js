@@ -256,7 +256,11 @@ const mockBackend = {
     let rows = clone(db.attendance);
     if (internId) rows = rows.filter((r) => r.intern_id === internId);
     if (date) rows = rows.filter((r) => r.date === date);
-    rows.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    rows.sort((a, b) => {
+      const byDate = (b.date || "").localeCompare(a.date || "");
+      if (byDate !== 0) return byDate;
+      return (b.time_in || "").localeCompare(a.time_in || "");
+    });
     const total = rows.length;
     const start = (page - 1) * pageSize;
     const data = rows.slice(start, start + pageSize).map((r) => ({
