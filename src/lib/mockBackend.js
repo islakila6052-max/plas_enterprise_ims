@@ -214,9 +214,10 @@ const mockBackend = {
   },
   async timeIn(internId, method = "manual") {
     const today = todayISO();
+    // Enforce one attendance record per day: reuse today's record if it exists.
     const existing = db.attendance.find((a) => a.intern_id === internId && a.date === today);
-    const now = new Date().toISOString();
     if (existing) {
+      const now = new Date().toISOString();
       existing.time_in = now;
       existing.time_out = null;
       existing.total_hours = 0;
@@ -229,7 +230,7 @@ const mockBackend = {
       id: uid("att"),
       intern_id: internId,
       date: today,
-      time_in: now,
+      time_in: new Date().toISOString(),
       time_out: null,
       total_hours: 0,
       method,

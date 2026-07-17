@@ -30,6 +30,15 @@ export const attendanceService = {
   async timeIn(internId, method = "manual") {
     if (supabase) {
       const today = new Date().toISOString().slice(0, 10);
+      // Enforce one attendance record per day: reuse today's record if it exists
+      // (open or already closed) instead of creating a duplicate.
+      const { data: existing } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("intern_id", internId)
+        .eq("date", today)
+        .maybeSingle();
+      if (existing) return existing;
       const { data, error } = await supabase
         .from("attendance")
         .insert({ intern_id: internId, date: today, time_in: new Date().toISOString(), method, status: "present" })

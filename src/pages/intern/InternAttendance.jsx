@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
@@ -41,7 +42,10 @@ export default function InternAttendance() {
     load();
   }, [load]);
 
-  async function timeIn() {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  async function confirmTimeIn() {
+    setConfirmOpen(false);
     setBusy(true);
     try {
       await attendanceService.timeIn(internId, "manual");
@@ -113,12 +117,23 @@ export default function InternAttendance() {
               Time Out
             </Button>
           ) : (
-            <Button onClick={timeIn} loading={busy}>
+            <Button onClick={() => setConfirmOpen(true)} loading={busy}>
               Time In
             </Button>
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={confirmTimeIn}
+        title="Time in for today?"
+        message={`You can only record one attendance per day. Confirm to time in for ${todayISO()}.`}
+        confirmLabel="Yes, Time In"
+        tone="primary"
+        loading={busy}
+      />
 
       <Card>
         <div className="border-b border-slate-100 px-5 py-4">
