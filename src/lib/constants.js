@@ -102,10 +102,8 @@ export const EVALUATION_RECOMMENDATIONS = [
 ];
 
 export const PAGE_SIZE = 10;
-// Add to existing constants
-export const ADMIN_ROLES = ["admin", "hr_staff"];
-export const SUPERVISOR_ROLES = ["supervisor"];
-export const INTERN_ROLES = ["intern"];
+export const SUPERVISOR_ROLES = [ROLES.SUPERVISOR];
+export const INTERN_ROLES = [ROLES.INTERN];
 
-// If you need a combined list
+// Combined list of all roles
 export const ALL_ROLES = [...ADMIN_ROLES, ...SUPERVISOR_ROLES, ...INTERN_ROLES];
