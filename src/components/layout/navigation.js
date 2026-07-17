@@ -55,6 +55,7 @@ export const NAVIGATION = {
     { to: "/admin/evaluations", label: "Evaluations", icon: icons.evaluation },
     { to: "/admin/announcements", label: "Announcements", icon: icons.announcements },
     { to: "/admin/reports", label: "Reports", icon: icons.reports },
+    { to: "/admin/audit-logs", label: "Audit Logs", icon: icons.reports },
     { to: "/admin/settings", label: "Settings", icon: icons.settings },
     { to: "/profile", label: "Profile", icon: icons.profile },
   ],

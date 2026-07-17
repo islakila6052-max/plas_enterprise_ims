@@ -287,6 +287,57 @@ const settings = {
   updated_at: isoDaysAgo(10, 10, 0),
 };
 
+// --- Notifications -------------------------------------------------------
+const notifications = [
+  {
+    id: "ntf-1", user_id: "user-int", type: "journal_review",
+    title: "Journal approved",
+    message: "Your journal entry for " + isoDateDaysAgo(2) + " was approved by James Reyes.",
+    link: "/intern/journal", is_read: false, read_at: null,
+    metadata: { journal_id: "jr-1" }, created_at: isoDaysAgo(1, 10, 0),
+  },
+  {
+    id: "ntf-2", user_id: "user-int", type: "document_review",
+    title: "Document pending review",
+    message: "Your MOA document is still pending review by HR.",
+    link: "/intern/documents", is_read: false, read_at: null,
+    metadata: { document_id: "doc-2" }, created_at: isoDaysAgo(2, 9, 0),
+  },
+  {
+    id: "ntf-3", user_id: "user-sup", type: "journal_review",
+    title: "New journal to review",
+    message: "Angela Cruz submitted a journal entry for " + isoDateDaysAgo(0) + ".",
+    link: "/supervisor/journals", is_read: false, read_at: null,
+    metadata: { journal_id: "jr-2" }, created_at: isoDaysAgo(0, 11, 0),
+  },
+  {
+    id: "ntf-4", user_id: "user-hr", type: "announcement",
+    title: "Announcement published",
+    message: "A new deadline announcement was published.",
+    link: "/admin/announcements", is_read: true, read_at: isoDaysAgo(1, 12, 0),
+    metadata: { announcement_id: "ann-3" }, created_at: isoDaysAgo(3, 15, 0),
+  },
+];
+
+// --- Audit logs ----------------------------------------------------------
+const audit_logs = [
+  {
+    id: "log-1", user_id: "user-hr", action: "create", resource_type: "intern",
+    resource_id: "int-1", changes: { full_name: "Angela Cruz", status: "active" },
+    ip_address: "127.0.0.1", user_agent: "Mozilla/5.0", created_at: isoDaysAgo(45, 9, 0),
+  },
+  {
+    id: "log-2", user_id: "user-sup", action: "update", resource_type: "daily_journal",
+    resource_id: "jr-1", changes: { status: "approved" },
+    ip_address: "127.0.0.1", user_agent: "Mozilla/5.0", created_at: isoDaysAgo(1, 10, 0),
+  },
+  {
+    id: "log-3", user_id: "user-hr", action: "create", resource_type: "announcement",
+    resource_id: "ann-3", changes: { title: "Journal Submission Deadline" },
+    ip_address: "127.0.0.1", user_agent: "Mozilla/5.0", created_at: isoDaysAgo(3, 15, 0),
+  },
+];
+
 const profiles = [
   {
     id: "user-hr", full_name: "Maria Santos", email: "hr@company.com", avatar_url: null,
@@ -315,6 +366,8 @@ export const SAMPLE_DATA = {
   documents,
   evaluations,
   announcements,
+  notifications,
+  audit_logs,
   settings,
 };
 

@@ -401,6 +401,68 @@ const mockBackend = {
     saveDB(db);
   },
 
+  // ----- notifications -----
+  async listNotifications({ userId, onlyUnread = false, limit = 50 } = {}) {
+    let rows = clone(db.notifications.filter((n) => n.user_id === userId));
+    if (onlyUnread) rows = rows.filter((n) => !n.is_read);
+    rows.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    return rows.slice(0, limit);
+  },
+  async unreadNotificationCount(userId) {
+    return db.notifications.filter((n) => n.user_id === userId && !n.is_read).length;
+  },
+  async markNotificationRead(id) {
+    const row = db.notifications.find((n) => n.id === id);
+    if (row) {
+      row.is_read = true;
+      row.read_at = new Date().toISOString();
+    }
+    saveDB(db);
+    return clone(row);
+  },
+  async markAllNotificationsRead(userId) {
+    db.notifications.forEach((n) => {
+      if (n.user_id === userId && !n.is_read) {
+        n.is_read = true;
+        n.read_at = new Date().toISOString();
+      }
+    });
+    saveDB(db);
+  },
+  async createNotification(payload) {
+    const row = {
+      id: uid("ntf"),
+      is_read: false,
+      read_at: null,
+      metadata: {},
+      created_at: new Date().toISOString(),
+      ...payload,
+    };
+    db.notifications.unshift(row);
+    saveDB(db);
+    return clone(row);
+  },
+
+  // ----- audit_logs -----
+  async listAuditLogs({ resourceType = "", resourceId = "", limit = 100 } = {}) {
+    let rows = clone(db.audit_logs);
+    if (resourceType) rows = rows.filter((r) => r.resource_type === resourceType);
+    if (resourceId) rows = rows.filter((r) => String(r.resource_id) === String(resourceId));
+    rows.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    return rows.slice(0, limit);
+  },
+  async createAuditLog(payload) {
+    const row = {
+      id: uid("log"),
+      changes: {},
+      created_at: new Date().toISOString(),
+      ...payload,
+    };
+    db.audit_logs.unshift(row);
+    saveDB(db);
+    return clone(row);
+  },
+
   // ----- settings -----
   async getSettings() {
     return clone(db.settings);

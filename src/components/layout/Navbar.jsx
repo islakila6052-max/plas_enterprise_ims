@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
+import NotificationBell from "@/components/layout/NotificationBell";
 import { ROLE_LABELS } from "@/lib/constants";
 
 /** Top navbar with menu toggle, page title, and user menu. */
@@ -31,6 +32,7 @@ export default function Navbar({ title, onMenuClick }) {
       </div>
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <div className="hidden text-right sm:block">
           <p className="text-sm font-medium text-slate-700">
             {profile?.full_name ?? "User"}
