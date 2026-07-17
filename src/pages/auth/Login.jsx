@@ -61,9 +61,11 @@ export default function Login() {
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-700 text-xl font-black text-white shadow-lg shadow-brand-700/30">
-              IMS
-            </div>
+            <img
+              src="/plas-enterprise-logo-ims-project.png"
+              alt="PLAS Enterprise"
+              className="mx-auto mb-3 h-16 w-auto object-contain"
+            />
             <h1 className="text-2xl font-bold text-slate-800">
               Internship Management System
             </h1>
