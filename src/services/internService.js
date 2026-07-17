@@ -1,16 +1,16 @@
-// src/services/internService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 import { PAGE_SIZE } from "@/lib/constants";
 
-/**
- * Intern management service. Handles full CRUD plus search/filter/pagination.
- * Falls back to the in-memory mock backend when Supabase is not configured.
- */
-
 export const internService = {
-  /** List interns with optional filters + pagination. */
-  async list({ search = "", departmentId = "", status = "", page = 1, pageSize = PAGE_SIZE } = {}) {
+  async list({
+    search = "",
+    departmentId = "",
+    status = "",
+    supervisorId = "", // NEW: Add supervisorId parameter
+    page = 1,
+    pageSize = PAGE_SIZE,
+  } = {}) {
     if (supabase) {
       let query = supabase
         .from("interns")
@@ -20,6 +20,7 @@ export const internService = {
         )
         .order("created_at", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
+
       if (search) {
         query = query.or(
           `full_name.ilike.%${search}%,student_number.ilike.%${search}%,school.ilike.%${search}%`,
@@ -27,16 +28,29 @@ export const internService = {
       }
       if (departmentId) query = query.eq("department_id", departmentId);
       if (status) query = query.eq("status", status);
+      if (supervisorId) query = query.eq("supervisor_id", supervisorId); // NEW
+
       const { data, error, count } = await query;
       if (error) throw new Error(error.message);
       return { data: data ?? [], count: count ?? 0, page, pageSize };
     }
-    return mockBackend.listInterns({ search, departmentId, status, page, pageSize });
+    return mockBackend.listInterns({
+      search,
+      departmentId,
+      status,
+      supervisorId,
+      page,
+      pageSize,
+    });
   },
 
   async get(id) {
     if (supabase) {
-      const { data, error } = await supabase.from("interns").select("*").eq("id", id).single();
+      const { data, error } = await supabase
+        .from("interns")
+        .select("*")
+        .eq("id", id)
+        .single();
       if (error) throw new Error(error.message);
       return data;
     }
@@ -45,7 +59,11 @@ export const internService = {
 
   async create(payload) {
     if (supabase) {
-      const { data, error } = await supabase.from("interns").insert(payload).select("*").single();
+      const { data, error } = await supabase
+        .from("interns")
+        .insert(payload)
+        .select("*")
+        .single();
       if (error) throw new Error(error.message);
       return data;
     }
@@ -54,7 +72,12 @@ export const internService = {
 
   async update(id, payload) {
     if (supabase) {
-      const { data, error } = await supabase.from("interns").update(payload).eq("id", id).select("*").single();
+      const { data, error } = await supabase
+        .from("interns")
+        .update(payload)
+        .eq("id", id)
+        .select("*")
+        .single();
       if (error) throw new Error(error.message);
       return data;
     }

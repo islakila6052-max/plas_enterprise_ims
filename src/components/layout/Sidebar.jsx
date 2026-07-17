@@ -35,12 +35,16 @@ export default function Sidebar({ open, onClose }) {
           open ? "translate-x-0" : "-translate-x-full",
         )}>
         <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-black text-white shadow">
-            IMS
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white/95 p-1">
+            <img
+              src="/plas-enterprise-logo-ims-project.png"
+              alt="PLAS Enterprise"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div className="leading-tight">
-            <p className="text-sm font-bold text-white">Internship MS</p>
-            <p className="text-xs text-brand-200">Greenfield Solutions</p>
+            <p className="text-sm font-bold text-white">PLAS Enterprise</p>
+            <p className="text-xs text-brand-200">Internship System</p>
           </div>
         </div>
 
