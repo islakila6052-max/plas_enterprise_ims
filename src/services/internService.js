@@ -8,6 +8,7 @@ export const internService = {
     departmentId = "",
     status = "",
     supervisorId = "", // NEW: Add supervisorId parameter
+    createdBy = "", // NEW: interns created by this user (OR with supervisorId)
     page = 1,
     pageSize = PAGE_SIZE,
   } = {}) {
@@ -28,7 +29,14 @@ export const internService = {
       }
       if (departmentId) query = query.eq("department_id", departmentId);
       if (status) query = query.eq("status", status);
-      if (supervisorId) query = query.eq("supervisor_id", supervisorId); // NEW
+      // Supervisors see interns assigned to them OR created by them.
+      if (supervisorId && createdBy) {
+        query = query.or(`supervisor_id.eq.${supervisorId},created_by.eq.${createdBy}`);
+      } else if (supervisorId) {
+        query = query.eq("supervisor_id", supervisorId);
+      } else if (createdBy) {
+        query = query.eq("created_by", createdBy);
+      }
 
       const { data, error, count } = await query;
       if (error) throw new Error(error.message);
@@ -39,6 +47,7 @@ export const internService = {
       departmentId,
       status,
       supervisorId,
+      createdBy,
       page,
       pageSize,
     });

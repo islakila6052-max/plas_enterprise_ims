@@ -18,6 +18,7 @@ import AdminEvaluations from "@/pages/admin/AdminEvaluations";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminReports from "@/pages/admin/AdminReports";
 import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminSupervisors from "@/pages/admin/AdminSupervisors";
 
 import SupervisorDashboard from "@/pages/supervisor/SupervisorDashboard";
 import SupervisorInterns from "@/pages/supervisor/SupervisorInterns";
@@ -119,6 +120,14 @@ export default function App() {
           element={
             <RoleRoute roles={["admin", "hr_staff"]}>
               <AdminSettings />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/supervisors"
+          element={
+            <RoleRoute roles={["admin", "hr_staff"]}>
+              <AdminSupervisors />
             </RoleRoute>
           }
         />

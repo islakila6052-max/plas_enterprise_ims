@@ -114,9 +114,30 @@ const mockBackend = {
       })),
     );
   },
+  async createSupervisor(payload) {
+    const row = {
+      id: uid("sup"),
+      created_at: new Date().toISOString(),
+      profile_id: null,
+      ...payload,
+    };
+    db.supervisors.push(row);
+    saveDB(db);
+    return clone(row);
+  },
+  async updateSupervisor(id, payload) {
+    const row = db.supervisors.find((s) => s.id === id);
+    if (row) Object.assign(row, payload);
+    saveDB(db);
+    return clone(row);
+  },
+  async removeSupervisor(id) {
+    db.supervisors = db.supervisors.filter((s) => s.id !== id);
+    saveDB(db);
+  },
 
   // ----- interns -----
-  async listInterns({ search = "", departmentId = "", status = "", supervisorId = "", page = 1, pageSize = 10 } = {}) {
+  async listInterns({ search = "", departmentId = "", status = "", supervisorId = "", createdBy = "", page = 1, pageSize = 10 } = {}) {
     let rows = clone(db.interns);
     if (search) {
       const q = search.toLowerCase();
@@ -129,7 +150,10 @@ const mockBackend = {
     }
     if (departmentId) rows = rows.filter((r) => r.department_id === departmentId);
     if (status) rows = rows.filter((r) => r.status === status);
-    if (supervisorId) rows = rows.filter((r) => r.supervisor_id === supervisorId);
+    if (supervisorId && createdBy) {
+      rows = rows.filter((r) => r.supervisor_id === supervisorId || r.created_by === createdBy);
+    } else if (supervisorId) rows = rows.filter((r) => r.supervisor_id === supervisorId);
+    else if (createdBy) rows = rows.filter((r) => r.created_by === createdBy);
     rows.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
     const total = rows.length;
     const start = (page - 1) * pageSize;
@@ -148,6 +172,7 @@ const mockBackend = {
       id: uid("int"),
       created_at: new Date().toISOString(),
       avatar_url: null,
+      status: payload.status ?? "active",
       ...payload,
     };
     db.interns.push(row);

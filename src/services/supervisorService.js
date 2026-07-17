@@ -16,6 +16,20 @@ export const supervisorService = {
     return mockBackend.listSupervisors();
   },
 
+  // NEW: Fetch a single supervisor by id (with department joined)
+  async getById(id) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("supervisors")
+        .select("*, department:departments(name)")
+        .eq("id", id)
+        .single();
+      if (error) throw new Error(error.message);
+      return data ?? null;
+    }
+    return db.supervisors.find((s) => s.id === id) ?? null;
+  },
+
   // NEW: Create supervisor
   async create(payload) {
     if (supabase) {

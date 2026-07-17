@@ -48,6 +48,7 @@ export const NAVIGATION = {
   [ROLES.ADMIN]: [
     { to: "/admin", label: "Dashboard", icon: icons.dashboard },
     { to: "/admin/interns", label: "Interns", icon: icons.interns },
+    { to: "/admin/supervisors", label: "Supervisors", icon: icons.assigned },
     { to: "/admin/attendance", label: "Attendance", icon: icons.attendance },
     { to: "/admin/journals", label: "Daily Journals", icon: icons.journal },
     { to: "/admin/documents", label: "Documents", icon: icons.documents },
@@ -60,6 +61,7 @@ export const NAVIGATION = {
   [ROLES.HR_STAFF]: [
     { to: "/admin", label: "Dashboard", icon: icons.dashboard },
     { to: "/admin/interns", label: "Interns", icon: icons.interns },
+    { to: "/admin/supervisors", label: "Supervisors", icon: icons.assigned },
     { to: "/admin/documents", label: "Documents", icon: icons.documents },
     { to: "/admin/announcements", label: "Announcements", icon: icons.announcements },
     { to: "/profile", label: "Profile", icon: icons.profile },
