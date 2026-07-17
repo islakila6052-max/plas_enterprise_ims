@@ -1,3 +1,4 @@
+// src/utils/format.js
 /**
  * Formatting helpers for dates, times and numbers used across the UI.
  */

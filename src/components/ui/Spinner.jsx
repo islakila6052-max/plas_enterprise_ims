@@ -1,3 +1,4 @@
+// src/components/ui/Spinner.jsx
 import { cn } from "@/utils/cn";
 
 /** Centered spinner for loading states. */

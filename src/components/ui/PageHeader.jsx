@@ -1,3 +1,4 @@
+// src/components/ui/PageHeader.jsx
 import { cn } from "@/utils/cn";
 
 /** Standard page header with title, description and optional action. */

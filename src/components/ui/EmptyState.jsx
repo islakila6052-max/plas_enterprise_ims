@@ -1,3 +1,4 @@
+// src/components/ui/EmptyState.jsx
 /** Friendly empty state used when a list/table has no rows. */
 export default function EmptyState({ title, description, icon, action }) {
   return (

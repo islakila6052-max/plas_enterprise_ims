@@ -1,3 +1,4 @@
+// src/components/ui/Card.jsx
 import { cn } from "@/utils/cn";
 
 /** Surface card used for panels and dashboard widgets. */

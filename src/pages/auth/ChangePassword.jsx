@@ -1,3 +1,4 @@
+// src/pages/auth/ChangePassword.jsx
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { authService } from "@/services/authService";

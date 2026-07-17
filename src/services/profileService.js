@@ -1,3 +1,4 @@
+// src/services/profileService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 import { SAMPLE_DATA } from "@/lib/sampleData";

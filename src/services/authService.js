@@ -1,3 +1,4 @@
+// src/services/authService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 import { DEMO_ACCOUNTS } from "@/lib/sampleData";

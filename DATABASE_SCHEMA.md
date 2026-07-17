@@ -772,11 +772,9 @@ Internship Completion  →  interns.status = completed (or archived)
 ## 15. Database Validation
 
 ### Confirmed present (no issues)
-All 10 tables, 6 enums, 6 functions, 5 triggers, 15 indexes, 33 policies, 1 bucket are present and
-referenced by code. Every `supabase.from("…")` call in `src/services/*` maps to a documented table, and
-every column selected/inserted/updated matches the schema. Every page that needs the current user's
-intern/supervisor id reads it from `useAuth().internId` / `useAuth().supervisorId`, which resolve from
-the (now real) `profiles.intern_id` / `profiles.supervisor_id` columns.
+All 10 tables, 6 enums are present and referenced by code. **However, several objects the app depends on are NOT yet implemented in the live schema** (see §15 "Missing / Non-implemented"). In particular, the `sync_profile_links` trigger, the `current_role()` / `is_admin()` / `current_supervisor_id()` / `current_intern_id()` helper functions, and the `moddatetime` triggers are absent from the pasted schema, which breaks login/role resolution once Supabase is connected.
+
+Every `supabase.from("…")` call in `src/services/*` maps to a documented table, and every column selected/inserted/updated matches the schema. Every page that needs the current user's intern/supervisor id reads it from `useAuth().internId` / `useAuth().supervisorId`, which resolve from `profiles.intern_id` / `profiles.supervisor_id` — **but those cached links are only populated if `sync_profile_links` is installed (currently missing).**
 
 ### Missing Tables
 - **`roles`** — Listed in `PROJECT_PLAN.md` ("Database Tables: profiles, roles, interns, …") but **does
@@ -785,6 +783,85 @@ the (now real) `profiles.intern_id` / `profiles.supervisor_id` columns.
 - **`reports`** — Listed in README/PROJECT_PLAN as a feature, but there is **no `reports` table**.
   Reports are generated client-side in `AdminReports.jsx` from existing tables.
 - **`notifications` / `messages` / `feedback` / `audit_logs`** — Mentioned nowhere in code; not required.
+
+### Non-implemented objects (REQUIRED for Supabase mode to work)
+These are referenced by the app / RLS policies but are **absent from the pasted schema**. Until they are
+added, login and role-based access in Supabase mode will fail.
+
+1. **Helper SQL functions** — `current_role()`, `is_admin()`, `current_supervisor_id()`, `current_intern_id()`
+   are called by RLS policies (e.g. `using (public.is_admin())`) and by `AuthContext`. Without them, RLS
+   throws and `profiles.role` cannot be resolved. Add:
+   ```sql
+   create or replace function public.current_role () returns user_role language sql stable security definer set search_path = public as $$
+     select role from public.profiles where id = auth.uid ();
+   $$;
+
+   create or replace function public.is_admin () returns boolean language sql stable security definer set search_path = public as $$
+     select exists (select 1 from public.profiles where id = auth.uid () and role in ('admin', 'hr_staff'));
+   $$;
+
+   create or replace function public.current_supervisor_id () returns uuid language sql stable security definer set search_path = public as $$
+     select s.id from public.supervisors s join public.profiles p on p.id = s.profile_id where p.id = auth.uid ();
+   $$;
+
+   create or replace function public.current_intern_id () returns uuid language sql stable security definer set search_path = public as $$
+     select i.id from public.interns i join public.profiles p on p.id = i.profile_id where p.id = auth.uid ();
+   $$;
+   ```
+2. **`sync_profile_links` trigger** — keeps `profiles.intern_id` / `profiles.supervisor_id` in sync when
+   `interns` / `supervisors` rows are inserted/updated/deleted. The frontend reads these cached links via
+   `useAuth().internId` / `useAuth().supervisorId`. Without it, admins/supervisors/interns cannot be
+   resolved to their linked rows. Add the function + triggers:
+   ```sql
+   create or replace function public.sync_profile_links () returns trigger language plpgsql security definer set search_path = public as $$
+   begin
+     if tg_table_name = 'interns' then
+       if tg_op = 'DELETE' then
+         update public.profiles set intern_id = null where intern_id = old.id; return old;
+       else
+         if new.profile_id is not null then
+           update public.profiles set intern_id = new.id where id = new.profile_id;
+         end if; return new;
+       end if;
+     elsif tg_table_name = 'supervisors' then
+       if tg_op = 'DELETE' then
+         update public.profiles set supervisor_id = null where supervisor_id = old.id; return old;
+       else
+         if new.profile_id is not null then
+           update public.profiles set supervisor_id = new.id where id = new.profile_id;
+         end if; return new;
+       end if;
+     end if;
+     return null;
+   end; $$;
+
+   drop trigger if exists sync_profile_intern on public.interns;
+   create trigger sync_profile_intern after insert or update or delete on public.interns
+     for each row execute function public.sync_profile_links ();
+
+   drop trigger if exists sync_profile_supervisor on public.supervisors;
+   create trigger sync_profile_supervisor after insert or update or delete on public.supervisors
+     for each row execute function public.sync_profile_links ();
+   ```
+3. **`moddatetime` triggers** — `profiles.updated_at`, `interns.updated_at`, `settings.updated_at` are not
+   auto-maintained. Add (requires `create extension if not exists moddatetime schema extensions;`):
+   ```sql
+   drop trigger if exists set_profiles_updated on public.profiles;
+   create trigger set_profiles_updated before update on public.profiles
+     for each row execute function extensions.moddatetime (updated_at);
+
+   drop trigger if exists set_interns_updated on public.interns;
+   create trigger set_interns_updated before update on public.interns
+     for each row execute function extensions.moddatetime (updated_at);
+
+   drop trigger if exists set_settings_updated on public.settings;
+   create trigger set_settings_updated before update on public.settings
+     for each row execute function extensions.moddatetime (updated_at);
+   ```
+4. **`handle_new_user` trigger** — auto-creates a `profiles` row on signup, but defaults `role` to
+   `'intern'` and does **not** set `intern_id`/`supervisor_id`. After creating an auth user you must
+   manually `UPDATE public.profiles SET role = 'admin' WHERE email = 'hr@company.com';` (and link the
+   intern/supervisor row) or the user will not get admin access.
 
 ### Unused Tables
 - None. Every table is referenced by at least one service and page.
@@ -796,8 +873,9 @@ the (now real) `profiles.intern_id` / `profiles.supervisor_id` columns.
 - `profiles` and `interns` both store `full_name`, `email`, `contact_number`. This is intentional
   denormalization (an intern may exist without a login `profiles` row, e.g. demo seed `int-2..int-8`).
   The `profiles.intern_id` / `profiles.supervisor_id` cached links are the *only* added redundancy, and
-  they are maintained automatically by the `sync_profile_links` trigger — eliminating the previous sync
-  risk.
+  they are **intended** to be maintained automatically by the `sync_profile_links` trigger — **but that
+  trigger is currently NOT installed (see §15 Non-implemented #2), so the links must be set manually
+  until it is added.**
 
 ### Broken / Inconsistent Relationships — RESOLVED
 The following were identified during reverse-engineering and **fixed** in migration `0004_consistency.sql`:
@@ -811,13 +889,18 @@ now real denormalized columns on `supervisors`.
 
 ### Potential Bugs — RESOLVED
 1. **`evaluations.status` never 'pending'** — converted to the `evaluation_status` enum and new
-evaluations are created with `status = 'pending'` (see `SupervisorEvaluations.jsx`), so the dashboard
-"Pending Evaluations" count is now meaningful.
-2. **No `updated_at` trigger** — added `moddatetime` triggers on `profiles`, `interns`, `settings`.
+  evaluations are created with `status = 'pending'` (see `SupervisorEvaluations.jsx`), so the dashboard
+  "Pending Evaluations" count is now meaningful.
+2. **No `updated_at` trigger** — **NOT yet applied in the pasted schema.** The `moddatetime` triggers on
+  `profiles`, `interns`, `settings` are missing (see §15 Non-implemented #3). Add them to fully resolve.
 3. **Duplicate open attendance** — added a partial unique index `attendance_open_unique`
    (`intern_id, date WHERE time_out IS NULL`).
 4. **Free-text `type`/`category`/`recommendation`** — added CHECK constraints enforcing the value sets
    from `constants.js`.
+5. **Login fails in Supabase mode with demo credentials** — the demo accounts (`hr@company.com`,
+   `supervisor@company.com`, `intern@company.com`) live only in the mock seed data and are ignored when
+   `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are set. To log in with Supabase you must create real
+   auth users and set their `profiles.role` (and link intern/supervisor rows). See §18.
 
 ---
 
@@ -843,7 +926,29 @@ nullable to support pre-provisioned intern records).
 
 ---
 
-## 17. Final Summary
+## 18. Login Behavior (Demo vs Supabase mode)
+
+The app has two mutually exclusive auth modes, decided at startup by `src/lib/supabase.js`:
+
+| Condition | Mode | Login uses |
+| --- | --- | --- |
+| `.env` has `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | **Supabase** | `supabase.auth.signInWithPassword()` — real Auth users only |
+| either var missing | **Demo** | `DEMO_ACCOUNTS` (`hr@company.com` / `password123`, etc.) from `src/lib/sampleData.js` |
+
+**Why demo login fails when Supabase is configured:** the project currently has a real `.env`, so the
+app is in Supabase mode and never consults `DEMO_ACCOUNTS`. Typing `hr@company.com`/`password123` is sent
+to Supabase Auth, which rejects it because that user does not exist in your Supabase project.
+
+**To log in with Supabase (HR Administrator):**
+1. Supabase Dashboard → Authentication → Users → Add user: `hr@company.com` + a password.
+2. Set its role: `UPDATE public.profiles SET role = 'admin' WHERE email = 'hr@company.com';`
+   (the `handle_new_user` trigger defaults new users to `'intern'`).
+3. Ensure the helper functions + `sync_profile_links` trigger from §15 are installed, otherwise
+   `is_admin()` and `useAuth().internId/supervisorId` will not work.
+4. Log in with those real credentials → redirected to `/admin`.
+
+**To use the demo accounts instead:** temporarily disable Supabase (rename `.env` → `.env.off` or clear
+the two vars) and restart `npm run dev`; then `hr@company.com`/`password123` works via the mock backend.
 
 ### Totals
 | Metric | Count |
@@ -853,11 +958,11 @@ nullable to support pre-provisioned intern records).
 | Relationships (FKs) | 15 |
 | Indexes | 14 |
 | Enums | 6 |
-| Functions | 6 |
-| Triggers | 6 |
+| Functions | 0 implemented / 4 required (current_role, is_admin, current_supervisor_id, current_intern_id) — **MISSING** |
+| Triggers | 1 implemented (on_auth_user_created) / 4 required (sync_profile_intern, sync_profile_supervisor, set_profiles_updated, set_interns_updated, set_settings_updated) — **MISSING** |
 | Views | 0 |
 | Materialized Views | 0 |
-| RLS Policies | 33 (30 table + 3 storage) |
+| RLS Policies | 33 (30 table + 3 storage) — defined but depend on missing `is_admin()` etc. |
 | Storage Buckets | 1 |
 
 ### User Roles
@@ -895,3 +1000,6 @@ nullable to support pre-provisioned intern records).
 | Demo shape (mirrors schema) | `src/lib/sampleData.js`, `src/lib/mockBackend.js` |
 | Reports are client-side | `src/pages/admin/AdminReports.jsx` |
 | No `roles`/`reports` tables | grep of `src/` + migrations (no matches) |
+| Auth mode switch | `src/lib/supabase.js` (`isSupabaseConfigured`) |
+| Demo accounts ignored in Supabase mode | `src/services/authService.js` (`signIn`) |
+| Missing functions/triggers | §15 Non-implemented; absent from pasted `supabase_schema.sql` |

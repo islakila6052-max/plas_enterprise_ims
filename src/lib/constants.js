@@ -1,3 +1,4 @@
+// src/lib/constants.js
 /**
  * Application-wide constants. Single source of truth for roles, statuses and labels.
  */

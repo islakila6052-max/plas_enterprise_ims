@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.jsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";

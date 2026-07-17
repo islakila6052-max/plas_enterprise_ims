@@ -1,3 +1,4 @@
+// src/components/layout/Navbar.jsx
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Avatar from "@/components/ui/Avatar";

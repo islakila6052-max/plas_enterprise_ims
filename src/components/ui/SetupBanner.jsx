@@ -1,3 +1,4 @@
+// src/components/ui/SetupBanner.jsx
 /** Banner shown when Supabase env vars are missing. The app runs in demo
  *  mode with realistic sample data and an in-memory backend. */
 export default function SetupBanner() {

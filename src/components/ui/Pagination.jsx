@@ -1,3 +1,4 @@
+// src/components/ui/Pagination.jsx
 import Button from "@/components/ui/Button";
 
 /** Simple previous/next pagination control. */

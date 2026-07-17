@@ -1,3 +1,4 @@
+// src/pages/supervisor/SupervisorDashboard.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/ui/StatCard";

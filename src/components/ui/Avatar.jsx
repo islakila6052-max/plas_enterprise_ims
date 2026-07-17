@@ -1,3 +1,4 @@
+// src/components/ui/Avatar.jsx
 import { cn } from "@/utils/cn";
 import { getInitials } from "@/utils/format";
 

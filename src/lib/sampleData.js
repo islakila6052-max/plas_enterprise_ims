@@ -1,3 +1,4 @@
+// src/lib/sampleData.js
 /**
  * Realistic seed data for the Internship Management System demo.
  *

@@ -1,3 +1,4 @@
+// src/components/layout/Sidebar.jsx
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/utils/cn";

@@ -1,3 +1,4 @@
+// src/components/ui/Modal.jsx
 import { useEffect } from "react";
 import { cn } from "@/utils/cn";
 

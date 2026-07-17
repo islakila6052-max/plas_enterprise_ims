@@ -1,3 +1,4 @@
+// src/lib/mockBackend.js
 /**
  * In-memory mock backend used when Supabase is not configured.
  *

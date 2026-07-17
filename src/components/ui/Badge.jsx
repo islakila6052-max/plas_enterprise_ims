@@ -1,3 +1,4 @@
+// src/components/ui/Badge.jsx
 import { cn } from "@/utils/cn";
 
 const TONES = {

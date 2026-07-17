@@ -1,3 +1,4 @@
+// src/services/internService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 import { PAGE_SIZE } from "@/lib/constants";

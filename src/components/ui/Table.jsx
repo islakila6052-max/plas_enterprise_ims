@@ -1,3 +1,4 @@
+// src/components/ui/Table.jsx
 import { cn } from "@/utils/cn";
 
 /**

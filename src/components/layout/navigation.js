@@ -1,3 +1,4 @@
+// src/components/layout/navigation.js
 import { ROLES } from "@/lib/constants";
 
 /**
