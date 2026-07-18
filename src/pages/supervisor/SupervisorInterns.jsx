@@ -90,10 +90,18 @@ export default function SupervisorInterns() {
         role: "intern",
       });
 
-      // Step 2: Resolve this supervisor's department.
+      // Step 2: Resolve this supervisor's record id and department.
+      // A supervisor's profile.supervisor_id is their supervisors.id (kept in sync
+      // by the DB trigger). Fall back to looking up by profile_id so we never pass
+      // an undefined id into the query.
+      let supervisorRecordId = profile?.supervisor_id ?? null;
       let departmentId = profile?.department_id ?? null;
-      if (supervisorId) {
-        const supRow = await supervisorService.getById(supervisorId);
+      if (!supervisorRecordId && profile?.id) {
+        const supRow = await supervisorService.getByProfileId(profile.id);
+        supervisorRecordId = supRow?.id ?? null;
+        departmentId = supRow?.department_id ?? departmentId;
+      } else if (supervisorRecordId) {
+        const supRow = await supervisorService.getById(supervisorRecordId);
         departmentId = supRow?.department_id ?? departmentId;
       }
 
@@ -106,7 +114,7 @@ export default function SupervisorInterns() {
         school: values.school,
         course: values.course,
         department_id: departmentId,
-        supervisor_id: supervisorId,
+        supervisor_id: supervisorRecordId,
         created_by: user?.id,
         start_date: values.start_date,
         end_date: values.end_date || null,

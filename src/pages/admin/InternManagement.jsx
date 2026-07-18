@@ -122,11 +122,25 @@ export default function InternManagement() {
         await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
         toast.success("Intern updated.");
       } else {
-        const created = await internService.create(payload);
+        // Create a real auth user + linked intern record so the intern can log in.
+        const newUser = await userService.createAuthUser({
+          email: values.email,
+          password: values.password,
+          full_name: values.full_name,
+          role: "intern",
+        });
+
+        const created = await internService.create({
+          ...payload,
+          profile_id: newUser.id,
+        });
         await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: created?.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
         if (payload.supervisor_id) {
           const sup = supervisors.find((x) => x.id === payload.supervisor_id);
           if (sup?.profile_id) await notify({ user_id: sup.profile_id, type: "intern_assigned", title: "New intern assigned", message: (payload.full_name || "An intern") + " was assigned to you.", link: "/supervisor/interns" });
+        }
+        if (newUser.id) {
+          await notify({ user_id: newUser.id, type: "account_created", title: "Your account is ready", message: "Your internship account was created. You can now log in.", link: "/intern" });
         }
         toast.success("Intern added.");
       }
@@ -291,7 +305,15 @@ export default function InternManagement() {
             <Input label="School" {...register("school")} />
             <Input label="Course" {...register("course")} />
             <Input label="Contact number" {...register("contact_number")} />
-            <Input label="Email" type="email" {...register("email", { pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
+            <Input label="Email" type="email" error={errors.email?.message} {...register("email", { required: "Email is required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
+            {!editing && (
+              <Input
+                label="Temporary password"
+                type="password"
+                error={errors.password?.message}
+                {...register("password", { required: !editing && "Password is required", minLength: { value: 8, message: "At least 8 characters" } })}
+              />
+            )}
             <Input label="Emergency contact" {...register("emergency_contact")} />
             <Select label="Department" {...register("department_id")}>
               <option value="">Unassigned</option>

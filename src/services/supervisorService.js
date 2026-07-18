@@ -31,6 +31,7 @@ export const supervisorService = {
 
   async getById(id) {
     if (supabase) {
+      if (!id) return null;
       const { data, error } = await supabase
         .from("supervisors")
         .select(
@@ -54,6 +55,35 @@ export const supervisorService = {
       return data ?? null;
     }
     return mockBackend.getSupervisorById?.(id) ?? null;
+  },
+
+  /** Resolve a supervisor record by its linked profile (auth user) id. */
+  async getByProfileId(profileId) {
+    if (supabase) {
+      if (!profileId) return null;
+      const { data, error } = await supabase
+        .from("supervisors")
+        .select(
+          `
+          *,
+          profile:profile_id (
+            full_name,
+            email
+          ),
+          department:departments (
+            name
+          )
+        `,
+        )
+        .eq("profile_id", profileId)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      return data ?? null;
+    }
+    return mockBackend.getSupervisorById?.(profileId) ?? null;
   },
 
   async create(payload) {
@@ -85,7 +115,7 @@ export const supervisorService = {
         throw new Error(error.message);
       }
 
-      // Manually update profile with supervisor_id
+      // Manually update profile with supervisor_id (only if we have a profile link).
       if (data?.profile_id) {
         await supabase
           .from("profiles")

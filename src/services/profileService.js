@@ -13,9 +13,15 @@ export const profileService = {
   async getByUserId(userId) {
     if (supabase) {
       if (!userId) return null;
+      // NOTE: use an explicit column list (not select("*")). The profiles table
+      // has a circular FK to supervisors (profiles.supervisor_id <->
+      // supervisors.profile_id), and PostgREST returns 406 "could not serialize"
+      // for select("*") on such tables. Explicit columns avoid that.
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select(
+          "id, full_name, email, avatar_url, contact_number, bio, role, intern_id, supervisor_id, created_at, updated_at",
+        )
         .eq("id", userId)
         .single();
       if (error) {

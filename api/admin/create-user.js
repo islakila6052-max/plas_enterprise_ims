@@ -69,11 +69,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // --- RBAC: only HR Admin / HR Staff may create users -----------------------
+  // --- RBAC: HR Admin / HR Staff may create any user. Supervisors may create
+  //     interns (their own assigned interns). Interns cannot create users. ----
   const caller = await getCallerProfile(req.headers.authorization);
-  const allowed = caller && ["admin", "hr_staff"].includes(caller.role);
+  const allowedRoles = ["admin", "hr_staff", "supervisor"];
+  const allowed = caller && allowedRoles.includes(caller.role);
   if (!allowed) {
-    return res.status(403).json({ error: "Forbidden: admin privileges required" });
+    return res.status(403).json({ error: "Forbidden: insufficient privileges to create users" });
+  }
+  // Supervisors are restricted to creating interns only.
+  if (caller.role === "supervisor" && user_metadata?.role && user_metadata.role !== "intern") {
+    return res.status(403).json({ error: "Forbidden: supervisors can only create intern accounts" });
   }
 
   const { email, password, user_metadata } = req.body;
