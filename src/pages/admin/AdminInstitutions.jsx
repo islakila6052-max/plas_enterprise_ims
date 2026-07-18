@@ -1,5 +1,6 @@
 // src/pages/admin/AdminInstitutions.jsx
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -18,7 +19,9 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 const PAGE_SIZE = 8;
 
 export default function AdminInstitutions() {
-  const [institutions, setInstitutions] = useState([]);
+  const navigate = useNavigate();
+
+  const [institutions, setInstitutions] = useState([]); // enriched with counts
   const [instLoading, setInstLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState({ key: "institution_name", dir: "asc" });
@@ -28,14 +31,38 @@ export default function AdminInstitutions() {
   const [editingInst, setEditingInst] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search, 500);
 
-  const loadInstitutions = useCallback(async () => {
+  // Single load: institutions + program/internship counts merged once.
+  // Avoids the previous infinite loop (writing back into `institutions`
+  // inside an effect that depended on `institutions`).
+  const refresh = useCallback(async () => {
     setInstLoading(true);
     try {
-      const rows = await institutionService.list({ search: debouncedSearch });
-      setInstitutions(rows);
+      const [insts, progs, ints] = await Promise.all([
+        institutionService.list({ search: debouncedSearch }),
+        programService.list({}),
+        internService.list({ pageSize: 1000 }),
+      ]);
+      const progByInst = new Map();
+      progs.forEach((p) => {
+        progByInst.set(p.institution_id, (progByInst.get(p.institution_id) || 0) + 1);
+      });
+      const activeByInst = new Map();
+      (ints.data || []).forEach((i) => {
+        if (i.status === "active" && i.institution_id) {
+          activeByInst.set(i.institution_id, (activeByInst.get(i.institution_id) || 0) + 1);
+        }
+      });
+      setInstitutions(
+        insts.map((inst) => ({
+          ...inst,
+          program_count: progByInst.get(inst.institution_id) || 0,
+          active_intern_count: activeByInst.get(inst.institution_id) || 0,
+        })),
+      );
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -44,46 +71,10 @@ export default function AdminInstitutions() {
   }, [debouncedSearch]);
 
   useEffect(() => {
-    loadInstitutions();
-  }, [loadInstitutions]);
+    refresh();
+  }, [refresh]);
 
   useEffect(() => setPage(1), [debouncedSearch, sort]);
-
-  // Enrich each institution with program count + active intern count.
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const [programs, interns] = await Promise.all([
-          programService.list({}),
-          internService.list({ pageSize: 1000 }),
-        ]);
-        if (!active) return;
-        const progByInst = new Map();
-        programs.forEach((p) => {
-          progByInst.set(p.institution_id, (progByInst.get(p.institution_id) || 0) + 1);
-        });
-        const activeByInst = new Map();
-        (interns.data || []).forEach((i) => {
-          if (i.status === "active" && i.institution_id) {
-            activeByInst.set(i.institution_id, (activeByInst.get(i.institution_id) || 0) + 1);
-          }
-        });
-        setInstitutions((prev) =>
-          prev.map((inst) => ({
-            ...inst,
-            program_count: progByInst.get(inst.institution_id) || 0,
-            active_intern_count: activeByInst.get(inst.institution_id) || 0,
-          })),
-        );
-      } catch {
-        /* stats are best-effort */
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [institutions]);
 
   const sorted = useMemo(() => {
     const arr = [...institutions];
@@ -95,8 +86,8 @@ export default function AdminInstitutions() {
         av = av ? new Date(av).getTime() : 0;
         bv = bv ? new Date(bv).getTime() : 0;
       } else {
-        av = (av ?? 0);
-        bv = (bv ?? 0);
+        av = av ?? 0;
+        bv = bv ?? 0;
       }
       if (typeof av === "string") av = av.toLowerCase();
       if (typeof bv === "string") bv = bv.toLowerCase();
@@ -120,9 +111,21 @@ export default function AdminInstitutions() {
     setEditingInst(null);
     setModalOpen(true);
   }
-  function openEdit(inst) {
-    setEditingInst(inst);
-    setModalOpen(true);
+
+  // Load the institution's programs so the modal can pre-populate them.
+  // Without this, saving would reconcile with an empty list and DELETE all
+  // existing programs.
+  async function openEdit(inst) {
+    setEditLoading(true);
+    try {
+      const programs = await programService.list({ institutionId: inst.institution_id });
+      setEditingInst({ ...inst, programs });
+      setModalOpen(true);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setEditLoading(false);
+    }
   }
 
   async function onModalSubmit({ institution, programs }) {
@@ -140,7 +143,7 @@ export default function AdminInstitutions() {
       }
       await programService.reconcile(institutionId, programs);
       setModalOpen(false);
-      await loadInstitutions();
+      await refresh();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -153,7 +156,7 @@ export default function AdminInstitutions() {
       await institutionService.remove(toDelete.institution_id);
       toast.success("Institution deleted (programs removed too).");
       setToDelete(null);
-      await loadInstitutions();
+      await refresh();
     } catch (err) {
       toast.error(err.message);
     }
@@ -187,8 +190,12 @@ export default function AdminInstitutions() {
             onSort={onSort}
             onEdit={openEdit}
             onDelete={setToDelete}
-            onView={(r) => (window.location.href = `/admin/institutions/${r.institution_id}`)}
+            onView={(r) => navigate(`/admin/institutions/${r.institution_id}`)}
           />
+        )}
+
+        {editLoading && (
+          <div className="px-5 py-3 text-sm text-slate-500">Loading programs…</div>
         )}
 
         {!instLoading && total > PAGE_SIZE && (

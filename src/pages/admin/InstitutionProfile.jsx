@@ -14,6 +14,7 @@ import Pagination from "@/components/ui/Pagination";
 import Table from "@/components/ui/Table";
 import { Icon } from "@/components/ui/icons";
 import ProgramFormModal from "@/components/institutions/ProgramFormModal";
+import InstitutionModal from "@/components/institutions/InstitutionModal";
 import { institutionService } from "@/services/institutionService";
 import { programService } from "@/services/programService";
 import { internService } from "@/services/internService";
@@ -35,6 +36,8 @@ export default function InstitutionProfile() {
   const [savingProg, setSavingProg] = useState(false);
   const [progToDelete, setProgToDelete] = useState(null);
   const [progPage, setProgPage] = useState(1);
+  const [instModalOpen, setInstModalOpen] = useState(false);
+  const [savingInst, setSavingInst] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,6 +146,20 @@ export default function InstitutionProfile() {
     }
   }
 
+  async function onInstSubmit({ institution, programs }) {
+    setSavingInst(true);
+    try {
+      await institutionService.update(institutionId, institution);
+      await programService.reconcile(institutionId, programs);
+      toast.success("Institution updated.");
+      setInstModalOpen(false);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingInst(false);
+    }
+  }
   async function confirmDeleteProg() {
     try {
       await programService.remove(progToDelete.program_id);
@@ -191,7 +208,7 @@ export default function InstitutionProfile() {
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => navigate(`/admin/institutions?edit=${institution.institution_id}`)}>
+            <Button variant="secondary" onClick={() => setInstModalOpen(true)}>
               Edit
             </Button>
           </div>
@@ -271,6 +288,15 @@ export default function InstitutionProfile() {
         onClose={() => setProgModalOpen(false)}
         onSubmit={onProgSubmit}
         saving={savingProg}
+      />
+
+      <InstitutionModal
+        open={instModalOpen}
+        editing={{ ...institution, programs }}
+        existing={[]}
+        onClose={() => setInstModalOpen(false)}
+        onSubmit={onInstSubmit}
+        saving={savingInst}
       />
 
       <ConfirmDialog
