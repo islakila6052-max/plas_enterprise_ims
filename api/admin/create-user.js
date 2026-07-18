@@ -77,19 +77,19 @@ export default async function handler(req, res) {
   if (!allowed) {
     return res.status(403).json({ error: "Forbidden: insufficient privileges to create users" });
   }
+  const { email, password, user_metadata } = req.body;
+
   // Supervisors are restricted to creating interns only.
   if (caller.role === "supervisor" && user_metadata?.role && user_metadata.role !== "intern") {
     return res.status(403).json({ error: "Forbidden: supervisors can only create intern accounts" });
   }
-
-  const { email, password, user_metadata } = req.body;
 
   // Validate required fields
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  try {
+try {
     // Create user using admin API
     const { data: user, error } = await supabaseAdmin.auth.admin.createUser({
       email,
