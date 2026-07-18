@@ -1,4 +1,7 @@
-// src/api/admin/create-user.js
+// api/admin/create-user.js
+// NOTE: This file MUST live in an /api folder at the PROJECT ROOT (sibling to
+// src/, package.json) so Vercel deploys it as a serverless function. Files under
+// src/api/ are bundled into the frontend and will NOT be deployed as functions.
 import { createClient } from "@supabase/supabase-js";
 
 // Service-role client: bypasses RLS for the actual user creation.

@@ -12,7 +12,7 @@
  * Both branches return `{ id, email }` so callers can link the new auth user to a
  * supervisors / interns record via `profile_id`.
  */
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 
 export const userService = {
@@ -23,9 +23,20 @@ export const userService = {
    */
   async createAuthUser({ email, password, full_name, role }) {
     if (isSupabaseConfigured) {
+      // Forward the caller's session token so the API can authorize the request.
+      let token = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token ?? null;
+      } catch {
+        token = null;
+      }
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch("/api/admin/create-user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           email,
           password,
