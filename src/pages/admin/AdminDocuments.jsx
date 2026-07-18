@@ -13,6 +13,7 @@ import { documentService } from "@/services/documentService";
 
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
@@ -56,6 +57,7 @@ export default function AdminDocuments() {
   async function review(row, status) {
     try {
       await documentService.review(row.id, status);
+      await recordAudit({ user_id: user?.id, action: "review", resource_type: "document", resource_id: row.id, changes: { status } });
       toast.success(`Document ${status}.`);
       load();
     } catch (err) {

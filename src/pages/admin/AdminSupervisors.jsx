@@ -12,8 +12,10 @@ import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
+import { userService } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 export default function AdminSupervisors() {
   const { user } = useAuth();
@@ -97,38 +99,28 @@ export default function AdminSupervisors() {
           email: values.email,
           department_id: values.department_id,
         });
+        await recordAudit({ user_id: user?.id, action: "update", resource_type: "supervisor", resource_id: editing.id, changes: { full_name: values.full_name } });
         toast.success("Supervisor updated.");
       } else {
         // Create new supervisor with auth user
-        // Step 1: Create auth user via API
-        const response = await fetch("/api/admin/create-user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password,
-            user_metadata: {
-              full_name: values.full_name,
-              role: "supervisor",
-            },
-          }),
+        // Step 1: Create auth user (serverless API in Supabase mode, mock in demo mode).
+        const newUser = await userService.createAuthUser({
+          email: values.email,
+          password: values.password,
+          full_name: values.full_name,
+          role: "supervisor",
         });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create user");
+        // Step 2: Update profile role + name (Supabase mode only; demo mode already set it).
+        if (supabase) {
+          await supabase
+            .from("profiles")
+            .update({
+              role: "supervisor",
+              full_name: values.full_name,
+            })
+            .eq("id", newUser.id);
         }
-
-        const { user: newUser } = await response.json();
-
-        // Step 2: Update profile role
-        await supabase
-          .from("profiles")
-          .update({
-            role: "supervisor",
-            full_name: values.full_name,
-          })
-          .eq("id", newUser.id);
 
         // Step 3: Create supervisor record
         await supervisorService.create({
@@ -139,6 +131,7 @@ export default function AdminSupervisors() {
           created_by: user?.id,
         });
 
+        await recordAudit({ user_id: user?.id, action: "create", resource_type: "supervisor", resource_id: newUser?.id, changes: { full_name: values.full_name, department_id: values.department_id } });
         toast.success(`Supervisor ${values.full_name} created successfully!`);
       }
       setModalOpen(false);
@@ -153,6 +146,7 @@ export default function AdminSupervisors() {
   async function removeSupervisor() {
     try {
       await supervisorService.remove(confirm.id);
+      await recordAudit({ user_id: user?.id, action: "delete", resource_type: "supervisor", resource_id: confirm.id, changes: { full_name: confirm?.full_name || confirm?.profile?.full_name } });
       toast.success("Supervisor removed.");
       setConfirm(null);
       load();

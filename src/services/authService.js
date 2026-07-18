@@ -52,9 +52,10 @@ export const authService = {
       return data;
     }
     // Demo mode: match against sample accounts (password always password123).
-    const account = DEMO_ACCOUNTS.find(
-      (a) => a.email.toLowerCase() === String(email).toLowerCase(),
-    );
+    const account =
+      DEMO_ACCOUNTS.find(
+        (a) => a.email.toLowerCase() === String(email).toLowerCase(),
+      ) ?? mockBackend.getDemoAccount(email);
     if (!account) {
       throw new Error("No demo account found for that email. Try hr@company.com, supervisor@company.com or intern@company.com.");
     }

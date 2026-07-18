@@ -13,9 +13,11 @@ import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { internService } from "@/services/internService";
 import { supervisorService } from "@/services/supervisorService";
+import { userService } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 import { INTERN_STATUS_LABELS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { recordAudit, notify } from "@/services/activityService";
 
 const TONE = { active: "green", completed: "blue", archived: "gray" };
 
@@ -80,21 +82,13 @@ export default function SupervisorInterns() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      // Step 1: Create auth user via backend API (service-role).
-      const response = await fetch("/api/admin/create-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password,
-          user_metadata: { full_name: values.full_name, role: "intern" },
-        }),
+      // Step 1: Create auth user (serverless API in Supabase mode, mock in demo mode).
+      const newUser = await userService.createAuthUser({
+        email: values.email,
+        password: values.password,
+        full_name: values.full_name,
+        role: "intern",
       });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create user");
-      }
-      const { user: newUser } = await response.json();
 
       // Step 2: Resolve this supervisor's department.
       let departmentId = profile?.department_id ?? null;
@@ -119,6 +113,8 @@ export default function SupervisorInterns() {
         status: "active",
       });
 
+      await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: newUser?.id, changes: { full_name: values.full_name, supervisor_id } });
+      await notify({ user_id: newUser.id, type: "account_created", title: "Your account is ready", message: "Your internship account was created. You can now log in.", link: "/intern" });
       toast.success(`Intern ${values.full_name} created successfully!`);
       setModalOpen(false);
       load();

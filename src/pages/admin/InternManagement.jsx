@@ -19,6 +19,7 @@ import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
 import { INTERN_STATUS, INTERN_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { recordAudit, notify } from "@/services/activityService";
 
 const STATUS_TONE = { active: "green", completed: "blue", archived: "gray" };
 
@@ -115,12 +116,18 @@ export default function InternManagement() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      const payload = { ...values, required_hours: Number(values.required_hours) || 0 };
+      const payload = { ...values, required_hours: Number(values.required_hours) || 0, created_by: user?.id };
       if (editing) {
         await internService.update(editing.id, payload);
+        await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
         toast.success("Intern updated.");
       } else {
-        await internService.create(payload);
+        const created = await internService.create(payload);
+        await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: created?.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
+        if (payload.supervisor_id) {
+          const sup = supervisors.find((x) => x.id === payload.supervisor_id);
+          if (sup?.profile_id) await notify({ user_id: sup.profile_id, type: "intern_assigned", title: "New intern assigned", message: (payload.full_name || "An intern") + " was assigned to you.", link: "/supervisor/interns" });
+        }
         toast.success("Intern added.");
       }
       setModalOpen(false);
@@ -143,6 +150,7 @@ export default function InternManagement() {
         toast.success("Intern restored.");
       } else {
         await internService.remove(confirm.row.id);
+        await recordAudit({ user_id: user?.id, action: "delete", resource_type: "intern", resource_id: confirm.row.id, changes: { full_name: confirm.row.full_name } });
         toast.success("Intern deleted.");
       }
       setConfirm(null);
@@ -168,7 +176,7 @@ export default function InternManagement() {
     { key: "student_number", header: "Student No.", render: (r) => r.student_number ?? "—" },
     { key: "school", header: "School", render: (r) => r.school ?? "—" },
     { key: "department", header: "Department", render: (r) => r.department?.name ?? "—" },
-    { key: "supervisor", header: "Supervisor", render: (r) => r.supervisor?.profiles?.full_name ?? "—" },
+    { key: "supervisor", header: "Supervisor", render: (r) => r.supervisor?.full_name ?? "—" },
     { key: "required_hours", header: "Required Hrs", render: (r) => r.required_hours ?? "—" },
     { key: "start_date", header: "Start", render: (r) => formatDate(r.start_date) },
     {
@@ -325,7 +333,7 @@ export default function InternManagement() {
               <Detail label="Contact" value={detail.contact_number} />
               <Detail label="Emergency" value={detail.emergency_contact} />
               <Detail label="Department" value={detail.department?.name} />
-              <Detail label="Supervisor" value={detail.supervisor?.profiles?.full_name} />
+              <Detail label="Supervisor" value={detail.supervisor?.full_name} />
               <Detail label="Start" value={formatDate(detail.start_date)} />
               <Detail label="End" value={formatDate(detail.end_date)} />
               <Detail label="Required Hrs" value={detail.required_hours} />

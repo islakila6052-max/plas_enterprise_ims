@@ -84,6 +84,42 @@ const mockBackend = {
     return p;
   },
 
+  /**
+   * Create a new auth user + linked profile row (demo mode equivalent of the
+   * serverless /api/admin/create-user route). Returns { id, email } so callers
+   * can link the new user to a supervisors / interns record via profile_id.
+   */
+  async createUser({ email, password, full_name, role }) {
+    const id = uid(role === "supervisor" ? "user-sup" : "user-int");
+    const profile = {
+      id,
+      full_name: full_name || email,
+      email,
+      avatar_url: null,
+      contact_number: null,
+      bio: null,
+      role,
+      intern_id: null,
+      supervisor_id: null,
+    };
+    db.profiles.push(profile);
+    // Demo accounts are stored so the new user can also log in.
+    db.demoAccounts = db.demoAccounts || [];
+    db.demoAccounts.push({ email, password, role, label: full_name });
+    saveDB(db);
+    return { id, email };
+  },
+
+  /**
+   * Look up a demo login credential (used by authService in demo mode so users
+   * created at runtime via createUser can sign in). Returns { email, password, role }
+   * or null.
+   */
+  getDemoAccount(email) {
+    const accounts = db.demoAccounts || [];
+    return accounts.find((a) => a.email.toLowerCase() === String(email).toLowerCase()) ?? null;
+  },
+
   // ----- departments -----
   async listDepartments() {
     return clone(db.departments);
@@ -111,6 +147,7 @@ const mockBackend = {
       db.supervisors.map((s) => ({
         ...s,
         profile: { full_name: s.full_name, email: s.email },
+        department: s.department_id ? { name: departmentName(s.department_id) } : null,
       })),
     );
   },
@@ -122,6 +159,11 @@ const mockBackend = {
       ...payload,
     };
     db.supervisors.push(row);
+    // Mirror the DB sync_profile_links trigger: cache the link on the profile.
+    if (row.profile_id) {
+      const p = db.profiles.find((x) => x.id === row.profile_id);
+      if (p) p.supervisor_id = row.id;
+    }
     saveDB(db);
     return clone(row);
   },
@@ -163,7 +205,7 @@ const mockBackend = {
     const data = rows.slice(start, start + pageSize).map((r) => ({
       ...r,
       department: { name: departmentName(r.department_id) },
-      supervisor: { profiles: { full_name: supervisorName(r.supervisor_id) } },
+      supervisor: { full_name: supervisorName(r.supervisor_id), email: null },
     }));
     return { data, count: total, page, pageSize };
   },

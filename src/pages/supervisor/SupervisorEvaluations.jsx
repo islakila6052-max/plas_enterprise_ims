@@ -15,6 +15,7 @@ import { evaluationService } from "@/services/evaluationService";
 import { useAuth } from "@/contexts/AuthContext";
 import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
@@ -74,6 +75,16 @@ export default function SupervisorEvaluations() {
         final_recommendation: values.final_recommendation,
         status: "pending",
       });
+      const ev = await evaluationService.create({
+        intern_id: values.intern_id,
+        supervisor_id: sid,
+        ...criteria,
+        overall_rating: Number(values.overall_rating) || 0,
+        comments: values.comments,
+        final_recommendation: values.final_recommendation,
+        status: "pending",
+      });
+      await recordAudit({ user_id: user?.id, action: "create", resource_type: "evaluation", resource_id: ev?.id, changes: { intern_id: values.intern_id, overall_rating: Number(values.overall_rating) || 0 } });
       toast.success("Evaluation submitted.");
       setModalOpen(false);
       load();

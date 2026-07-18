@@ -16,7 +16,7 @@ export const internService = {
       let query = supabase
         .from("interns")
         .select(
-          "*, department:departments(name), supervisor:supervisors(profiles(full_name))",
+          "*, department:departments(name), supervisor:supervisors(full_name, email)",
           { count: "exact" },
         )
         .order("created_at", { ascending: false })

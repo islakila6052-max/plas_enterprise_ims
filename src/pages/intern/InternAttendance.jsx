@@ -12,6 +12,7 @@ import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
@@ -48,7 +49,8 @@ export default function InternAttendance() {
     setConfirmOpen(false);
     setBusy(true);
     try {
-      await attendanceService.timeIn(internId, "manual");
+      const rec = await attendanceService.timeIn(internId, "manual");
+      await recordAudit({ user_id: profile?.id, action: "create", resource_type: "attendance", resource_id: rec?.id, changes: { type: "time_in", date: todayISO() } });
       toast.success("Timed in.");
       load();
     } catch (err) {
@@ -62,6 +64,7 @@ export default function InternAttendance() {
     setBusy(true);
     try {
       await attendanceService.timeOut(open.id, open.time_in);
+      await recordAudit({ user_id: profile?.id, action: "update", resource_type: "attendance", resource_id: open.id, changes: { type: "time_out" } });
       toast.success("Timed out.");
       load();
     } catch (err) {

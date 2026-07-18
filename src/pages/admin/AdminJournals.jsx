@@ -14,6 +14,7 @@ import { journalService } from "@/services/journalService";
 
 import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -63,6 +64,7 @@ export default function AdminJournals() {
     setSaving(true);
     try {
       await journalService.review(reviewing.id, decision, null, comment);
+      await recordAudit({ user_id: user?.id, action: "review", resource_type: "daily_journal", resource_id: reviewing.id, changes: { status: decision } });
       toast.success(`Journal ${decision}.`);
       setReviewing(null);
       load();

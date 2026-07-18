@@ -13,6 +13,7 @@ import { journalService } from "@/services/journalService";
 import { useAuth } from "@/contexts/AuthContext";
 import { JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, todayISO } from "@/utils/format";
+import { recordAudit } from "@/services/activityService";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -56,7 +57,7 @@ export default function InternJournal() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      await journalService.create({
+      const created = await journalService.create({
         intern_id: internId,
         date: values.date,
         activities: values.activities,
@@ -65,6 +66,7 @@ export default function InternJournal() {
         learnings: values.learnings,
         status: "pending",
       });
+      await recordAudit({ user_id: profile?.id, action: "create", resource_type: "daily_journal", resource_id: created?.id, changes: { date: values.date } });
       toast.success("Journal submitted.");
       reset({ date: todayISO(), activities: "", hours_worked: "", challenges: "", learnings: "" });
       load();
