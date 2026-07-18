@@ -141,6 +141,66 @@ const mockBackend = {
     saveDB(db);
   },
 
+  // ----- institutions -----
+  async listInstitutions() {
+    return clone(db.institutions);
+  },
+  async getInstitutionById(id) {
+    return clone(db.institutions.find((i) => i.institution_id === id) ?? null);
+  },
+  async createInstitution(payload) {
+    const row = {
+      institution_id: uid("inst"),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...payload,
+    };
+    db.institutions.push(row);
+    saveDB(db);
+    return clone(row);
+  },
+  async updateInstitution(id, payload) {
+    const row = db.institutions.find((i) => i.institution_id === id);
+    if (row) Object.assign(row, payload, { updated_at: new Date().toISOString() });
+    saveDB(db);
+    return clone(row);
+  },
+  async removeInstitution(id) {
+    db.institutions = db.institutions.filter((i) => i.institution_id !== id);
+    // cascade: drop programs of the removed institution
+    db.programs = db.programs.filter((p) => p.institution_id !== id);
+    saveDB(db);
+  },
+
+  // ----- programs -----
+  async listPrograms() {
+    return clone(db.programs);
+  },
+  async getProgramById(id) {
+    return clone(db.programs.find((p) => p.program_id === id) ?? null);
+  },
+  async createProgram(payload) {
+    const row = {
+      program_id: uid("prog"),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...payload,
+    };
+    db.programs.push(row);
+    saveDB(db);
+    return clone(row);
+  },
+  async updateProgram(id, payload) {
+    const row = db.programs.find((p) => p.program_id === id);
+    if (row) Object.assign(row, payload, { updated_at: new Date().toISOString() });
+    saveDB(db);
+    return clone(row);
+  },
+  async removeProgram(id) {
+    db.programs = db.programs.filter((p) => p.program_id !== id);
+    saveDB(db);
+  },
+
   // ----- supervisors -----
   async listSupervisors() {
     return clone(

@@ -41,6 +41,62 @@ const departments = [
   { id: "dep-5", name: "Operations", description: "Logistics and business operations." },
 ];
 
+// Educational institutions (master setup data).
+const institutions = [
+  {
+    institution_id: "inst-1",
+    institution_name: "State University of Technology",
+    abbreviation: "SUT",
+    campus: "Main Campus",
+    address: "123 University Ave, Quezon City",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    institution_id: "inst-2",
+    institution_name: "Metro College of Business",
+    abbreviation: "MCB",
+    campus: "Downtown Campus",
+    address: "45 P. Burgos St, Manila",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+// Academic programs offered by each institution.
+const programs = [
+  {
+    program_id: "prog-1",
+    institution_id: "inst-1",
+    program_name: "Bachelor of Science in Computer Science",
+    abbreviation: "BSCS",
+    hours_to_render: 300,
+    memo_of_agreement: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    program_id: "prog-2",
+    institution_id: "inst-1",
+    program_name: "Bachelor of Science in Information Technology",
+    abbreviation: "BSIT",
+    hours_to_render: 300,
+    memo_of_agreement: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    program_id: "prog-3",
+    institution_id: "inst-2",
+    program_name: "Bachelor of Science in Accountancy",
+    abbreviation: "BSA",
+    hours_to_render: 240,
+    memo_of_agreement: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
 const supervisors = [
   { id: "sup-1", profile_id: "user-sup", department_id: "dep-1", full_name: "James Reyes", email: "supervisor@company.com" },
   { id: "sup-2", profile_id: null, department_id: "dep-2", full_name: "Carmen Lopez", email: "carmen.lopez@company.com" },
@@ -359,6 +415,8 @@ const profiles = [
 export const SAMPLE_DATA = {
   profiles,
   departments,
+  institutions,
+  programs,
   supervisors,
   interns,
   attendance,

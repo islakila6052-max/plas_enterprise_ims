@@ -20,6 +20,7 @@ import AdminReports from "@/pages/admin/AdminReports";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminSupervisors from "@/pages/admin/AdminSupervisors";
 import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminInstitutions from "@/pages/admin/AdminInstitutions";
 
 import SupervisorDashboard from "@/pages/supervisor/SupervisorDashboard";
 import SupervisorInterns from "@/pages/supervisor/SupervisorInterns";
@@ -129,6 +130,14 @@ export default function App() {
           element={
             <RoleRoute roles={["admin", "hr_staff"]}>
               <AdminSupervisors />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/institutions"
+          element={
+            <RoleRoute roles={["admin", "hr_staff"]}>
+              <AdminInstitutions />
             </RoleRoute>
           }
         />

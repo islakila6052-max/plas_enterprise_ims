@@ -59,6 +59,10 @@ const PATHS = {
     "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6",
   graduationCap:
     "M22 10v6M2 10l10-5 10 5-10 5zM6 12v5c3 1.5 6 1.5 9 0v-5",
+  building:
+    "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2M10 21v-4h4v4",
+  institutions:
+    "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2M10 21v-4h4v4",
   clipboardCheck:
     "M9 2h6a1 1 0 011 1v2h2a2 2 0 012 2v13a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2V3a1 1 0 011-1zm1 7l2 2 4-4",
   logOut:
