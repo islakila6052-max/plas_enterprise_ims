@@ -58,6 +58,7 @@ export default function InternManagement() {
   const [institutions, setInstitutions] = useState([]);
   const [selectedInstitutionId, setSelectedInstitutionId] = useState("");
   const [institutionLabel, setInstitutionLabel] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState("");
   const [programLabel, setProgramLabel] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -103,6 +104,7 @@ export default function InternManagement() {
     reset(EMPTY);
     setSelectedInstitutionId("");
     setInstitutionLabel("");
+    setSelectedProgramId("");
     setProgramLabel("");
     setModalOpen(true);
   }
@@ -128,6 +130,7 @@ export default function InternManagement() {
     setInstitutionLabel(
       institutions.find((i) => i.institution_id === row.institution_id)?.institution_name ?? "",
     );
+    setSelectedProgramId(row.program_id ?? "");
     setProgramLabel("");
     if (row.institution_id) {
       programService.list({ institutionId: row.institution_id }).then((ps) => {
@@ -160,6 +163,7 @@ export default function InternManagement() {
   function handleInstitutionSelect(opt) {
     setSelectedInstitutionId(opt.value);
     setInstitutionLabel(opt.label);
+    setSelectedProgramId("");
     setProgramLabel("");
     programService.list({ institutionId: opt.value }).catch(() => {});
   }
@@ -382,11 +386,12 @@ export default function InternManagement() {
             />
             <SearchableSelect
               label="Program"
-              value={values.program_id || ""}
+              value={selectedProgramId}
               displayText={programLabel}
               disabled={!selectedInstitutionId}
               onSearch={onProgramSearch}
               onSelect={(opt) => {
+                setSelectedProgramId(opt.value);
                 setProgramLabel(opt.label);
                 setValue("program_id", opt.value);
               }}
