@@ -14,9 +14,13 @@ import EmptyState from "@/components/ui/EmptyState";
 import Pagination from "@/components/ui/Pagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Avatar from "@/components/ui/Avatar";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { internService } from "@/services/internService";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
+import { institutionService } from "@/services/institutionService";
+import { programService } from "@/services/programService";
+import { useAuth } from "@/contexts/AuthContext";
 import { INTERN_STATUS, INTERN_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
@@ -40,6 +44,7 @@ const EMPTY = {
 };
 
 export default function InternManagement() {
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -50,6 +55,10 @@ export default function InternManagement() {
 
   const [departments, setDepartments] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState("");
+  const [institutionLabel, setInstitutionLabel] = useState("");
+  const [programLabel, setProgramLabel] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -62,6 +71,7 @@ export default function InternManagement() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({ defaultValues: EMPTY });
 
@@ -85,11 +95,15 @@ export default function InternManagement() {
   useEffect(() => {
     departmentService.list().then(setDepartments).catch(() => {});
     supervisorService.list().then(setSupervisors).catch(() => {});
+    institutionService.list({}).then(setInstitutions).catch(() => {});
   }, []);
 
   function openCreate() {
     setEditing(null);
     reset(EMPTY);
+    setSelectedInstitutionId("");
+    setInstitutionLabel("");
+    setProgramLabel("");
     setModalOpen(true);
   }
 
@@ -110,13 +124,56 @@ export default function InternManagement() {
       required_hours: row.required_hours ?? 300,
       status: row.status ?? "active",
     });
+    setSelectedInstitutionId(row.institution_id ?? "");
+    setInstitutionLabel(
+      institutions.find((i) => i.institution_id === row.institution_id)?.institution_name ?? "",
+    );
+    setProgramLabel("");
+    if (row.institution_id) {
+      programService.list({ institutionId: row.institution_id }).then((ps) => {
+        const p = ps.find((x) => x.program_id === row.program_id);
+        setProgramLabel(p?.program_name ?? "");
+      }).catch(() => {});
+    }
     setModalOpen(true);
+  }
+
+  async function onInstitutionSearch(query) {
+    try {
+      const rows = await institutionService.list({ search: query });
+      return rows.map((i) => ({ value: i.institution_id, label: i.institution_name }));
+    } catch {
+      return [];
+    }
+  }
+
+  async function onProgramSearch(query) {
+    if (!selectedInstitutionId) return [];
+    try {
+      const rows = await programService.list({ institutionId: selectedInstitutionId, search: query });
+      return rows.map((p) => ({ value: p.program_id, label: p.program_name }));
+    } catch {
+      return [];
+    }
+  }
+
+  function handleInstitutionSelect(opt) {
+    setSelectedInstitutionId(opt.value);
+    setInstitutionLabel(opt.label);
+    setProgramLabel("");
+    programService.list({ institutionId: opt.value }).catch(() => {});
   }
 
   async function onSubmit(values) {
     setSaving(true);
     try {
-      const payload = { ...values, required_hours: Number(values.required_hours) || 0, created_by: user?.id };
+      const payload = {
+        ...values,
+        required_hours: Number(values.required_hours) || 0,
+        institution_id: selectedInstitutionId || null,
+        program_id: values.program_id || null,
+        created_by: user?.id,
+      };
       if (editing) {
         await internService.update(editing.id, payload);
         await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
@@ -315,6 +372,27 @@ export default function InternManagement() {
               />
             )}
             <Input label="Emergency contact" {...register("emergency_contact")} />
+            <SearchableSelect
+              label="Institution"
+              value={selectedInstitutionId}
+              displayText={institutionLabel}
+              onSearch={onInstitutionSearch}
+              onSelect={handleInstitutionSelect}
+              placeholder="Search institutions…"
+            />
+            <SearchableSelect
+              label="Program"
+              value={values.program_id || ""}
+              displayText={programLabel}
+              disabled={!selectedInstitutionId}
+              onSearch={onProgramSearch}
+              onSelect={(opt) => {
+                setProgramLabel(opt.label);
+                setValue("program_id", opt.value);
+              }}
+              placeholder={selectedInstitutionId ? "Search programs…" : "Select an institution first"}
+            />
+            <input type="hidden" {...register("program_id")} />
             <Select label="Department" {...register("department_id")}>
               <option value="">Unassigned</option>
               {departments.map((d) => (

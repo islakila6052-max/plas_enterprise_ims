@@ -1,5 +1,5 @@
 // src/pages/admin/AdminInstitutions.jsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -10,300 +10,207 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Pagination from "@/components/ui/Pagination";
 import InstitutionTable from "@/components/institutions/InstitutionTable";
 import InstitutionModal from "@/components/institutions/InstitutionModal";
-import ProgramTable from "@/components/institutions/ProgramTable";
-import ProgramModal from "@/components/institutions/ProgramModal";
-import DatabaseConnectionCard from "@/components/institutions/DatabaseConnectionCard";
 import { institutionService } from "@/services/institutionService";
-import { programService, uploadMoa, moaUrl } from "@/services/programService";
-import { useAuth } from "@/contexts/AuthContext";
+import { programService } from "@/services/programService";
+import { internService } from "@/services/internService";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const PAGE_SIZE = 8;
 
 export default function AdminInstitutions() {
-  const { isConfigured } = useAuth();
-
-  // Institutions
   const [institutions, setInstitutions] = useState([]);
   const [instLoading, setInstLoading] = useState(true);
-  const [instSearch, setInstSearch] = useState("");
-  const [instPage, setInstPage] = useState(1);
-  const [instModalOpen, setInstModalOpen] = useState(false);
-  const [editingInst, setEditingInst] = useState(null);
-  const [savingInst, setSavingInst] = useState(false);
-  const [instToDelete, setInstToDelete] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState({ key: "institution_name", dir: "asc" });
+  const [page, setPage] = useState(1);
 
-  // Programs
-  const [programs, setPrograms] = useState([]);
-  const [progLoading, setProgLoading] = useState(true);
-  const [progSearch, setProgSearch] = useState("");
-  const [progPage, setProgPage] = useState(1);
-  const [filterInstitutionId, setFilterInstitutionId] = useState("");
-  const [progModalOpen, setProgModalOpen] = useState(false);
-  const [editingProg, setEditingProg] = useState(null);
-  const [savingProg, setSavingProg] = useState(false);
-  const [progToDelete, setProgToDelete] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingInst, setEditingInst] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
+
+  const debouncedSearch = useDebouncedValue(search, 500);
 
   const loadInstitutions = useCallback(async () => {
     setInstLoading(true);
     try {
-      const rows = await institutionService.list({ search: instSearch });
+      const rows = await institutionService.list({ search: debouncedSearch });
       setInstitutions(rows);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setInstLoading(false);
     }
-  }, [instSearch]);
-
-  const loadPrograms = useCallback(async () => {
-    setProgLoading(true);
-    try {
-      const rows = await programService.list({
-        institutionId: filterInstitutionId,
-        search: progSearch,
-      });
-      setPrograms(rows);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setProgLoading(false);
-    }
-  }, [filterInstitutionId, progSearch]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     loadInstitutions();
   }, [loadInstitutions]);
 
+  useEffect(() => setPage(1), [debouncedSearch, sort]);
+
+  // Enrich each institution with program count + active intern count.
   useEffect(() => {
-    loadPrograms();
-  }, [loadPrograms]);
+    let active = true;
+    (async () => {
+      try {
+        const [programs, interns] = await Promise.all([
+          programService.list({}),
+          internService.list({ pageSize: 1000 }),
+        ]);
+        if (!active) return;
+        const progByInst = new Map();
+        programs.forEach((p) => {
+          progByInst.set(p.institution_id, (progByInst.get(p.institution_id) || 0) + 1);
+        });
+        const activeByInst = new Map();
+        (interns.data || []).forEach((i) => {
+          if (i.status === "active" && i.institution_id) {
+            activeByInst.set(i.institution_id, (activeByInst.get(i.institution_id) || 0) + 1);
+          }
+        });
+        setInstitutions((prev) =>
+          prev.map((inst) => ({
+            ...inst,
+            program_count: progByInst.get(inst.institution_id) || 0,
+            active_intern_count: activeByInst.get(inst.institution_id) || 0,
+          })),
+        );
+      } catch {
+        /* stats are best-effort */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [institutions]);
 
-  // Reset to page 1 when filters change.
-  useEffect(() => setInstPage(1), [instSearch]);
-  useEffect(() => setProgPage(1), [progSearch, filterInstitutionId]);
+  const sorted = useMemo(() => {
+    const arr = [...institutions];
+    const { key, dir } = sort;
+    arr.sort((a, b) => {
+      let av = a[key];
+      let bv = b[key];
+      if (key === "updated_at") {
+        av = av ? new Date(av).getTime() : 0;
+        bv = bv ? new Date(bv).getTime() : 0;
+      } else {
+        av = (av ?? 0);
+        bv = (bv ?? 0);
+      }
+      if (typeof av === "string") av = av.toLowerCase();
+      if (typeof bv === "string") bv = bv.toLowerCase();
+      if (av < bv) return dir === "asc" ? -1 : 1;
+      if (av > bv) return dir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  }, [institutions, sort]);
 
-  // ---- Institution handlers ----
-  function openCreateInst() {
+  const total = sorted.length;
+  const rows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function onSort(key) {
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
+    );
+  }
+
+  function openCreate() {
     setEditingInst(null);
-    setInstModalOpen(true);
+    setModalOpen(true);
   }
-  function openEditInst(r) {
-    setEditingInst(r);
-    setInstModalOpen(true);
+  function openEdit(inst) {
+    setEditingInst(inst);
+    setModalOpen(true);
   }
-  async function onInstSubmit(values) {
-    setSavingInst(true);
+
+  async function onModalSubmit({ institution, programs }) {
+    setSaving(true);
     try {
+      let institutionId;
       if (editingInst) {
-        await institutionService.update(editingInst.institution_id, values);
+        await institutionService.update(editingInst.institution_id, institution);
+        institutionId = editingInst.institution_id;
         toast.success("Institution updated.");
       } else {
-        await institutionService.create(values);
+        const created = await institutionService.create(institution);
+        institutionId = created.institution_id;
         toast.success("Institution added.");
       }
-      setInstModalOpen(false);
+      await programService.reconcile(institutionId, programs);
+      setModalOpen(false);
       await loadInstitutions();
     } catch (err) {
       toast.error(err.message);
     } finally {
-      setSavingInst(false);
+      setSaving(false);
     }
   }
-  async function confirmDeleteInst() {
+
+  async function confirmDelete() {
     try {
-      await institutionService.remove(instToDelete.institution_id);
+      await institutionService.remove(toDelete.institution_id);
       toast.success("Institution deleted (programs removed too).");
-      setInstToDelete(null);
+      setToDelete(null);
       await loadInstitutions();
-      await loadPrograms();
     } catch (err) {
       toast.error(err.message);
     }
-  }
-
-  // ---- Program handlers ----
-  function openCreateProg(preselectedId = filterInstitutionId) {
-    setEditingProg(null);
-    setProgModalOpen(true);
-    // defaultInstitutionId is passed via state below
-    setFilterInstitutionId(preselectedId || filterInstitutionId);
-  }
-  function openEditProg(r) {
-    setEditingProg(r);
-    setProgModalOpen(true);
-  }
-  async function onProgSubmit({ values, file }) {
-    setSavingProg(true);
-    try {
-      let memo_of_agreement = editingProg?.memo_of_agreement ?? null;
-      if (file) {
-        memo_of_agreement = await uploadMoa(file, values.institution_id);
-      }
-      if (editingProg) {
-        await programService.update(editingProg.program_id, { ...values, memo_of_agreement });
-        toast.success("Program updated.");
-      } else {
-        await programService.create({ ...values, memo_of_agreement });
-        toast.success("Program added.");
-      }
-      setProgModalOpen(false);
-      await loadPrograms();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSavingProg(false);
-    }
-  }
-  async function confirmDeleteProg() {
-    try {
-      await programService.remove(progToDelete.program_id);
-      toast.success("Program deleted.");
-      setProgToDelete(null);
-      await loadPrograms();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  }
-
-  async function viewMoa(prog) {
-    if (!prog.memo_of_agreement) return;
-    const url = await moaUrl(prog.memo_of_agreement);
-    if (url) window.open(url, "_blank");
-    else toast.error("Could not open MOA.");
-  }
-
-  // Pagination slices
-  const instTotal = institutions.length;
-  const instRows = institutions.slice((instPage - 1) * PAGE_SIZE, instPage * PAGE_SIZE);
-  const progTotal = programs.length;
-  const progRows = programs.slice((progPage - 1) * PAGE_SIZE, progPage * PAGE_SIZE);
-
-  if (instLoading && programs.length === 0 && !isConfigured) {
-    // still render; demo mode shows empty states
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Institutions"
-        description="Manage educational institutions, their academic programs, and system configuration."
+        description="Manage educational institutions, their academic programs, and linked interns."
+        action={<Button onClick={openCreate}>+ Add Institution</Button>}
       />
 
-      {/* Section 1 — Institution Management */}
       <Card>
         <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-base font-semibold text-slate-800">Institution Management</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Search institutions…"
-              value={instSearch}
-              onChange={(e) => setInstSearch(e.target.value)}
-              className="max-w-xs"
-            />
-            <Button onClick={openCreateInst}>+ Add Institution</Button>
-          </div>
-        </div>
-        <InstitutionTable
-          rows={instRows}
-          loading={instLoading}
-          onEdit={openEditInst}
-          onDelete={setInstToDelete}
-          onViewPrograms={(r) => {
-            setFilterInstitutionId(r.institution_id);
-            toast.success(`Showing programs for ${r.institution_name}`);
-          }}
-        />
-        {instTotal > PAGE_SIZE && (
-          <Pagination
-            page={instPage}
-            pageSize={PAGE_SIZE}
-            total={instTotal}
-            onPageChange={setInstPage}
+          <Input
+            placeholder="Search institutions…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-xs"
           />
+        </div>
+
+        {instLoading ? (
+          <Spinner label="Loading institutions…" />
+        ) : (
+          <InstitutionTable
+            rows={rows}
+            sort={sort}
+            onSort={onSort}
+            onEdit={openEdit}
+            onDelete={setToDelete}
+            onView={(r) => (window.location.href = `/admin/institutions/${r.institution_id}`)}
+          />
+        )}
+
+        {!instLoading && total > PAGE_SIZE && (
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         )}
       </Card>
 
-      {/* Section 2 — Program Management */}
-      <Card>
-        <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-base font-semibold text-slate-800">Program Management</h3>
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={filterInstitutionId}
-              onChange={(e) => setFilterInstitutionId(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
-              <option value="">All Institutions</option>
-              {institutions.map((i) => (
-                <option key={i.institution_id} value={i.institution_id}>
-                  {i.institution_name}
-                </option>
-              ))}
-            </select>
-            <Input
-              placeholder="Search programs…"
-              value={progSearch}
-              onChange={(e) => setProgSearch(e.target.value)}
-              className="max-w-xs"
-            />
-            <Button onClick={() => openCreateProg()}>Add Program</Button>
-          </div>
-        </div>
-        <ProgramTable
-          rows={progRows}
-          loading={progLoading}
-          institutions={institutions}
-          onEdit={openEditProg}
-          onDelete={setProgToDelete}
-        />
-        {progTotal > PAGE_SIZE && (
-          <Pagination
-            page={progPage}
-            pageSize={PAGE_SIZE}
-            total={progTotal}
-            onPageChange={setProgPage}
-          />
-        )}
-      </Card>
-
-      {/* Section 3 — System Configuration */}
-      <DatabaseConnectionCard />
-
-      {/* Modals */}
       <InstitutionModal
-        open={instModalOpen}
+        open={modalOpen}
         editing={editingInst}
         existing={institutions}
-        onClose={() => setInstModalOpen(false)}
-        onSubmit={onInstSubmit}
-        saving={savingInst}
-      />
-
-      <ProgramModal
-        open={progModalOpen}
-        editing={editingProg}
-        institutions={institutions}
-        defaultInstitutionId={filterInstitutionId}
-        existing={programs}
-        onClose={() => setProgModalOpen(false)}
-        onSubmit={onProgSubmit}
-        saving={savingProg}
+        onClose={() => setModalOpen(false)}
+        onSubmit={onModalSubmit}
+        saving={saving}
       />
 
       <ConfirmDialog
-        open={Boolean(instToDelete)}
-        onClose={() => setInstToDelete(null)}
-        onConfirm={confirmDeleteInst}
+        open={Boolean(toDelete)}
+        onClose={() => setToDelete(null)}
+        onConfirm={confirmDelete}
         title="Delete institution?"
         message="This will also delete all programs linked to this institution. This cannot be undone."
-        confirmLabel="Delete"
-      />
-
-      <ConfirmDialog
-        open={Boolean(progToDelete)}
-        onClose={() => setProgToDelete(null)}
-        onConfirm={confirmDeleteProg}
-        title="Delete program?"
-        message="This action cannot be undone."
         confirmLabel="Delete"
       />
     </div>

@@ -38,9 +38,9 @@ create index if not exists idx_programs_institution on public.programs (institut
 create index if not exists idx_programs_name on public.programs (program_name);
 
 -- ----------------------------------------------------------------------------
--- updated_at helper (idempotent; also used by other tables' triggers)
+-- updated_at helper (idempotent via CREATE OR REPLACE; do NOT drop — it is
+-- shared by triggers on other tables such as settings and profiles).
 -- ----------------------------------------------------------------------------
-drop function if exists public.touch_updated_at();
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
 begin

@@ -242,7 +242,7 @@ const mockBackend = {
   },
 
   // ----- interns -----
-  async listInterns({ search = "", departmentId = "", status = "", supervisorId = "", createdBy = "", page = 1, pageSize = 10 } = {}) {
+  async listInterns({ search = "", departmentId = "", status = "", supervisorId = "", createdBy = "", institutionId = "", programId = "", page = 1, pageSize = 10 } = {}) {
     let rows = clone(db.interns);
     if (search) {
       const q = search.toLowerCase();
@@ -255,6 +255,8 @@ const mockBackend = {
     }
     if (departmentId) rows = rows.filter((r) => r.department_id === departmentId);
     if (status) rows = rows.filter((r) => r.status === status);
+    if (institutionId) rows = rows.filter((r) => r.institution_id === institutionId);
+    if (programId) rows = rows.filter((r) => r.program_id === programId);
     if (supervisorId && createdBy) {
       rows = rows.filter((r) => r.supervisor_id === supervisorId || r.created_by === createdBy);
     } else if (supervisorId) rows = rows.filter((r) => r.supervisor_id === supervisorId);
@@ -281,7 +283,6 @@ const mockBackend = {
       ...payload,
     };
     db.interns.push(row);
-    // Mirror the DB sync_profile_links trigger: cache the link on the profile.
     if (row.profile_id) {
       const p = db.profiles.find((x) => x.id === row.profile_id);
       if (p) p.intern_id = row.id;
@@ -294,6 +295,37 @@ const mockBackend = {
     if (row) Object.assign(row, payload);
     saveDB(db);
     return clone(row);
+  },
+  async reconcilePrograms(institutionId, programs = []) {
+    const existing = db.programs.filter((p) => p.institution_id === institutionId);
+    const incomingIds = new Set(programs.filter((p) => p.program_id).map((p) => p.program_id));
+    // Delete removed programs.
+    db.programs = db.programs.filter(
+      (p) => p.institution_id !== institutionId || incomingIds.has(p.program_id),
+    );
+    // Upsert incoming programs.
+    for (const p of programs) {
+      const base = {
+        program_name: p.program_name,
+        abbreviation: p.abbreviation || null,
+        program_code: p.program_code || null,
+        required_hours: Number(p.required_hours) || 0,
+      };
+      if (p.program_id) {
+        const row = db.programs.find((x) => x.program_id === p.program_id);
+        if (row) Object.assign(row, base, { updated_at: new Date().toISOString() });
+      } else {
+        db.programs.push({
+          program_id: uid("prog"),
+          institution_id: institutionId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...base,
+        });
+      }
+    }
+    saveDB(db);
+    return true;
   },
   async removeIntern(id) {
     db.interns = db.interns.filter((i) => i.id !== id);

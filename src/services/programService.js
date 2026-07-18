@@ -4,9 +4,19 @@ import mockBackend from "@/lib/mockBackend";
 
 /**
  * Program service. Programs belong to an institution (1:N). Admin-only writes;
- * authenticated users can read. MOA (Memorandum of Agreement) is stored as a
- * Supabase Storage object path under the `institution-moa` bucket.
+ * authenticated users can read.
  */
+const COLUMNS = [
+  "program_id",
+  "institution_id",
+  "program_name",
+  "abbreviation",
+  "program_code",
+  "required_hours",
+  "created_at",
+  "updated_at",
+];
+
 export const programService = {
   async list({ institutionId = "", search = "" } = {}) {
     if (!supabase) {
@@ -14,17 +24,26 @@ export const programService = {
       if (institutionId) rows = rows.filter((r) => r.institution_id === institutionId);
       if (search) {
         const q = search.toLowerCase();
-        rows = rows.filter((r) => r.program_name.toLowerCase().includes(q));
+        rows = rows.filter(
+          (r) =>
+            (r.program_name || "").toLowerCase().includes(q) ||
+            (r.program_code || "").toLowerCase().includes(q) ||
+            (r.abbreviation || "").toLowerCase().includes(q),
+        );
       }
       return rows;
     }
     try {
       let query = supabase
         .from("programs")
-        .select("*, institution:institutions(institution_name, abbreviation)")
+        .select(COLUMNS.join(","))
         .order("program_name", { ascending: true });
       if (institutionId) query = query.eq("institution_id", institutionId);
-      if (search) query = query.ilike("program_name", `%${search}%`);
+      if (search) {
+        query = query.or(
+          `program_name.ilike.%${search}%,program_code.ilike.%${search}%,abbreviation.ilike.%${search}%`,
+        );
+      }
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       return data ?? [];
@@ -37,25 +56,29 @@ export const programService = {
     if (!supabase) return mockBackend.getProgramById?.(id) || null;
     const { data, error } = await supabase
       .from("programs")
-      .select("*, institution:institutions(institution_name, abbreviation)")
+      .select(COLUMNS.join(","))
       .eq("program_id", id)
       .single();
     if (error) throw new Error(error.message);
     return data;
   },
 
+  _payload(p) {
+    return {
+      institution_id: p.institution_id,
+      program_name: p.program_name,
+      abbreviation: p.abbreviation || null,
+      program_code: p.program_code || null,
+      required_hours: Number(p.required_hours) || 0,
+    };
+  },
+
   async create(payload) {
     if (!supabase) return mockBackend.createProgram?.(payload) || null;
     const { data, error } = await supabase
       .from("programs")
-      .insert({
-        institution_id: payload.institution_id,
-        program_name: payload.program_name,
-        abbreviation: payload.abbreviation || null,
-        hours_to_render: Number(payload.hours_to_render) || 0,
-        memo_of_agreement: payload.memo_of_agreement || null,
-      })
-      .select()
+      .insert(this._payload(payload))
+      .select(COLUMNS.join(","))
       .single();
     if (error) throw new Error(error.message);
     return data;
@@ -65,15 +88,9 @@ export const programService = {
     if (!supabase) return mockBackend.updateProgram?.(id, payload) || null;
     const { data, error } = await supabase
       .from("programs")
-      .update({
-        institution_id: payload.institution_id,
-        program_name: payload.program_name,
-        abbreviation: payload.abbreviation || null,
-        hours_to_render: Number(payload.hours_to_render) || 0,
-        memo_of_agreement: payload.memo_of_agreement || null,
-      })
+      .update(this._payload(payload))
       .eq("program_id", id)
-      .select()
+      .select(COLUMNS.join(","))
       .single();
     if (error) throw new Error(error.message);
     return data;
@@ -83,31 +100,31 @@ export const programService = {
     if (!supabase) return mockBackend.removeProgram?.(id);
     const { error } = await supabase.from("programs").delete().eq("program_id", id);
     if (error) throw new Error(error.message);
-    return;
+  },
+
+  /**
+   * Reconcile the full set of programs for an institution: insert new ones,
+   * update existing ones (matched by program_id), and delete removed ones.
+   * Used by the institution modal so an admin can manage programs inline.
+   *
+   * @param {string} institutionId
+   * @param {Array}  programs  [{ program_id?, program_name, abbreviation?, program_code?, required_hours }]
+   */
+  async reconcile(institutionId, programs = []) {
+    if (!supabase) return mockBackend.reconcilePrograms?.(institutionId, programs);
+    const existing = await this.list({ institutionId });
+    const incomingIds = new Set(programs.filter((p) => p.program_id).map((p) => p.program_id));
+
+    // Delete programs that are no longer present.
+    for (const p of existing) {
+      if (!incomingIds.has(p.program_id)) await this.remove(p.program_id);
+    }
+
+    // Upsert incoming programs.
+    for (const p of programs) {
+      const payload = { ...this._payload(p), institution_id: institutionId };
+      if (p.program_id) await this.update(p.program_id, payload);
+      else await this.create(payload);
+    }
   },
 };
-
-/**
- * Upload an MOA PDF to the `institution-moa` storage bucket and return its path.
- * Only used in Supabase mode; the mock backend stores the filename instead.
- */
-export async function uploadMoa(file, institutionId) {
-  if (!supabase) return `mock://${file.name}`;
-  const path = `${institutionId || "shared"}/${Date.now()}-${file.name}`;
-  const { error } = await supabase.storage
-    .from("institution-moa")
-    .upload(path, file, { upsert: true, contentType: file.type || "application/pdf" });
-  if (error) throw new Error(error.message);
-  return path;
-}
-
-/** Resolve a stored MOA path to a signed/public URL for preview/download. */
-export async function moaUrl(path) {
-  if (!supabase || !path) return null;
-  if (path.startsWith("http")) return path;
-  const { data, error } = await supabase.storage
-    .from("institution-moa")
-    .createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data?.signedUrl ?? null;
-}
