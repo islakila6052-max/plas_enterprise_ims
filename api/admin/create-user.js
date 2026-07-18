@@ -2,20 +2,40 @@
 // NOTE: This file MUST live in an /api folder at the PROJECT ROOT (sibling to
 // src/, package.json) so Vercel deploys it as a serverless function. Files under
 // src/api/ are bundled into the frontend and will NOT be deployed as functions.
+//
+// Environment variables for the SERVERLESS function (set in the Vercel project
+// dashboard under Settings > Environment Variables). These are NOT the VITE_*
+// vars — Vite inlines VITE_* vars into the browser bundle at build time and they
+// are NOT available to serverless functions at runtime. Use these exact names:
+//   SUPABASE_URL                 e.g. https://xxxx.supabase.co
+//   SUPABASE_SERVICE_ROLE_KEY    service-role key (server-side only, secret)
+//   SUPABASE_ANON_KEY            anon/public key (used to verify the caller)
 import { createClient } from "@supabase/supabase-js";
 
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  // Surface a clear, actionable error instead of a cryptic "Invalid supabaseUrl".
+  // eslint-disable-next-line no-console
+  console.error(
+    "[create-user] Missing server env vars. Set SUPABASE_URL and " +
+      "SUPABASE_SERVICE_ROLE_KEY in the Vercel project (Settings > Environment Variables). " +
+      "These are NOT the VITE_* vars used by the frontend.",
+  );
+}
+
 // Service-role client: bypasses RLS for the actual user creation.
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 // Anon client: used ONLY to verify the *caller's* identity from their
 // session JWT before we touch anything with the service role.
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY,
-);
+const supabaseAnon = SUPABASE_URL && SUPABASE_ANON_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 /**
  * Resolve the caller's role from their session token.
@@ -36,6 +56,14 @@ async function getCallerProfile(authHeader) {
 }
 
 export default async function handler(req, res) {
+  // Fail fast with a clear message if the function is mis-configured.
+  if (!supabaseAdmin || !supabaseAnon) {
+    return res.status(500).json({
+      error:
+        "Server misconfiguration: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY are not set for this serverless function. Set them in the Vercel project dashboard (they are not the VITE_* frontend vars).",
+    });
+  }
+
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
