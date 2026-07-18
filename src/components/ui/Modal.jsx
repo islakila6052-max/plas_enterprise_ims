@@ -1,6 +1,7 @@
 // src/components/ui/Modal.jsx
 import { useEffect } from "react";
 import { cn } from "@/utils/cn";
+import { Icon } from "@/components/ui/icons";
 
 /**
  * Accessible modal dialog. Closes on Escape and backdrop click.
@@ -65,14 +66,7 @@ export default function Modal({
             onClick={onClose}
             className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             aria-label="Close">
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2">
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
+            <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
         <div className="px-5 py-4">{children}</div>

@@ -1,9 +1,10 @@
 // src/components/ui/StatCard.jsx
 import { cn } from "@/utils/cn";
+import { Icon } from "@/components/ui/icons";
 
 /**
  * Dashboard statistic card.
- * - `label`, `value`, `hint`, `icon` (SVG path string), `tone`
+ * - `label`, `value`, `hint`, `icon` (icon name from the shared set), `tone`
  */
 export default function StatCard({ label, value, hint, icon, tone = "brand" }) {
   const tones = {
@@ -21,9 +22,7 @@ export default function StatCard({ label, value, hint, icon, tone = "brand" }) {
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
             tones[tone],
           )}>
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-            <path d={icon} />
-          </svg>
+          <Icon name={icon} className="h-6 w-6" />
         </div>
       )}
       <div className="min-w-0">

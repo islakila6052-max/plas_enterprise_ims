@@ -10,11 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatNumber } from "@/utils/format";
 
 const ICONS = {
-  assigned:
-    "M9 11a3 3 0 103-3 3 3 0 00-3 3zm0 2c-3 0-7 1.5-7 4v3h9v-3c0-1.2.8-2.3 2-3.1A12 12 0 009 13zm8 0c-1.7 0-5 1-5 3v3h10v-3c0-2-3.3-3-5-3z",
-  attendance: "M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a6 6 0 100 12 6 6 0 000-12z",
-  journal: "M4 4h12v16H4V4zm2 2v2h8V6H6zm0 4v2h8v-2H6zm0 4v2h5v-2H6z",
-  eval: "M12 17.3l5.2 3.1-1.4-5.9 4.6-4-6.1-.5L12 4l-2.3 5.9-6.1.5 4.6 4-1.4 5.9z",
+  assigned: "assigned",
+  attendance: "attendance",
+  journal: "journal",
+  eval: "eval",
 };
 
 export default function SupervisorDashboard() {

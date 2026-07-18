@@ -13,19 +13,21 @@ import { documentService } from "@/services/documentService";
 import { useAuth } from "@/contexts/AuthContext";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { Icon } from "@/components/ui/icons";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
 
+// Maps each document type to a shared icon name.
 function fileIcon(type) {
   const map = {
-    resume: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM8 13h8v2H8v-2zm0 4h8v2H8v-2z",
-    moa: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM8 13h8v2H8v-2zm0 4h8v2H8v-2z",
-    endorsement: "M3 11l18-8-8 18-2-7-8-3z",
-    school_requirements: "M12 3L2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17l10 5 10-5",
-    completion_report: "M9 16.2l-3.5-3.5L4 14.2 9 19l11-11-1.5-1.5z",
+    resume: "fileText",
+    moa: "fileText",
+    endorsement: "fileText",
+    school_requirements: "graduationCap",
+    completion_report: "clipboardCheck",
   };
-  return map[type] ?? "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z";
+  return map[type] ?? "file";
 }
 
 export default function InternDocuments() {
@@ -78,9 +80,7 @@ export default function InternDocuments() {
       header: "Type",
       render: (r) => (
         <button onClick={() => setPreview(r)} className="flex items-center gap-2 text-left hover:text-brand-700">
-          <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-            <path d={fileIcon(r.type)} />
-          </svg>
+          <Icon name={fileIcon(r.type)} className="h-5 w-5 text-brand-600" />
           <span>{TYPE_LABEL[r.type] ?? r.type}</span>
         </button>
       ),
@@ -143,9 +143,7 @@ export default function InternDocuments() {
         {preview && (
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-3">
-              <svg className="h-10 w-10 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                <path d={fileIcon(preview.type)} />
-              </svg>
+              <Icon name={fileIcon(preview.type)} className="h-10 w-10 text-brand-600" />
               <div>
                 <p className="font-medium text-slate-800">{preview.file_name ?? TYPE_LABEL[preview.type]}</p>
                 <Badge tone={TONE[preview.status] ?? "gray"}>{DOCUMENT_STATUS_LABELS[preview.status]}</Badge>

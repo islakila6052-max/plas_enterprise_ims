@@ -250,6 +250,7 @@ export default function InternManagement() {
         ) : rows.length === 0 ? (
           <div className="p-4">
             <EmptyState
+              icon="users"
               title="No interns found"
               description="Add your first intern or adjust the filters."
               action={<Button onClick={openCreate}>+ Add Intern</Button>}

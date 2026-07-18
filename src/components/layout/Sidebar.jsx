@@ -3,6 +3,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/utils/cn";
 import { getNavItems } from "@/components/layout/navigation";
+import { Icon } from "@/components/ui/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/constants";
 import Avatar from "@/components/ui/Avatar";
@@ -63,12 +64,7 @@ export default function Sidebar({ open, onClose }) {
                     : "text-brand-100 hover:bg-white/10 hover:text-white",
                 )
               }>
-              <svg
-                className="h-5 w-5 shrink-0"
-                viewBox="0 0 24 24"
-                fill="currentColor">
-                <path d={item.icon} />
-              </svg>
+              <Icon name={item.icon} className="h-5 w-5 shrink-0" />
               {item.label}
             </NavLink>
           ))}
@@ -88,14 +84,10 @@ export default function Sidebar({ open, onClose }) {
                 {ROLE_LABELS[role] ?? "User"}
               </p>
             </div>
-            <svg
+            <Icon
+              name="chevronDown"
               className={cn("h-4 w-4 text-brand-200 transition", profileOpen && "rotate-180")}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2">
-              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            />
           </button>
 
           {profileOpen && (

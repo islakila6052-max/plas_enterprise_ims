@@ -10,11 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatHours, formatNumber } from "@/utils/format";
 
 const ICONS = {
-  hours: "M12 2a10 10 0 100 20 10 10 0 000-20zm1 11h-4v-2h2V7h2v6z",
-  required: "M9 16.2l-3.5-3.5L4 14.2 9 19l11-11-1.5-1.5z",
-  remaining: "M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a6 6 0 100 12 6 6 0 000-12z",
-  today: "M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z",
-  announce: "M3 11l18-8-8 18-2-7-8-3z",
+  hours: "hours",
+  required: "required",
+  remaining: "remaining",
+  today: "today",
+  announce: "announce",
 };
 
 export default function InternDashboard() {

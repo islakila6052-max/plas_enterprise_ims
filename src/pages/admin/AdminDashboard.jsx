@@ -10,13 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatNumber } from "@/utils/format";
 
 const ICONS = {
-  interns:
-    "M16 11a4 4 0 10-4-4 4 4 0 004 4zm-8 0a4 4 0 10-4-4 4 4 0 004 4zm0 2c-2.7 0-8 1.34-8 4v3h10v-3c0-.97.74-1.85 1.93-2.5A14 14 0 008 13zm8 0c-2.7 0-8 1.34-8 4v3h16v-3c0-2.66-5.3-4-8-4z",
-  active:
-    "M12 2a10 10 0 100 20 10 10 0 000-20zm1 11h-4v-2h2V7h2v6z",
-  completed: "M9 16.2l-3.5-3.5L4 14.2 9 19l11-11-1.5-1.5z",
-  eval: "M12 17.3l5.2 3.1-1.4-5.9 4.6-4-6.1-.5L12 4l-2.3 5.9-6.1.5 4.6 4-1.4 5.9z",
-  attendance: "M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a6 6 0 100 12 6 6 0 000-12z",
+  interns: "interns",
+  active: "active",
+  completed: "completed",
+  eval: "eval",
+  attendance: "attendance",
 };
 
 export default function AdminDashboard() {

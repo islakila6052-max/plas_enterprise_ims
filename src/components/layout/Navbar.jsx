@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import NotificationBell from "@/components/layout/NotificationBell";
+import { Icon } from "@/components/ui/icons";
 import { ROLE_LABELS } from "@/lib/constants";
 
 /** Top navbar with menu toggle, page title, and user menu. */
@@ -24,9 +25,7 @@ export default function Navbar({ title, onMenuClick }) {
           onClick={onMenuClick}
           className="rounded-md p-2 text-slate-500 transition hover:bg-brand-50 hover:text-brand-700 lg:hidden"
           aria-label="Toggle menu">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
-          </svg>
+          <Icon name="menu" className="h-5 w-5" />
         </button>
         <h1 className="text-lg font-semibold text-slate-800">{title}</h1>
       </div>
