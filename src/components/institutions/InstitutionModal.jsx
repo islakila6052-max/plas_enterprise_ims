@@ -54,6 +54,10 @@ export default function InstitutionModal({
   const [logoFile, setLogoFile] = useState(null);
   const [logoError, setLogoError] = useState("");
 
+  // Programs being edited inline, and any per-row validation errors.
+  const [programs, setPrograms] = useState([]);
+  const [progErrors, setProgErrors] = useState({});
+
   useEffect(() => {
     if (!open) return;
     reset(
