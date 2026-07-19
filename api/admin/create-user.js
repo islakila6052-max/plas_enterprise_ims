@@ -103,6 +103,23 @@ try {
 
     if (error) throw error;
 
+    // Ensure the linked profiles row exists. The on_auth_user_created trigger
+    // normally creates it, but we upsert defensively so downstream inserts that
+    // reference profiles(id) (e.g. interns.profile_id) never fail on a missing FK.
+    try {
+      await supabaseAdmin.from("profiles").upsert(
+        {
+          id: user.id,
+          full_name: user_metadata?.full_name || "",
+          email: user.email,
+          role: user_metadata?.role || "intern",
+        },
+        { onConflict: "id" },
+      );
+    } catch {
+      /* non-fatal: trigger should have created it */
+    }
+
     // Audit the admin action.
     try {
       await supabaseAdmin.from("audit_logs").insert({

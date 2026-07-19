@@ -178,6 +178,10 @@ export default function InternManagement() {
       const payload = {
         ...internValues,
         required_hours: Number(internValues.required_hours) || 0,
+        // Coerce empty-string selects ("Unassigned") to null so we never send
+        // "" into a uuid column (which throws and aborts the insert).
+        department_id: internValues.department_id || null,
+        supervisor_id: internValues.supervisor_id || null,
         institution_id: selectedInstitutionId || null,
         program_id: internValues.program_id || null,
         created_by: user?.id,
@@ -212,7 +216,10 @@ export default function InternManagement() {
       setModalOpen(false);
       load();
     } catch (err) {
-      toast.error(err.message);
+      // Surface the full Supabase error (code + details) for easier debugging.
+      console.error("Intern create/update failed:", err);
+      const detail = err?.details || err?.hint || err?.code || "";
+      toast.error(detail ? `${err.message} (${detail})` : err.message);
     } finally {
       setSaving(false);
     }

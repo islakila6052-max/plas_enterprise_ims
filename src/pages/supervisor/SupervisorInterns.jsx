@@ -113,8 +113,8 @@ export default function SupervisorInterns() {
         student_number: values.student_number,
         school: values.school,
         course: values.course,
-        department_id: departmentId,
-        supervisor_id: supervisorRecordId,
+        department_id: departmentId || null,
+        supervisor_id: supervisorRecordId || null,
         created_by: user?.id,
         start_date: values.start_date,
         end_date: values.end_date || null,
@@ -127,7 +127,9 @@ export default function SupervisorInterns() {
       setModalOpen(false);
       load();
     } catch (err) {
-      toast.error(err.message);
+      console.error("Supervisor intern create failed:", err);
+      const detail = err?.details || err?.hint || err?.code || "";
+      toast.error(detail ? `${err.message} (${detail})` : err.message);
     } finally {
       setSaving(false);
     }
