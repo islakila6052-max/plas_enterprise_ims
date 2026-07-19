@@ -18,7 +18,7 @@ export const internService = {
       let query = supabase
         .from("interns")
         .select(
-          "*, department:departments(name), supervisor:supervisors(full_name, email)",
+          "*, department:departments(name), supervisor:supervisors(full_name, email), institution:institutions(institution_name), program:programs(program_name, abbreviation)",
           { count: "exact" },
         )
         .order("created_at", { ascending: false })
@@ -26,7 +26,7 @@ export const internService = {
 
       if (search) {
         query = query.or(
-          `full_name.ilike.%${search}%,student_number.ilike.%${search}%,school.ilike.%${search}%`,
+          `full_name.ilike.%${search}%,student_number.ilike.%${search}%`,
         );
       }
       if (departmentId) query = query.eq("department_id", departmentId);

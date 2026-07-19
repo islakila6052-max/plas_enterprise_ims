@@ -116,7 +116,7 @@ const supervisors = [
 const interns = [
   {
     id: "int-1", profile_id: "user-int", full_name: "Angela Cruz", student_number: "2021-00341",
-    school: "University of the Philippines", course: "BS Computer Science", contact_number: "+63 919 345 6789",
+    contact_number: "+63 919 345 6789",
     email: "intern@company.com", emergency_contact: "+63 919 345 6790", department_id: "dep-1",
     supervisor_id: "sup-1", start_date: isoDateDaysAgo(45), end_date: isoDateDaysAgo(-45),
     required_hours: 300, status: "active", avatar_url: null,
@@ -124,7 +124,7 @@ const interns = [
   },
   {
     id: "int-2", profile_id: null, full_name: "Benjie Mendoza", student_number: "2021-00412",
-    school: "Polytechnic University", course: "BS Information Technology", contact_number: "+63 920 111 2233",
+    contact_number: "+63 920 111 2233",
     email: "benjie.mendoza@student.edu.ph", emergency_contact: "+63 920 111 2244", department_id: "dep-1",
     supervisor_id: "sup-1", start_date: isoDateDaysAgo(40), end_date: isoDateDaysAgo(-50),
     required_hours: 300, status: "active", avatar_url: null,
@@ -132,7 +132,7 @@ const interns = [
   },
   {
     id: "int-3", profile_id: null, full_name: "Clarisse Ong", student_number: "2020-01998",
-    school: "Ateneo de Manila", course: "AB Communication", contact_number: "+63 921 222 3344",
+    contact_number: "+63 921 222 3344",
     email: "clarisse.ong@student.edu.ph", emergency_contact: "+63 921 222 3355", department_id: "dep-2",
     supervisor_id: "sup-2", start_date: isoDateDaysAgo(50), end_date: isoDateDaysAgo(-40),
     required_hours: 400, status: "active", avatar_url: null,
@@ -140,7 +140,7 @@ const interns = [
   },
   {
     id: "int-4", profile_id: null, full_name: "Daryl Fernando", student_number: "2020-02011",
-    school: "De La Salle University", course: "AB Marketing", contact_number: "+63 922 333 4455",
+    contact_number: "+63 922 333 4455",
     email: "daryl.fernando@student.edu.ph", emergency_contact: "+63 922 333 4466", department_id: "dep-2",
     supervisor_id: "sup-2", start_date: isoDateDaysAgo(38), end_date: isoDateDaysAgo(-52),
     required_hours: 400, status: "active", avatar_url: null,
@@ -148,7 +148,7 @@ const interns = [
   },
   {
     id: "int-5", profile_id: null, full_name: "Erica Salcedo", student_number: "2019-03120",
-    school: "University of Santo Tomas", course: "BS Accountancy", contact_number: "+63 923 444 5566",
+    contact_number: "+63 923 444 5566",
     email: "erica.salcedo@student.edu.ph", emergency_contact: "+63 923 444 5577", department_id: "dep-3",
     supervisor_id: "sup-3", start_date: isoDateDaysAgo(60), end_date: isoDateDaysAgo(-30),
     required_hours: 350, status: "active", avatar_url: null,
@@ -156,7 +156,7 @@ const interns = [
   },
   {
     id: "int-6", profile_id: null, full_name: "Francis Lim", student_number: "2019-03155",
-    school: "University of Santo Tomas", course: "BS Accounting", contact_number: "+63 924 555 6677",
+    contact_number: "+63 924 555 6677",
     email: "francis.lim@student.edu.ph", emergency_contact: "+63 924 555 6688", department_id: "dep-3",
     supervisor_id: "sup-3", start_date: isoDateDaysAgo(180), end_date: isoDateDaysAgo(-10),
     required_hours: 350, status: "completed", avatar_url: null,
@@ -164,7 +164,7 @@ const interns = [
   },
   {
     id: "int-7", profile_id: null, full_name: "Gina Bautista", student_number: "2022-00781",
-    school: "Far Eastern University", course: "BS Psychology", contact_number: "+63 925 666 7788",
+    contact_number: "+63 925 666 7788",
     email: "gina.bautista@student.edu.ph", emergency_contact: "+63 925 666 7799", department_id: "dep-4",
     supervisor_id: "sup-4", start_date: isoDateDaysAgo(20), end_date: isoDateDaysAgo(-70),
     required_hours: 300, status: "active", avatar_url: null,
@@ -172,7 +172,7 @@ const interns = [
   },
   {
     id: "int-8", profile_id: null, full_name: "Hannah Reyes", student_number: "2022-00802",
-    school: "Mapua University", course: "BS Industrial Engineering", contact_number: "+63 926 777 8899",
+    contact_number: "+63 926 777 8899",
     email: "hannah.reyes@student.edu.ph", emergency_contact: "+63 926 777 8800", department_id: "dep-5",
     supervisor_id: "sup-5", start_date: isoDateDaysAgo(15), end_date: isoDateDaysAgo(-75),
     required_hours: 300, status: "archived", avatar_url: null,

@@ -31,8 +31,6 @@ const STATUS_TONE = { active: "green", completed: "blue", archived: "gray" };
 const EMPTY = {
   full_name: "",
   student_number: "",
-  school: "",
-  course: "",
   contact_number: "",
   email: "",
   emergency_contact: "",
@@ -115,8 +113,6 @@ export default function InternManagement() {
     reset({
       full_name: row.full_name ?? "",
       student_number: row.student_number ?? "",
-      school: row.school ?? "",
-      course: row.course ?? "",
       contact_number: row.contact_number ?? "",
       email: row.email ?? "",
       emergency_contact: row.emergency_contact ?? "",
@@ -260,7 +256,8 @@ export default function InternManagement() {
       ),
     },
     { key: "student_number", header: "Student No.", render: (r) => r.student_number ?? "—" },
-    { key: "school", header: "School", render: (r) => r.school ?? "—" },
+    { key: "institution", header: "Institution", render: (r) => r.institution?.institution_name ?? "—" },
+    { key: "program", header: "Program", render: (r) => r.program?.program_name ?? "—" },
     { key: "department", header: "Department", render: (r) => r.department?.name ?? "—" },
     { key: "supervisor", header: "Supervisor", render: (r) => r.supervisor?.full_name ?? "—" },
     { key: "required_hours", header: "Required Hrs", render: (r) => r.required_hours ?? "—" },
@@ -300,7 +297,7 @@ export default function InternManagement() {
       <Card>
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-3">
           <Input
-            placeholder="Search name, number, school…"
+            placeholder="Search name, number, institution…"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -374,8 +371,6 @@ export default function InternManagement() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Full name" error={errors.full_name?.message} {...register("full_name", { required: "Name is required" })} />
             <Input label="Student number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
-            <Input label="School" {...register("school")} />
-            <Input label="Course" {...register("course")} />
             <Input label="Contact number" {...register("contact_number")} />
             <Input label="Email" type="email" error={errors.email?.message} {...register("email", { required: "Email is required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
             {!editing && (
@@ -387,6 +382,7 @@ export default function InternManagement() {
               />
             )}
             <Input label="Emergency contact" {...register("emergency_contact")} />
+            <Input label="Student number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
             <SearchableSelect
               label="Institution"
               value={selectedInstitutionId}
@@ -441,7 +437,7 @@ export default function InternManagement() {
               <Avatar name={detail.full_name} size="lg" />
               <div>
                 <p className="text-lg font-semibold text-slate-800">{detail.full_name}</p>
-                <p className="text-sm text-slate-500">{detail.course} · {detail.school}</p>
+                <p className="text-sm text-slate-500">{detail.institution?.institution_name || detail.program?.program_name || "—"}</p>
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">

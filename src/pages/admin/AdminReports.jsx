@@ -36,8 +36,8 @@ export default function AdminReports() {
         return res.data.map((r) => ({
           Name: r.full_name,
           StudentNo: r.student_number,
-          School: r.school,
-          Course: r.course,
+          Institution: r.institution?.institution_name ?? "",
+          Program: r.program?.program_name ?? "",
           Status: r.status,
           RequiredHours: r.required_hours,
         }));

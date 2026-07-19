@@ -69,6 +69,15 @@ function supervisorName(id) {
   return s?.full_name ?? null;
 }
 
+function institutionName(id) {
+  return db.institutions.find((i) => i.institution_id === id)?.institution_name ?? null;
+}
+
+function programName(id) {
+  const p = db.programs.find((x) => x.program_id === id);
+  return p?.program_name ?? null;
+}
+
 const mockBackend = {
   // ----- profiles -----
   async getProfileByEmail(email) {
@@ -249,8 +258,7 @@ const mockBackend = {
       rows = rows.filter(
         (r) =>
           r.full_name.toLowerCase().includes(q) ||
-          (r.student_number || "").toLowerCase().includes(q) ||
-          (r.school || "").toLowerCase().includes(q),
+          (r.student_number || "").toLowerCase().includes(q),
       );
     }
     if (departmentId) rows = rows.filter((r) => r.department_id === departmentId);
@@ -268,6 +276,10 @@ const mockBackend = {
       ...r,
       department: { name: departmentName(r.department_id) },
       supervisor: { full_name: supervisorName(r.supervisor_id), email: null },
+      institution: r.institution_id
+        ? { institution_name: institutionName(r.institution_id) }
+        : null,
+      program: r.program_id ? { program_name: programName(r.program_id) } : null,
     }));
     return { data, count: total, page, pageSize };
   },

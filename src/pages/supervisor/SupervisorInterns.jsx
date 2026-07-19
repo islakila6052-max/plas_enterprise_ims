@@ -26,8 +26,6 @@ const EMPTY = {
   email: "",
   password: "",
   student_number: "",
-  school: "",
-  course: "",
   start_date: "",
   end_date: "",
 };
@@ -111,8 +109,6 @@ export default function SupervisorInterns() {
         full_name: values.full_name,
         email: values.email,
         student_number: values.student_number,
-        school: values.school,
-        course: values.course,
         department_id: departmentId || null,
         supervisor_id: supervisorRecordId || null,
         created_by: user?.id,
@@ -165,7 +161,7 @@ export default function SupervisorInterns() {
                   </button>
                 ),
               },
-              { key: "school", header: "School", render: (r) => r.school ?? "—" },
+              { key: "school", header: "Institution", render: (r) => r.institution?.institution_name ?? "—" },
               { key: "department", header: "Department", render: (r) => r.department?.name ?? "—" },
               { key: "start", header: "Start", render: (r) => formatDate(r.start_date) },
               { key: "end", header: "End", render: (r) => formatDate(r.end_date) },
@@ -189,7 +185,7 @@ export default function SupervisorInterns() {
               <Avatar name={detail.full_name} size="lg" />
               <div>
                 <p className="text-lg font-semibold text-slate-800">{detail.full_name}</p>
-                <p className="text-sm text-slate-500">{detail.course} · {detail.school}</p>
+                <p className="text-sm text-slate-500">{detail.institution?.institution_name || detail.program?.program_name || "—"}</p>
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -240,8 +236,6 @@ export default function SupervisorInterns() {
               })}
             />
             <Input label="Student Number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
-            <Input label="School" error={errors.school?.message} {...register("school", { required: "School is required" })} />
-            <Input label="Course" error={errors.course?.message} {...register("course", { required: "Course is required" })} />
             <Input label="Start Date" type="date" error={errors.start_date?.message} {...register("start_date", { required: "Start date is required" })} />
             <Input label="End Date" type="date" {...register("end_date")} />
           </div>
