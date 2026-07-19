@@ -5,6 +5,8 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/ui/icons";
+import Avatar from "@/components/ui/Avatar";
+import { institutionService } from "@/services/institutionService";
 
 /**
  * Create / edit institution, with an inline multi-program editor.
@@ -31,6 +33,7 @@ export default function InstitutionModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -44,9 +47,12 @@ export default function InstitutionModal({
     },
   });
 
-  // Programs being edited inline: { program_id?, program_name, abbreviation, program_code, required_hours }
-  const [programs, setPrograms] = useState([]);
-  const [progErrors, setProgErrors] = useState({}); // { index: { field: msg } }
+  const watchName = watch("institution_name");
+
+  // Logo: existing URL (editing) + a pending File to upload on save.
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoError, setLogoError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +88,9 @@ export default function InstitutionModal({
           }))
         : [],
     );
+    setLogoUrl(editing?.logo_url ?? "");
+    setLogoFile(null);
+    setLogoError("");
     setProgErrors({});
   }, [open, editing, reset]);
 
@@ -148,6 +157,8 @@ export default function InstitutionModal({
       return;
     }
     setProgErrors({});
+    // Pass the logo state up; the page handler uploads the file (needs the
+    // institution id) and then saves logo_url.
     onSubmit({
       institution: { ...values, institution_name: name },
       programs: programs.map((p) => ({
@@ -157,6 +168,8 @@ export default function InstitutionModal({
         program_code: p.program_code.trim() || null,
         required_hours: Number(p.required_hours) || 0,
       })),
+      logoUrl: logoFile ? null : logoUrl, // null signals "use uploaded result"
+      logoFile: logoFile || null,
     });
   };
 
@@ -182,6 +195,53 @@ export default function InstitutionModal({
           <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             Institution Information
           </h4>
+
+          {/* Logo uploader */}
+          <div className="flex items-center gap-4">
+            <Avatar src={logoUrl || undefined} name={watchName} size="lg" />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Logo / Avatar
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  id="inst-logo"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (!f.type.startsWith("image/")) {
+                      setLogoError("Please choose an image file");
+                      return;
+                    }
+                    setLogoError("");
+                    setLogoFile(f);
+                    setLogoUrl(URL.createObjectURL(f));
+                  }}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById("inst-logo")?.click()}>
+                  {logoUrl ? "Change" : "Upload"}
+                </Button>
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setLogoUrl("");
+                      setLogoFile(null);
+                    }}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {logoError && <p className="mt-1 text-xs font-medium text-red-600">{logoError}</p>}
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label="Institution Name"

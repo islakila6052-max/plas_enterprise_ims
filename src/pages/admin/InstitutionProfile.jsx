@@ -146,10 +146,19 @@ export default function InstitutionProfile() {
     }
   }
 
-  async function onInstSubmit({ institution, programs }) {
+  async function onInstSubmit({ institution, programs, logoFile }) {
     setSavingInst(true);
     try {
+      let logoUrl = institution.logo_url ?? null;
       await institutionService.update(institutionId, institution);
+      if (logoFile) {
+        try {
+          logoUrl = await institutionService.uploadLogo(logoFile, institutionId);
+          await institutionService.update(institutionId, { logo_url: logoUrl });
+        } catch (e) {
+          toast.error("Institution updated, but logo upload failed: " + e.message);
+        }
+      }
       await programService.reconcile(institutionId, programs);
       toast.success("Institution updated.");
       setInstModalOpen(false);

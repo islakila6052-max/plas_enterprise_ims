@@ -106,4 +106,32 @@ export const institutionService = {
     const { error } = await supabase.from("institutions").delete().eq("institution_id", id);
     if (error) throw new Error(error.message);
   },
+
+  /**
+   * Upload an institution logo to the public `institution-logos` bucket and
+   * return its public URL. Admin-only (enforced by storage RLS).
+   */
+  async uploadLogo(file, institutionId) {
+    if (!supabase) return `mock://${file.name}`;
+    const path = `${institutionId || "shared"}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage
+      .from("institution-logos")
+      .upload(path, file, { upsert: true, contentType: file.type || "image/*" });
+    if (error) throw new Error(error.message);
+    return this.getLogoUrl(path);
+  },
+
+  /** Resolve a stored logo path to its public URL. */
+  getLogoUrl(path) {
+    if (!supabase || !path) return null;
+    if (path.startsWith("http")) return path;
+    const { data } = supabase.storage.from("institution-logos").getPublicUrl(path);
+    return data?.publicUrl ?? null;
+  },
+
+  /** Delete a previously stored logo (admin-only). */
+  async removeLogo(path) {
+    if (!supabase || !path || path.startsWith("http")) return;
+    await supabase.storage.from("institution-logos").remove([path]);
+  },
 };

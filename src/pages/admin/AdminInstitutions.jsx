@@ -128,10 +128,11 @@ export default function AdminInstitutions() {
     }
   }
 
-  async function onModalSubmit({ institution, programs }) {
+  async function onModalSubmit({ institution, programs, logoFile }) {
     setSaving(true);
     try {
       let institutionId;
+      let logoUrl = institution.logo_url ?? null;
       if (editingInst) {
         await institutionService.update(editingInst.institution_id, institution);
         institutionId = editingInst.institution_id;
@@ -140,6 +141,15 @@ export default function AdminInstitutions() {
         const created = await institutionService.create(institution);
         institutionId = created.institution_id;
         toast.success("Institution added.");
+      }
+      // Upload logo (if a new file was chosen) and persist its URL.
+      if (logoFile) {
+        try {
+          logoUrl = await institutionService.uploadLogo(logoFile, institutionId);
+          await institutionService.update(institutionId, { logo_url: logoUrl });
+        } catch (e) {
+          toast.error("Institution saved, but logo upload failed: " + e.message);
+        }
       }
       await programService.reconcile(institutionId, programs);
       setModalOpen(false);
