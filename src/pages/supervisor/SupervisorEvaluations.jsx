@@ -60,6 +60,7 @@ export default function SupervisorEvaluations() {
     register,
     handleSubmit,
     reset,
+    formState: { errors },
   } = useForm();
 
   const load = useCallback(async () => {
