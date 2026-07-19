@@ -162,11 +162,11 @@ also writes `profiles.supervisor_id` (mirrors the trigger).
 | `profile_id` | UUID | FK → `profiles(id)` ON DELETE CASCADE |
 | `full_name` | TEXT | NOT NULL |
 | `student_number` | TEXT | — |
-| `school` | TEXT | — |
-| `course` | TEXT | — |
 | `contact_number` | TEXT | — |
 | `email` | TEXT | — |
 | `emergency_contact` | TEXT | — |
+| `institution_id` | UUID | FK → `institutions(institution_id)` ON DELETE SET NULL |
+| `program_id` | UUID | FK → `programs(program_id)` ON DELETE SET NULL |
 | `department_id` | UUID | FK → `departments(id)` ON DELETE SET NULL |
 | `supervisor_id` | UUID | FK → `supervisors(id)` ON DELETE SET NULL |
 | `start_date` | DATE | — |
@@ -606,11 +606,11 @@ CREATE TABLE IF NOT EXISTS public.interns (
   profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
   student_number TEXT,
-  school TEXT,
-  course TEXT,
   contact_number TEXT,
   email TEXT,
   emergency_contact TEXT,
+  institution_id UUID REFERENCES public.institutions(institution_id) ON DELETE SET NULL,
+  program_id UUID REFERENCES public.programs(program_id) ON DELETE SET NULL,
   department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL,
   supervisor_id UUID REFERENCES public.supervisors(id) ON DELETE SET NULL,
   start_date DATE,

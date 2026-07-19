@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/Input";
 import { internService } from "@/services/internService";
 import { supervisorService } from "@/services/supervisorService";
 import { userService } from "@/services/userService";
+import { institutionService } from "@/services/institutionService";
+import { programService } from "@/services/programService";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { useAuth } from "@/contexts/AuthContext";
 import { INTERN_STATUS_LABELS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
@@ -26,8 +29,11 @@ const EMPTY = {
   email: "",
   password: "",
   student_number: "",
+  contact_number: "",
+  emergency_contact: "",
   start_date: "",
   end_date: "",
+  required_hours: 300,
 };
 
 export default function SupervisorInterns() {
@@ -38,6 +44,10 @@ export default function SupervisorInterns() {
   const [detail, setDetail] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState("");
+  const [institutionLabel, setInstitutionLabel] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [programLabel, setProgramLabel] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,12 +79,44 @@ export default function SupervisorInterns() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({ defaultValues: EMPTY });
 
   function openCreate() {
     reset(EMPTY);
+    setSelectedInstitutionId("");
+    setInstitutionLabel("");
+    setSelectedProgramId("");
+    setProgramLabel("");
     setModalOpen(true);
+  }
+
+  async function onInstitutionSearch(query) {
+    try {
+      const rows = await institutionService.list({ search: query });
+      return rows.map((i) => ({ value: i.institution_id, label: i.institution_name }));
+    } catch {
+      return [];
+    }
+  }
+
+  async function onProgramSearch(query) {
+    if (!selectedInstitutionId) return [];
+    try {
+      const rows = await programService.list({ institutionId: selectedInstitutionId, search: query });
+      return rows.map((p) => ({ value: p.program_id, label: p.program_name }));
+    } catch {
+      return [];
+    }
+  }
+
+  function handleInstitutionSelect(opt) {
+    setSelectedInstitutionId(opt.value);
+    setInstitutionLabel(opt.label);
+    setSelectedProgramId("");
+    setProgramLabel("");
+    programService.list({ institutionId: opt.value }).catch(() => {});
   }
 
   async function onSubmit(values) {
@@ -109,11 +151,16 @@ export default function SupervisorInterns() {
         full_name: values.full_name,
         email: values.email,
         student_number: values.student_number,
+        contact_number: values.contact_number || null,
+        emergency_contact: values.emergency_contact || null,
         department_id: departmentId || null,
         supervisor_id: supervisorRecordId || null,
+        institution_id: selectedInstitutionId || null,
+        program_id: selectedProgramId || null,
         created_by: user?.id,
         start_date: values.start_date,
         end_date: values.end_date || null,
+        required_hours: Number(values.required_hours) || 0,
         status: "active",
       });
 
@@ -162,7 +209,9 @@ export default function SupervisorInterns() {
                 ),
               },
               { key: "school", header: "Institution", render: (r) => r.institution?.institution_name ?? "—" },
+              { key: "program", header: "Program", render: (r) => r.program?.program_name ?? "—" },
               { key: "department", header: "Department", render: (r) => r.department?.name ?? "—" },
+              { key: "required_hours", header: "Required Hrs", render: (r) => r.required_hours ?? "—" },
               { key: "start", header: "Start", render: (r) => formatDate(r.start_date) },
               { key: "end", header: "End", render: (r) => formatDate(r.end_date) },
               {
@@ -192,6 +241,9 @@ export default function SupervisorInterns() {
               <Detail label="Student No." value={detail.student_number} />
               <Detail label="Email" value={detail.email} />
               <Detail label="Contact" value={detail.contact_number} />
+              <Detail label="Emergency" value={detail.emergency_contact} />
+              <Detail label="Institution" value={detail.institution?.institution_name} />
+              <Detail label="Program" value={detail.program?.program_name} />
               <Detail label="Department" value={detail.department?.name} />
               <Detail label="Start" value={formatDate(detail.start_date)} />
               <Detail label="End" value={formatDate(detail.end_date)} />
@@ -236,8 +288,33 @@ export default function SupervisorInterns() {
               })}
             />
             <Input label="Student Number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
+            <Input label="Contact Number" {...register("contact_number")} />
+            <Input label="Emergency Contact" {...register("emergency_contact")} />
+            <SearchableSelect
+              label="Institution"
+              value={selectedInstitutionId}
+              displayText={institutionLabel}
+              onSearch={onInstitutionSearch}
+              onSelect={handleInstitutionSelect}
+              placeholder="Search institutions…"
+            />
+            <SearchableSelect
+              label="Program"
+              value={selectedProgramId}
+              displayText={programLabel}
+              disabled={!selectedInstitutionId}
+              onSearch={onProgramSearch}
+              onSelect={(opt) => {
+                setSelectedProgramId(opt.value);
+                setProgramLabel(opt.label);
+                setValue("program_id", opt.value);
+              }}
+              placeholder={selectedInstitutionId ? "Search programs…" : "Select an institution first"}
+            />
+            <input type="hidden" {...register("program_id")} />
             <Input label="Start Date" type="date" error={errors.start_date?.message} {...register("start_date", { required: "Start date is required" })} />
             <Input label="End Date" type="date" {...register("end_date")} />
+            <Input label="Required Hours" type="number" {...register("required_hours")} />
           </div>
           <p className="text-xs text-slate-500">
             The intern will receive these credentials and can log in immediately.

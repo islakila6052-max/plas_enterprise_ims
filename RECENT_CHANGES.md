@@ -82,3 +82,25 @@
 - Run `node scripts/rbac_sanity.mjs` to validate RBAC state.
 - `0008_profile_fk_repoint.sql` was edited twice today (repoint FK, then Institutions tweak) — confirm final state before deploying.
 - New `0009_institutions_programs.sql` migration should be applied alongside `0008`.
+
+## 2026-07-20 — Supervisor Add Intern: full data capture
+
+- **Goal:** Supervisors can now fill in the same intern fields the admin can, so the
+admin view shows complete data (Department, Supervisor, Required Hrs, Institution, Program,
+Contact, Emergency contact) for supervisor-created interns.
+- **Changed:** `src/pages/supervisor/SupervisorInterns.jsx`
+- Add Intern form now collects: `contact_number`, `emergency_contact`, `institution_id`
+  (searchable `SearchableSelect` + `institutionService`), `program_id` (searchable, filtered
+  by institution, + `programService`), and `required_hours`.
+- `onSubmit` now writes those fields into `internService.create(...)`.
+- Supervisor intern table gained Program + Required Hrs columns; detail modal now
+  shows Emergency, Institution, Program, Required Hrs.
+- **Docs reconciled to current code:**
+- `DATABASE_SCHEMA.md` — `interns` table (section 6.4 + Appendix A) now lists `institution_id` /
+  `program_id` instead of the dropped `school` / `course` columns.
+- `IMS_WORKFLOWS_AND_DATABASE_PROMPT.md` — Part B1.2, B2.2, C2 and Part D `interns` table
+  updated to institution/program + contact/emergency/required_hours.
+- `README.md` — Intern Profile lists Institution/Program instead of School/Course.
+- **Note:** `supabase_schema.sql` is a legacy reference file (its own header says not to
+maintain it separately); the authoritative schema is `DATABASE_SCHEMA.sql` + the migrations.
+Migration `0011_drop_intern_school_course.sql` already removed `school`/`course` from the DB.

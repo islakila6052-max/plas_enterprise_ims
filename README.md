@@ -175,8 +175,8 @@ Dashboard Cards
 
 - Profile Photo
 - Student Number
-- School
-- Course
+- Institution
+- Program
 - Contact Number
 - Email
 - Emergency Contact

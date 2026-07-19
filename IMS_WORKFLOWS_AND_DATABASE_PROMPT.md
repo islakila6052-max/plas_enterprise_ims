@@ -36,12 +36,13 @@
 - Quick actions → Interns, Attendance, Reports, Settings.
 
 ### B1.2 Manage Interns (`/admin/interns`) — `InternManagement.jsx`
-- List/search/filter interns (name/student no/school, department, status).
-- **+ Add Intern** modal: full_name, student_number, school, course, contact, email, emergency contact,
-  department, supervisor, start/end date, required_hours, status.
+- List/search/filter interns (name/student no/institution, department, status).
+- **+ Add Intern** modal: full_name, student_number, contact, email, emergency contact,
+  institution (searchable), program (searchable, filtered by institution), department, supervisor,
+  start/end date, required_hours, status.
 - Edit / Archive / Restore / Delete (confirm dialog).
 - Detail modal with all fields.
-- Data: `interns` (+ joins `departments`, `supervisors.profiles`).
+- Data: `interns` (+ joins `departments`, `supervisors.profiles`, `institutions`, `programs`).
 
 ### B1.3 Manage Supervisors (`/admin/supervisors`) — `AdminSupervisors.jsx`  ← NEW
 - List all supervisors (Name, Email, Department, Created, Actions).
@@ -78,9 +79,14 @@
 
 ### B2.2 Assigned Interns (`/supervisor/interns`) — `SupervisorInterns.jsx`  ← ENHANCED
 - List interns where `supervisor_id = my supervisor id` **OR** `created_by = my id`.
-- **+ Add Intern** → `/api/admin/create-user` (role `intern`) → resolve my `department_id` →
-  insert `interns` row with `supervisor_id = me`, `created_by = me`, `status='active'`.
-- Detail modal.
+- **+ Add Intern** modal collects: full_name, email, password, student_number, contact_number,
+  emergency_contact, institution (searchable), program (searchable, filtered by institution),
+  start/end date, required_hours.
+- On submit → `/api/admin/create-user` (role `intern`) → resolve my `department_id` →
+  insert `interns` row with `supervisor_id = me`, `created_by = me`, `status='active'`,
+  plus the contact/emergency/institution/program/required_hours fields.
+- List + detail show Institution, Program, Department, Required Hrs so the supervisor can verify
+  the data (which the admin also sees in `InternManagement`).
 
 ### B2.3 Attendance (`/supervisor/attendance`)
 - Attendance for assigned interns only.
@@ -128,13 +134,14 @@ RLS: `admins manage supervisors` (is_admin()).
 
 ### C2. Supervisor creates an Intern
 ```
-Supervisor form (name, email, password≥8, student_no, school, course, start, end?)
+Supervisor form (name, email, password≥8, student_no, contact_number, emergency_contact,
+                institution, program, start, end?, required_hours)
   → POST /api/admin/create-user (role='intern')  → { user: { id, email } }
   → SELECT supervisors WHERE id = mySupervisorId  (get department_id)
-  → INSERT interns (profile_id, full_name, email, student_number, school, course,
-                    department_id, supervisor_id = me, created_by = me,
-                    start_date, end_date, status='active')
-  → list refreshes
+  → INSERT interns (profile_id, full_name, email, student_number, contact_number, emergency_contact,
+                    institution_id, program_id, department_id, supervisor_id = me, created_by = me,
+                    start_date, end_date, required_hours, status='active')
+  → list refreshes (admin sees Department, Supervisor, Required Hrs, Institution, Program)
 ```
 RLS: `supervisor creates interns` + `supervisor manages assigned interns`.
 
@@ -201,11 +208,11 @@ interns (
   profile_id uuid references profiles(id) on delete cascade,
   full_name text not null,
   student_number text,
-  school text,
-  course text,
   contact_number text,
   email text,
   emergency_contact text,
+  institution_id uuid references institutions(institution_id) on delete set null,
+  program_id uuid references programs(program_id) on delete set null,
   department_id uuid references departments(id) on delete set null,
   supervisor_id uuid references supervisors(id) on delete set null,
   start_date date,
