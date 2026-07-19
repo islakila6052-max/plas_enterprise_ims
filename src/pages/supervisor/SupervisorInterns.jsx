@@ -117,7 +117,7 @@ export default function SupervisorInterns() {
         status: "active",
       });
 
-      await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: newUser?.id, changes: { full_name: values.full_name, supervisor_id } });
+      await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: newUser?.id, changes: { full_name: values.full_name } });
       await notify({ user_id: newUser.id, type: "account_created", title: "Your account is ready", message: "Your internship account was created. You can now log in.", link: "/intern" });
       toast.success(`Intern ${values.full_name} created successfully!`);
       setModalOpen(false);
