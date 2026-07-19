@@ -58,7 +58,13 @@ export function AuthProvider({ children }) {
     const unsubscribe = authService.onAuthStateChange((_event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
-      loadProfile(nextUser);
+      // Guard: loadProfile is async and not awaited here. If it rejects it must
+      // not become an unhandled rejection that crashes the whole app.
+      loadProfile(nextUser).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("[IMS] Failed to load profile on auth change:", err);
+        setProfile(null);
+      });
       setLoading(false);
     });
 
