@@ -54,7 +54,11 @@ export default function SupervisorEvaluations() {
   }, [load]);
 
   function openCreate() {
-    reset({ intern_id: "", overall_rating: 3, final_recommendation: "recommend" });
+    const defaults = { intern_id: "", overall_rating: 3, final_recommendation: "recommend" };
+    EVALUATION_CRITERIA.forEach((c) => {
+      defaults[c.key] = 3;
+    });
+    reset(defaults);
     setModalOpen(true);
   }
 
@@ -137,17 +141,17 @@ export default function SupervisorEvaluations() {
           </>
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          <Select label="Intern" {...register("intern_id", { required: "Select an intern" })}>
+          <Select label="Intern" error={errors.intern_id?.message} {...register("intern_id", { required: "Select an intern" })}>
             <option value="">Select intern…</option>
             {interns.map((i) => (
               <option key={i.id} value={i.id}>{i.full_name}</option>
             ))}
           </Select>
           {EVALUATION_CRITERIA.map((c) => (
-            <Input key={c.key} label={`${c.label} (1-5)`} type="number" min={1} max={5} {...register(c.key, { required: true })} />
+            <Input key={c.key} label={`${c.label} (1-5)`} type="number" min={1} max={5} error={errors[c.key]?.message} {...register(c.key, { required: `${c.label} is required`, min: { value: 1, message: `Must be 1-5` }, max: { value: 5, message: `Must be 1-5` } })} />
           ))}
-          <Input label="Overall rating (1-5)" type="number" min={1} max={5} {...register("overall_rating", { required: true })} />
-          <Select label="Final recommendation" {...register("final_recommendation", { required: true })}>
+          <Input label="Overall rating (1-5)" type="number" min={1} max={5} error={errors.overall_rating?.message} {...register("overall_rating", { required: "Overall rating is required", min: { value: 1, message: "Must be 1-5" }, max: { value: 5, message: "Must be 1-5" } })} />
+          <Select label="Final recommendation" error={errors.final_recommendation?.message} {...register("final_recommendation", { required: "Select a recommendation" })}>
             {EVALUATION_RECOMMENDATIONS.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
