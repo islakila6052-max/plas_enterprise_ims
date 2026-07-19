@@ -20,6 +20,7 @@ import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
 import { institutionService } from "@/services/institutionService";
 import { programService } from "@/services/programService";
+import { userService } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 import { INTERN_STATUS, INTERN_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
@@ -407,7 +408,7 @@ export default function InternManagement() {
             <Select label="Supervisor" {...register("supervisor_id")}>
               <option value="">Unassigned</option>
               {supervisors.map((s) => (
-                <option key={s.id} value={s.id}>{s.profile?.full_name ?? "Supervisor"}</option>
+                <option key={s.id} value={s.id}>{s.full_name || s.profile?.full_name || "Supervisor"}</option>
               ))}
             </Select>
             <Input label="Start date" type="date" {...register("start_date")} />
