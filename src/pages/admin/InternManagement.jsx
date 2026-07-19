@@ -382,7 +382,6 @@ export default function InternManagement() {
               />
             )}
             <Input label="Emergency contact" {...register("emergency_contact")} />
-            <Input label="Student number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
             <SearchableSelect
               label="Institution"
               value={selectedInstitutionId}
