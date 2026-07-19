@@ -172,11 +172,14 @@ export default function InternManagement() {
   async function onSubmit(values) {
     setSaving(true);
     try {
+      // `password` belongs to the auth user, not the interns table. Strip it
+      // (and any confirm field) so we never send a non-existent column to Supabase.
+      const { password, confirmPassword, ...internValues } = values;
       const payload = {
-        ...values,
-        required_hours: Number(values.required_hours) || 0,
+        ...internValues,
+        required_hours: Number(internValues.required_hours) || 0,
         institution_id: selectedInstitutionId || null,
-        program_id: values.program_id || null,
+        program_id: internValues.program_id || null,
         created_by: user?.id,
       };
       if (editing) {
@@ -187,7 +190,7 @@ export default function InternManagement() {
         // Create a real auth user + linked intern record so the intern can log in.
         const newUser = await userService.createAuthUser({
           email: values.email,
-          password: values.password,
+          password: password,
           full_name: values.full_name,
           role: "intern",
         });
