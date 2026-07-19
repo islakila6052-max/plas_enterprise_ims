@@ -24,7 +24,7 @@ export default function SupervisorAttendance() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await attendanceService.adminList({ supervisorId: sid, page: 1, pageSize: 100 });
+      const res = await attendanceService.adminList({ supervisorId, page: 1, pageSize: 100 });
       let filtered = res.data;
       if (status) filtered = filtered.filter((r) => r.status === status);
       if (search) {

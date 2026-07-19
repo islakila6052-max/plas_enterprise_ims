@@ -70,8 +70,17 @@ export default function InternDocuments() {
     }
   }
 
-  function download(row) {
-    toast.success(`Downloading ${row.file_name ?? TYPE_LABEL[row.type] ?? "document"} (simulated).`);
+  async function download(row) {
+    try {
+      const url = row.file_url || (await documentService.downloadUrl(row.file_path));
+      if (!url) {
+        toast.error("Download link unavailable.");
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(err.message);
+    }
   }
 
   const columns = [

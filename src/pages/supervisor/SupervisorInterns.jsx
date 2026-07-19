@@ -61,7 +61,7 @@ export default function SupervisorInterns() {
       let data = res.data;
       if (search) {
         const q = search.toLowerCase();
-        data = data.filter((r) => r.full_name.toLowerCase().includes(q));
+        data = data.filter((r) => (r.full_name ?? "").toLowerCase().includes(q));
       }
       setRows(data);
     } catch (err) {

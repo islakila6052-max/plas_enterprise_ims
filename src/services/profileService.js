@@ -40,7 +40,9 @@ export const profileService = {
         .from("profiles")
         .update(updates)
         .eq("id", userId)
-        .select("*")
+        .select(
+          "id, full_name, email, avatar_url, contact_number, bio, role, intern_id, supervisor_id, created_at, updated_at",
+        )
         .single();
       if (error) throw new Error(error.message);
       return data;
@@ -53,7 +55,10 @@ export const profileService = {
     if (supabase) {
       let query = supabase
         .from("profiles")
-        .select("*", { count: "exact" })
+        .select(
+          "id, full_name, email, avatar_url, contact_number, bio, role, intern_id, supervisor_id, created_at, updated_at",
+          { count: "exact" },
+        )
         .order("full_name", { ascending: true })
         .range(offset, offset + limit - 1);
       if (role) query = query.eq("role", role);

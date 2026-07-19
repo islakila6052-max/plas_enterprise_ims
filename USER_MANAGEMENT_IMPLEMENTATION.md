@@ -22,7 +22,7 @@ Both flows call a **backend API** (`/api/admin/create-user`) that uses the Supab
 
 ## 2. Backend API Endpoint
 
-**File:** `src/api/admin/create-user.js`
+**File:** `api/admin/create-user.js`
 
 - `POST` only. Accepts `{ email, password, user_metadata: { full_name, role } }`.
 - Uses `supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata })`.
@@ -50,8 +50,9 @@ Both flows call a **backend API** (`/api/admin/create-user`) that uses the Supab
 
 ### Modified: `src/pages/supervisor/SupervisorInterns.jsx`
 - Added "+ Add Intern" button (PageHeader action).
-- **Create modal:** Full Name, Email (valid), Temporary Password (min 8), Student Number, School, Course, Start Date (req), End Date (optional).
-  - Flow: `fetch('/api/admin/create-user', { role: 'intern' })` → resolve supervisor's `department_id` via `supervisorService.getById` → `internService.create({ profile_id, full_name, email, student_number, school, course, department_id, supervisor_id, created_by, start_date, end_date, status: 'active' })`.
+- **Create modal:** Full Name, Email (valid), Temporary Password (min 8), Student Number, Contact Number, Emergency Contact, Institution (searchable), Program (searchable, requires institution), Start Date (req), End Date (optional), Required Hours.
+  - Flow: `fetch('/api/admin/create-user', { role: 'intern' })` → resolve supervisor's `department_id` via `supervisorService.getById` → `internService.create({ profile_id, full_name, email, student_number, contact_number, emergency_contact, department_id, supervisor_id, institution_id, program_id, created_by, start_date, end_date, required_hours, status: 'active' })`.
+  - Note: the legacy `school` / `course` columns were dropped (migration `0011_drop_intern_school_course.sql`); they are replaced by `institution_id` + `program_id`.
 - **List view:** interns where `supervisor_id = current supervisor` **OR** `created_by = current supervisor`.
 - Detail modal unchanged.
 

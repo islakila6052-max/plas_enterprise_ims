@@ -37,13 +37,15 @@ export default function SearchableSelect({
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const boxRef = useRef(null);
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
   const debounced = useDebouncedValue(query, 500);
 
   useEffect(() => {
     let active = true;
     if (!open) return;
     setLoading(true);
-    Promise.resolve(onSearch(debounced))
+    Promise.resolve(onSearchRef.current(debounced))
       .then((res) => {
         if (active) setOptions(res || []);
       })
@@ -56,7 +58,7 @@ export default function SearchableSelect({
     return () => {
       active = false;
     };
-  }, [debounced, open, onSearch]);
+  }, [debounced, open]);
 
   useEffect(() => {
     function onDoc(e) {

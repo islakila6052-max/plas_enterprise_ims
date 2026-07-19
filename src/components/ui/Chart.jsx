@@ -11,32 +11,38 @@ import { cn } from "@/utils/cn";
 const PALETTE = ["#15803d", "#16a34a", "#22c55e", "#86efac", "#bbf7d0", "#4ade80"];
 
 export function BarChart({ data, className = "" }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
+  const safe = Array.isArray(data) ? data : [];
+  const max = Math.max(1, ...safe.map((d) => d.value));
   return (
     <div className={cn("space-y-3", className)}>
-      {data.map((d, i) => (
-        <div key={d.label}>
-          <div className="mb-1 flex items-center justify-between text-sm">
-            <span className="text-slate-600">{d.label}</span>
-            <span className="font-semibold text-slate-800">{d.value}</span>
+      {safe.length === 0 ? (
+        <p className="text-sm text-slate-400">No data available.</p>
+      ) : (
+        safe.map((d, i) => (
+          <div key={d.label}>
+            <div className="mb-1 flex items-center justify-between text-sm">
+              <span className="text-slate-600">{d.label}</span>
+              <span className="font-semibold text-slate-800">{d.value}</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-brand-50">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${(d.value / max) * 100}%`,
+                  backgroundColor: PALETTE[i % PALETTE.length],
+                }}
+              />
+            </div>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-brand-50">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${(d.value / max) * 100}%`,
-                backgroundColor: PALETTE[i % PALETTE.length],
-              }}
-            />
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
 
 export function DonutChart({ data, size = 160, thickness = 22, centerLabel, centerValue }) {
-  const total = Math.max(1, data.reduce((s, d) => s + d.value, 0));
+  const safe = Array.isArray(data) ? data : [];
+  const total = Math.max(1, safe.reduce((s, d) => s + d.value, 0));
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
