@@ -164,7 +164,7 @@ export default function InstitutionModal({
     // Pass the logo state up; the page handler uploads the file (needs the
     // institution id) and then saves logo_url.
     onSubmit({
-      institution: { ...values, institution_name: name },
+      institution: { ...values, institution_name: name, logo_url: logoFile ? null : logoUrl },
       programs: programs.map((p) => ({
         ...p,
         program_name: p.program_name.trim(),
@@ -172,7 +172,6 @@ export default function InstitutionModal({
         program_code: p.program_code.trim() || null,
         required_hours: Number(p.required_hours) || 0,
       })),
-      logoUrl: logoFile ? null : logoUrl, // null signals "use uploaded result"
       logoFile: logoFile || null,
     });
   };

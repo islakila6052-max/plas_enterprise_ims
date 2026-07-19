@@ -66,16 +66,26 @@ export const institutionService = {
   },
 
   _payload(p) {
-    return {
+    // Build the full shape, then DROP any key that is `undefined`.
+    // This is critical: callers like update(id, { logo_url }) must NOT
+    // accidentally null out every other column. Supabase serializes
+    // `undefined` keys as absent (safe) but `null` as an explicit NULL,
+    // so we must never let an unprovided field become `null`.
+    const raw = {
       institution_name: p.institution_name,
-      abbreviation: p.abbreviation || null,
-      campus: p.campus || null,
-      address: p.address || null,
-      contact_person: p.contact_person || null,
-      contact_number: p.contact_number || null,
-      email: p.email || null,
-      logo_url: p.logo_url || null,
+      abbreviation: p.abbreviation,
+      campus: p.campus,
+      address: p.address,
+      contact_person: p.contact_person,
+      contact_number: p.contact_number,
+      email: p.email,
+      logo_url: p.logo_url,
     };
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v !== undefined) out[k] = v;
+    }
+    return out;
   },
 
   async create(payload) {
