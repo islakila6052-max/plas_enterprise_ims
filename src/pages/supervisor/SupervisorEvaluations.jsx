@@ -12,6 +12,7 @@ import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import { internService } from "@/services/internService";
 import { evaluationService } from "@/services/evaluationService";
+import { supervisorService } from "@/services/supervisorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
@@ -21,6 +22,33 @@ const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.va
 
 export default function SupervisorEvaluations() {
   const { profile, supervisorId, user } = useAuth();
+  // Resolve the supervisor record id robustly. The RLS `with check` on evaluations
+  // compares against public.current_supervisor_id(), which is derived from
+  // supervisors.profile_id — NOT the cached profile.supervisor_id. If those two
+  // links are out of sync, inserting with the cached id violates RLS and the
+  // request fails. Resolving from the DB guarantees we send the id RLS expects.
+  const [resolvedSid, setResolvedSid] = useState(supervisorId);
+
+  useEffect(() => {
+    let active = true;
+    async function resolve() {
+      const fallback = profile?.supervisor_id ?? null;
+      if (!profile?.id) {
+        setResolvedSid(fallback);
+        return;
+      }
+      try {
+        const sup = await supervisorService.getByProfileId(profile.id);
+        setResolvedSid(sup?.id ?? fallback);
+      } catch {
+        setResolvedSid(fallback);
+      }
+    }
+    resolve();
+    return () => {
+      active = false;
+    };
+  }, [profile?.id, profile?.supervisor_id]);
   const [rows, setRows] = useState([]);
   const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,17 +65,17 @@ export default function SupervisorEvaluations() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const sid = supervisorId;
+      const sid = resolvedSid;
       const res = await evaluationService.list({ supervisorId: sid, page: 1, pageSize: 100 });
       setRows(res.data);
-      const internsRes = await internService.list({ supervisorId: sid, page: 1 });
+      const internsRes = await internService.list({ supervisorId: sid, page: 1, pageSize: 1000 });
       setInterns(internsRes.data);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [supervisorId]);
+  }, [resolvedSid]);
 
   useEffect(() => {
     load();
@@ -65,7 +93,7 @@ export default function SupervisorEvaluations() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      const sid = supervisorId;
+      const sid = resolvedSid;
       const criteria = {};
       EVALUATION_CRITERIA.forEach((c) => {
         criteria[c.key] = Number(values[c.key]) || 0;
@@ -84,7 +112,10 @@ export default function SupervisorEvaluations() {
       setModalOpen(false);
       load();
     } catch (err) {
-      toast.error(err.message);
+      const detail = err?.details || err?.hint || err?.code || "";
+      toast.error(detail ? `${err.message} (${detail})` : err.message);
+      // eslint-disable-next-line no-console
+      console.error("[IMS] Evaluation create failed:", err);
     } finally {
       setSaving(false);
     }
