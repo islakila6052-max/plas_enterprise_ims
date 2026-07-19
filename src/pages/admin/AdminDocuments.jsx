@@ -14,6 +14,7 @@ import { documentService } from "@/services/documentService";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit } from "@/services/activityService";
+import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
@@ -32,6 +33,7 @@ function fileIcon(type) {
 }
 
 export default function AdminDocuments() {
+  const { user } = useAuth();
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);

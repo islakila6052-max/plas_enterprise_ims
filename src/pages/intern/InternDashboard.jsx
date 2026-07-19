@@ -23,7 +23,7 @@ export default function InternDashboard() {
 
   useEffect(() => {
     let active = true;
-    dashboardService.internStats(internId).then((s) => active && setStats(s));
+    dashboardService.internStats(internId).then((s) => active && setStats(s)).catch((err) => toast.error(err.message));
     return () => {
       active = false;
     };

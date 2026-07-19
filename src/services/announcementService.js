@@ -8,6 +8,7 @@ export const announcementService = {
       let query = supabase
         .from("announcements")
         .select("*", { count: "exact" })
+        .order("pinned", { ascending: false })
         .order("created_at", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (category) query = query.eq("category", category);

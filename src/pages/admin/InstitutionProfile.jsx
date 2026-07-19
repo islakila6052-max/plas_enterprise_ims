@@ -70,7 +70,7 @@ export default function InstitutionProfile() {
     interns.forEach((i) => {
       if (i.program_id) byProgram.set(i.program_id, (byProgram.get(i.program_id) || 0) + 1);
     });
-    return { active, completed, ongoing: active, byProgram };
+    return { active, completed, ongoing: interns.filter((i) => i.status === "active" || i.status === "completed").length, byProgram };
   }, [interns]);
 
   const progRows = useMemo(

@@ -38,7 +38,22 @@ export const attendanceService = {
         .eq("intern_id", internId)
         .eq("date", today)
         .maybeSingle();
-      if (existing) return existing;
+      if (existing) {
+        // Reuse today's record. If it was already closed (timed out),
+        // reopen it so the intern can log a new session — matches the
+        // demo backend's behaviour and avoids a stuck "can't time in" state.
+        if (existing.time_out) {
+          const { data, error } = await supabase
+            .from("attendance")
+            .update({ time_in: new Date().toISOString(), time_out: null, total_hours: 0, status: "present", method })
+            .eq("id", existing.id)
+            .select("*")
+            .single();
+          if (error) throw new Error(error.message);
+          return data;
+        }
+        return existing;
+      }
       const { data, error } = await supabase
         .from("attendance")
         .insert({ intern_id: internId, date: today, time_in: new Date().toISOString(), method, status: "present" })
@@ -83,19 +98,22 @@ export const attendanceService = {
     return mockBackend.listAttendance({ internId, date, page, pageSize });
   },
 
-  async adminList({ date, page = 1, pageSize = 15 } = {}) {
+  async adminList({ date, supervisorId, page = 1, pageSize = 15 } = {}) {
     if (supabase) {
       let query = supabase
         .from("attendance")
-        .select("*, intern:interns(full_name, student_number)", { count: "exact" })
+        .select("*, intern:interns(full_name, student_number, supervisor_id)", { count: "exact" })
         .order("date", { ascending: false })
         .order("time_in", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (date) query = query.eq("date", date);
+      // Filter to this supervisor's interns server-side (the embedded
+      // intern.supervisor_id column is what the UI previously read client-side).
+      if (supervisorId) query = query.eq("intern.supervisor_id", supervisorId);
       const { data, error, count } = await query;
       if (error) throw new Error(error.message);
       return { data: data ?? [], count: count ?? 0 };
     }
-    return mockBackend.adminListAttendance({ date, page, pageSize });
+    return mockBackend.adminListAttendance({ date, supervisorId, page, pageSize });
   },
 };

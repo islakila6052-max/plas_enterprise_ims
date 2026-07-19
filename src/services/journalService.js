@@ -22,7 +22,18 @@ export const journalService = {
 
   async create(payload) {
     if (supabase) {
-      const { data, error } = await supabase.from("daily_journals").insert(payload).select("*").single();
+      // Resolve supervisor_id from the intern's record when not provided,
+      // so the supervisor's journal list (filtered by supervisor_id) sees it.
+      const finalPayload = { ...payload };
+      if (!finalPayload.supervisor_id && finalPayload.intern_id) {
+        const { data: intern } = await supabase
+          .from("interns")
+          .select("supervisor_id")
+          .eq("id", finalPayload.intern_id)
+          .single();
+        if (intern?.supervisor_id) finalPayload.supervisor_id = intern.supervisor_id;
+      }
+      const { data, error } = await supabase.from("daily_journals").insert(finalPayload).select("*").single();
       if (error) throw new Error(error.message);
       return data;
     }
@@ -31,9 +42,13 @@ export const journalService = {
 
   async review(id, status, supervisorId, comment) {
     if (supabase) {
+      // Only set supervisor_id when one is provided. Passing null here would
+      // wipe the link the supervisor's journal list + RLS depend on.
+      const patch = { status, supervisor_comment: comment };
+      if (supervisorId) patch.supervisor_id = supervisorId;
       const { data, error } = await supabase
         .from("daily_journals")
-        .update({ status, supervisor_id: supervisorId, supervisor_comment: comment })
+        .update(patch)
         .eq("id", id)
         .select("*")
         .single();

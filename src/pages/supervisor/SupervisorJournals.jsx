@@ -18,7 +18,7 @@ import { recordAudit, notify } from "@/services/activityService";
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function SupervisorJournals() {
-  const { profile, supervisorId } = useAuth();
+  const { profile, supervisorId, user } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -62,7 +62,7 @@ export default function SupervisorJournals() {
       const sid = supervisorId;
       await journalService.review(reviewing.id, status, sid, comment);
       await recordAudit({ user_id: user?.id, action: "review", resource_type: "daily_journal", resource_id: reviewing.id, changes: { status, supervisor_comment: comment } });
-      if (reviewing.intern_id) await notify({ user_id: reviewing.intern_id, type: "journal_review", title: `Journal ${status}`, message: `Your journal for ${reviewing.date} was ${status}.`, link: "/intern/journal" });
+      if (reviewing.intern?.profile_id) await notify({ user_id: reviewing.intern.profile_id, type: "journal_review", title: `Journal ${status}`, message: `Your journal for ${reviewing.date} was ${status}.`, link: "/intern/journal" });
       toast.success(`Journal ${status}.`);
       setReviewing(null);
       load();

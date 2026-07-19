@@ -76,16 +76,19 @@ export default function AdminReports() {
           attendanceService.adminList({ page: 1, pageSize: 5000 }),
         ]);
         const renderedByIntern = (attRes.data ?? []).reduce((acc, r) => {
-          if (r.intern?.full_name) {
-            acc[r.intern.full_name] =
-              (acc[r.intern.full_name] ?? 0) + (Number(r.total_hours) || 0);
+          if (r.intern_id) {
+            acc[r.intern_id] =
+              (acc[r.intern_id] ?? 0) + (Number(r.total_hours) || 0);
           }
           return acc;
         }, {});
-        return internsRes.data.map((r) => ({
+        const nameById = new Map(
+          (internsRes.data ?? []).map((i) => [i.id, i.full_name]),
+        );
+        return (internsRes.data ?? []).map((r) => ({
           Name: r.full_name,
           RequiredHours: r.required_hours,
-          RenderedHours: Math.round((renderedByIntern[r.full_name] ?? 0) * 100) / 100,
+          RenderedHours: Math.round((renderedByIntern[r.id] ?? 0) * 100) / 100,
         }));
       }
       default:

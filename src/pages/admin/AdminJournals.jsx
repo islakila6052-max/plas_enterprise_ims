@@ -15,10 +15,12 @@ import { journalService } from "@/services/journalService";
 import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit } from "@/services/activityService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
 export default function AdminJournals() {
+  const { user } = useAuth();
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);

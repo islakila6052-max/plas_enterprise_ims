@@ -9,7 +9,7 @@ export const documentService = {
     if (supabase) {
       let query = supabase
         .from("documents")
-        .select("*, intern:interns(full_name, student_number)", { count: "exact" })
+        .select("*, intern:interns(full_name, student_number, profile_id)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       if (internId) query = query.eq("intern_id", internId);
@@ -36,6 +36,7 @@ export const documentService = {
           label: label || type,
           file_path: path,
           file_url: urlData.publicUrl,
+          file_name: file?.name ?? `${type}.pdf`,
           status: "pending",
         })
         .select("*")

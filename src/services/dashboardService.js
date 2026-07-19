@@ -26,7 +26,7 @@ export const dashboardService = {
         count("interns"),
         count("interns", (q) => q.eq("status", "active")),
         count("interns", (q) => q.eq("status", "completed")),
-        count("evaluations", (q) => q.eq("status", "pending")),
+        count("evaluations", (q) => q.neq("status", "completed")),
         count("attendance", (q) => q.eq("date", new Date().toISOString().slice(0, 10))),
       ]);
       return { totalInterns, activeInterns, completedInternships: completed, pendingEvaluations: pendingEvals, attendanceToday };
@@ -36,12 +36,22 @@ export const dashboardService = {
 
   async supervisorStats(supervisorId) {
     if (supabase) {
-      const base = (q) => (supervisorId ? q.eq("supervisor_id", supervisorId) : q);
+      // `attendance` has no supervisor_id column (only intern_id), so count
+      // today's attendance via the supervisor's assigned interns.
+      const { data: internRows, error: internErr } = await supabase
+        .from("interns")
+        .select("id")
+        .eq("supervisor_id", supervisorId);
+      if (internErr) return { assignedInterns: 0, attendanceToday: 0, pendingJournals: 0, pendingEvaluations: 0 };
+      const internIds = (internRows ?? []).map((i) => i.id);
+      const today = new Date().toISOString().slice(0, 10);
       const [assigned, attendanceToday, pendingJournals, pendingEvals] = await Promise.all([
-        count("interns", (q) => base(q).eq("status", "active")),
-        count("attendance", (q) => base(q).eq("date", new Date().toISOString().slice(0, 10))),
-        count("daily_journals", (q) => base(q).eq("status", "pending")),
-        count("evaluations", (q) => base(q).eq("status", "pending")),
+        count("interns", (q) => q.eq("supervisor_id", supervisorId).eq("status", "active")),
+        internIds.length
+          ? count("attendance", (q) => q.in("intern_id", internIds).eq("date", today))
+          : Promise.resolve(0),
+        count("daily_journals", (q) => q.eq("supervisor_id", supervisorId).eq("status", "pending")),
+        count("evaluations", (q) => q.eq("supervisor_id", supervisorId).eq("status", "pending")),
       ]);
       return { assignedInterns: assigned, attendanceToday, pendingJournals, pendingEvaluations: pendingEvals };
     }
