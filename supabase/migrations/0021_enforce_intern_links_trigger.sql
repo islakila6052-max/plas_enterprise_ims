@@ -117,13 +117,10 @@ begin
     end if;
   end if;
 
-  -- Keep the cached profiles.supervisor_id in sync.
-  if new.profile_id is not null then
-    update public.profiles
-    set supervisor_id = new.id
-    where id = new.profile_id
-      and (supervisor_id is null or supervisor_id <> new.id);
-  end if;
+  -- NOTE: we do NOT set profiles.supervisor_id here. Doing so in a BEFORE
+  -- trigger violates the profiles.supervisor_id -> supervisors(id) FK, because
+  -- the new supervisors row is not committed yet. The AFTER trigger
+  -- on_supervisor_linked (sync_profile_links) handles that sync correctly.
 
   return new;
 end;

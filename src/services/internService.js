@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
 import { PAGE_SIZE } from "@/lib/constants";
+import { userService } from "@/services/userService";
 
 export const internService = {
   async list({
@@ -101,8 +102,30 @@ export const internService = {
 
   async remove(id) {
     if (supabase) {
+      // Fetch the linked profile (auth user) id before deleting the intern.
+      const { data: internRow, error: fetchErr } = await supabase
+        .from("interns")
+        .select("profile_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (fetchErr) throw new Error(fetchErr.message);
+
+      // Delete the intern row. FK ON DELETE CASCADE removes attendance,
+      // daily_journals, documents and evaluations for this intern automatically.
       const { error } = await supabase.from("interns").delete().eq("id", id);
       if (error) throw new Error(error.message);
+
+      // Hard-delete the linked auth user so the account can no longer log in.
+      // profiles.id cascades to the profile row; intern children are already gone.
+      if (internRow?.profile_id) {
+        try {
+          await userService.deleteAuthUser(internRow.profile_id);
+        } catch (e) {
+          // Non-fatal: the intern data is already removed. Surface but don't fail
+          // the whole operation if the auth delete is blocked for any reason.
+          console.error("Intern auth user delete failed:", e);
+        }
+      }
       return;
     }
     return mockBackend.removeIntern(id);

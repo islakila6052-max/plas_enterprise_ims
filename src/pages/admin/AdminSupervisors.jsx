@@ -292,7 +292,7 @@ export default function AdminSupervisors() {
         onClose={() => setConfirm(null)}
         onConfirm={removeSupervisor}
         title="Delete Supervisor?"
-        message={`Delete ${confirm?.full_name || confirm?.profile?.full_name}? This will also remove their access.`}
+        message={`Delete ${confirm?.full_name || confirm?.profile?.full_name}? This removes the supervisor and ALL their evaluations, journals, and notifications, disables their login, and unassigns their interns (intern records are kept). This cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
       />

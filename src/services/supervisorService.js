@@ -1,6 +1,7 @@
 // supervisorService.js
 import { supabase } from "@/lib/supabase";
 import mockBackend from "@/lib/mockBackend";
+import { userService } from "@/services/userService";
 
 export const supervisorService = {
   async list() {
@@ -179,29 +180,39 @@ export const supervisorService = {
 
   async remove(id) {
     if (supabase) {
-      // First get the profile_id
+      // Fetch the linked profile (auth user) id before deleting the supervisor.
       const { data: supData, error: fetchError } = await supabase
         .from("supervisors")
         .select("profile_id")
         .eq("id", id)
         .single();
-
       if (fetchError) throw new Error(fetchError.message);
 
-      // Delete supervisor record
+      // Delete the supervisor's OWN child records explicitly. The FKs from these
+      // tables to supervisors are ON DELETE SET NULL (not cascade), so we must
+      // remove them here to fully clear the supervisor's data.
+      // Interns are NOT deleted — they are distinct people; their supervisor_id
+      // is set to NULL by the FK, preserving their records.
+      await supabase.from("evaluations").delete().eq("supervisor_id", id);
+      await supabase.from("daily_journals").delete().eq("supervisor_id", id);
+      if (supData?.profile_id) {
+        await supabase.from("notifications").delete().eq("user_id", supData.profile_id);
+      }
+
+      // Delete the supervisor record.
       const { error: deleteError } = await supabase
         .from("supervisors")
         .delete()
         .eq("id", id);
-
       if (deleteError) throw new Error(deleteError.message);
 
-      // Update the profile to remove supervisor_id
+      // Hard-delete the linked auth user so the account can no longer log in.
       if (supData?.profile_id) {
-        await supabase
-          .from("profiles")
-          .update({ supervisor_id: null })
-          .eq("id", supData.profile_id);
+        try {
+          await userService.deleteAuthUser(supData.profile_id);
+        } catch (e) {
+          console.error("Supervisor auth user delete failed:", e);
+        }
       }
 
       return;

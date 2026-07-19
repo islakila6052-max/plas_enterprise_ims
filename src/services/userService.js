@@ -53,4 +53,37 @@ export const userService = {
 
     return mockBackend.createUser({ email, password, full_name, role });
   },
+
+  /**
+   * Hard-delete an auth user (and, by cascade, their profiles row) via the
+   * serverless admin API. Used when an admin removes an intern/supervisor so
+   * the account can no longer log in. The caller's session token authorizes
+   * the request server-side.
+   * @param {string} userId
+   */
+  async deleteAuthUser(userId) {
+    if (isSupabaseConfigured) {
+      let token = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token ?? null;
+      } catch {
+        token = null;
+      }
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to delete user");
+      }
+      return true;
+    }
+    return mockBackend.deleteUser?.(userId);
+  },
 };

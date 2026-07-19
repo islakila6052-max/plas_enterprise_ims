@@ -462,7 +462,7 @@ export default function InternManagement() {
         title={confirm?.type === "delete" ? "Delete intern?" : confirm?.type === "archive" ? "Archive intern?" : "Restore intern?"}
         message={
           confirm?.type === "delete"
-            ? `Permanently delete ${confirm?.row.full_name}? This cannot be undone.`
+            ? `Permanently delete ${confirm?.row.full_name}? This removes the intern and ALL their attendance, journals, documents, and evaluations, and disables their login. This cannot be undone.`
             : confirm?.type === "archive"
               ? `${confirm?.row.full_name} will be moved to archived.`
               : `${confirm?.row.full_name} will be restored to active.`
