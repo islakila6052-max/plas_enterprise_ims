@@ -5,7 +5,7 @@ export const journalService = {
   async list({ internId, status, supervisorId, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("daily_journals")
-      .select("*, intern:interns(full_name, student_number)", { count: "exact" })
+      .select("*, intern:interns(full_name, student_number, profile_id)", { count: "exact" })
       .order("date", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (internId) query = query.eq("intern_id", internId);
