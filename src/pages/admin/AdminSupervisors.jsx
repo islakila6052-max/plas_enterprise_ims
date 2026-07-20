@@ -103,7 +103,7 @@ export default function AdminSupervisors() {
         toast.success("Supervisor updated.");
       } else {
         // Create new supervisor with auth user
-        // Step 1: Create auth user (serverless API in Supabase mode, mock in demo mode).
+        // Step 1: Create auth user via the serverless admin API.
         const newUser = await userService.createAuthUser({
           email: values.email,
           password: values.password,
@@ -111,7 +111,7 @@ export default function AdminSupervisors() {
           role: "supervisor",
         });
 
-        // Step 2: Update profile role + name (Supabase mode only; demo mode already set it).
+        // Step 2: Update profile role + name.
         if (supabase) {
           await supabase
             .from("profiles")

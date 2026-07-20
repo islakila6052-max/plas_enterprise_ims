@@ -5,10 +5,8 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/authService";
 import Button from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
-import SetupBanner from "@/components/ui/SetupBanner";
-import { ROLES, ROLE_LABELS } from "@/lib/constants";
-import { DEMO_ACCOUNTS } from "@/lib/sampleData";
+import { Input } from "@/components/ui/Input";
+import { ROLES } from "@/lib/constants";
 
 const ROLE_HOME = {
   [ROLES.ADMIN]: "/admin",
@@ -18,7 +16,7 @@ const ROLE_HOME = {
 };
 
 export default function Login() {
-  const { isConfigured, refreshProfile, role } = useAuth();
+  const { refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState("");
@@ -27,9 +25,8 @@ export default function Login() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
-  } = useForm({ defaultValues: { email: "", password: "", role: "auto" } });
+  } = useForm({ defaultValues: { email: "", password: "" } });
 
   const from = location.state?.from?.pathname;
 
@@ -49,23 +46,15 @@ export default function Login() {
     }
   }
 
-  function fillDemo(account) {
-    setValue("email", account.email);
-    setValue("password", account.password);
-    setValue("role", "auto");
-    setServerError("");
-  }
-
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-brand-50 via-canvas to-brand-100">
-      {!isConfigured && <SetupBanner />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
             <img
               src="/login-logo.png"
               alt="PLAS Enterprise"
-              className="mx-auto mb-3 h-16 w-auto object-contain"
+              className="mx-auto mb-3 h-30 w-auto object-contain"
             />
             <h1 className="text-2xl font-bold text-slate-800">
               Internship Management System
@@ -103,14 +92,6 @@ export default function Login() {
               error={errors.password?.message}
               {...register("password", { required: "Password is required" })}
             />
-            <Select label="Role" {...register("role")}>
-              <option value="auto">Auto-detect from account</option>
-              {Object.values(ROLES).map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
-              ))}
-            </Select>
             <div className="flex justify-end">
               <Link
                 to="/forgot-password"
@@ -122,30 +103,6 @@ export default function Login() {
               Sign In
             </Button>
           </form>
-
-          <div className="surface mt-4 p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Demo accounts
-            </p>
-            <div className="grid gap-2">
-              {DEMO_ACCOUNTS.map((a) => (
-                <button
-                  key={a.email}
-                  type="button"
-                  onClick={() => fillDemo(a)}
-                  className="flex items-center justify-between rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50">
-                  <span>
-                    <span className="font-medium text-slate-700">{a.label}</span>
-                    <span className="block text-xs text-slate-400">{a.email}</span>
-                  </span>
-                  <span className="text-xs font-medium text-brand-700">Use</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-center text-xs text-slate-400">
-              Password for all demo accounts: <span className="font-medium text-slate-500">password123</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>

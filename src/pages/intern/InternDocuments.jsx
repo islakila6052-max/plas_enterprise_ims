@@ -159,7 +159,7 @@ export default function InternDocuments() {
               </div>
             </div>
             <div className="rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-6 text-center text-slate-500">
-              Document preview is simulated in demo mode.
+              Document preview is not available in the browser.
             </div>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => download(preview)}>Download</Button>

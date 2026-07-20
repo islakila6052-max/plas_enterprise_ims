@@ -5,11 +5,9 @@ import { useForm } from "react-hook-form";
 import { authService } from "@/services/authService";
 import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import SetupBanner from "@/components/ui/SetupBanner";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ResetPassword() {
-  const { isConfigured } = useAuth();
   const navigate = useNavigate();
   const [done, setDone] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -38,7 +36,6 @@ export default function ResetPassword() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-brand-50 via-canvas to-brand-100">
-      {!isConfigured && <SetupBanner />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">

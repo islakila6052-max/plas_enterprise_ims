@@ -1,6 +1,5 @@
 // src/services/programService.js
 import { supabase } from "@/lib/supabase";
-import mockBackend from "@/lib/mockBackend";
 
 /**
  * Program service. Programs belong to an institution (1:N). Admin-only writes;
@@ -19,20 +18,6 @@ const COLUMNS = [
 
 export const programService = {
   async list({ institutionId = "", search = "" } = {}) {
-    if (!supabase) {
-      let rows = mockBackend.listPrograms?.() || [];
-      if (institutionId) rows = rows.filter((r) => r.institution_id === institutionId);
-      if (search) {
-        const q = search.toLowerCase();
-        rows = rows.filter(
-          (r) =>
-            (r.program_name || "").toLowerCase().includes(q) ||
-            (r.program_code || "").toLowerCase().includes(q) ||
-            (r.abbreviation || "").toLowerCase().includes(q),
-        );
-      }
-      return rows;
-    }
     try {
       let query = supabase
         .from("programs")
@@ -53,7 +38,6 @@ export const programService = {
   },
 
   async getById(id) {
-    if (!supabase) return mockBackend.getProgramById?.(id) || null;
     const { data, error } = await supabase
       .from("programs")
       .select(COLUMNS.join(","))
@@ -74,7 +58,6 @@ export const programService = {
   },
 
   async create(payload) {
-    if (!supabase) return mockBackend.createProgram?.(payload) || null;
     const { data, error } = await supabase
       .from("programs")
       .insert(this._payload(payload))
@@ -85,7 +68,6 @@ export const programService = {
   },
 
   async update(id, payload) {
-    if (!supabase) return mockBackend.updateProgram?.(id, payload) || null;
     const { data, error } = await supabase
       .from("programs")
       .update(this._payload(payload))
@@ -97,7 +79,6 @@ export const programService = {
   },
 
   async remove(id) {
-    if (!supabase) return mockBackend.removeProgram?.(id);
     const { error } = await supabase.from("programs").delete().eq("program_id", id);
     if (error) throw new Error(error.message);
   },
@@ -111,7 +92,6 @@ export const programService = {
    * @param {Array}  programs  [{ program_id?, program_name, abbreviation?, program_code?, required_hours }]
    */
   async reconcile(institutionId, programs = []) {
-    if (!supabase) return mockBackend.reconcilePrograms?.(institutionId, programs);
     const existing = await this.list({ institutionId });
     const incomingIds = new Set(programs.filter((p) => p.program_id).map((p) => p.program_id));
 

@@ -159,7 +159,7 @@ export default function AdminDocuments() {
               </div>
             </div>
             <div className="rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-6 text-center text-slate-500">
-              Document preview is simulated in demo mode.
+              Document preview is not available in the browser.
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => download(preview)}>Download</Button>

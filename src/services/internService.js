@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import mockBackend from "@/lib/mockBackend";
 import { PAGE_SIZE } from "@/lib/constants";
 import { userService } from "@/services/userService";
 
@@ -15,8 +14,7 @@ export const internService = {
     page = 1,
     pageSize = PAGE_SIZE,
   } = {}) {
-    if (supabase) {
-      let query = supabase
+    let query = supabase
         .from("interns")
         .select(
           "*, department:departments(name), supervisor:supervisors(full_name, email), institution:institutions(institution_name), program:programs(program_name, abbreviation)",
@@ -46,89 +44,65 @@ export const internService = {
       const { data, error, count } = await query;
       if (error) throw new Error(error.message);
       return { data: data ?? [], count: count ?? 0, page, pageSize };
-    }
-    return mockBackend.listInterns({
-      search,
-      departmentId,
-      status,
-      supervisorId,
-      createdBy,
-      institutionId,
-      programId,
-      page,
-      pageSize,
-    });
   },
 
   async get(id) {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from("interns")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-    return mockBackend.getIntern(id);
+    const { data, error } = await supabase
+      .from("interns")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   async create(payload) {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from("interns")
-        .insert(payload)
-        .select("*")
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-    return mockBackend.createIntern(payload);
+    const { data, error } = await supabase
+      .from("interns")
+      .insert(payload)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   async update(id, payload) {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from("interns")
-        .update(payload)
-        .eq("id", id)
-        .select("*")
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-    return mockBackend.updateIntern(id, payload);
+    const { data, error } = await supabase
+      .from("interns")
+      .update(payload)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   async remove(id) {
-    if (supabase) {
-      // Fetch the linked profile (auth user) id before deleting the intern.
-      const { data: internRow, error: fetchErr } = await supabase
-        .from("interns")
-        .select("profile_id")
-        .eq("id", id)
-        .maybeSingle();
-      if (fetchErr) throw new Error(fetchErr.message);
+    // Fetch the linked profile (auth user) id before deleting the intern.
+    const { data: internRow, error: fetchErr } = await supabase
+      .from("interns")
+      .select("profile_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
 
-      // Delete the intern row. FK ON DELETE CASCADE removes attendance,
-      // daily_journals, documents and evaluations for this intern automatically.
-      const { error } = await supabase.from("interns").delete().eq("id", id);
-      if (error) throw new Error(error.message);
+    // Delete the intern row. FK ON DELETE CASCADE removes attendance,
+    // daily_journals, documents and evaluations for this intern automatically.
+    const { error } = await supabase.from("interns").delete().eq("id", id);
+    if (error) throw new Error(error.message);
 
-      // Hard-delete the linked auth user so the account can no longer log in.
-      // profiles.id cascades to the profile row; intern children are already gone.
-      if (internRow?.profile_id) {
-        try {
-          await userService.deleteAuthUser(internRow.profile_id);
-        } catch (e) {
-          // Non-fatal: the intern data is already removed. Surface but don't fail
-          // the whole operation if the auth delete is blocked for any reason.
-          console.error("Intern auth user delete failed:", e);
-        }
+    // Hard-delete the linked auth user so the account can no longer log in.
+    // profiles.id cascades to the profile row; intern children are already gone.
+    if (internRow?.profile_id) {
+      try {
+        await userService.deleteAuthUser(internRow.profile_id);
+      } catch (e) {
+        // Non-fatal: the intern data is already removed. Surface but don't fail
+        // the whole operation if the auth delete is blocked for any reason.
+        console.error("Intern auth user delete failed:", e);
       }
-      return;
     }
-    return mockBackend.removeIntern(id);
+    return;
   },
 
   /** Soft-archive by flipping status. */

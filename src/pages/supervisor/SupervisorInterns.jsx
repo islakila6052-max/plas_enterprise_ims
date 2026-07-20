@@ -122,7 +122,7 @@ export default function SupervisorInterns() {
   async function onSubmit(values) {
     setSaving(true);
     try {
-      // Step 1: Create auth user (serverless API in Supabase mode, mock in demo mode).
+      // Step 1: Create auth user via the serverless admin API.
       const newUser = await userService.createAuthUser({
         email: values.email,
         password: values.password,

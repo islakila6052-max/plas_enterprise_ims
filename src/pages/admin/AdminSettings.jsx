@@ -9,20 +9,15 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { departmentService } from "@/services/departmentService";
 import { settingsService } from "@/services/settingsService";
-import { resetDemoDB } from "@/lib/mockBackend";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminSettings() {
-  const { isConfigured } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
 
   const {
     register,
@@ -54,7 +49,7 @@ export default function AdminSettings() {
           });
       })
       .catch(() => {});
-  }, [isConfigured, resetSettings]);
+  }, [resetSettings]);
 
   function openCreate() {
     setEditing(null);
@@ -104,12 +99,6 @@ export default function AdminSettings() {
     } catch (err) {
       toast.error(err.message);
     }
-  }
-
-  function handleResetDemo() {
-    resetDemoDB();
-    toast.success("Demo data reset. Reloading…");
-    setTimeout(() => window.location.reload(), 800);
   }
 
   if (loading) return <Spinner label="Loading settings…" />;
@@ -171,46 +160,6 @@ export default function AdminSettings() {
           <span className="text-sm text-slate-500">Primary #15803D · Secondary #16A34A · Accent #22C55E</span>
         </div>
       </Card>
-
-      {!isConfigured && (
-        <Card>
-          <div className="border-b border-brand-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">Demo Data</h3>
-          </div>
-          <div className="flex items-center justify-between p-5">
-            <p className="text-sm text-slate-500">
-              Running in demo mode with sample data. Reset to restore the original seed data.
-            </p>
-            <Button variant="secondary" onClick={() => setConfirmReset(true)}>Reset Demo Data</Button>
-          </div>
-        </Card>
-      )}
-
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Edit Department" : "Add Department"}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit(onDeptSubmit)} loading={saving}>Save</Button>
-          </>
-        }>
-        <form className="space-y-4" onSubmit={handleSubmit(onDeptSubmit)}>
-          <Input label="Name" error={errors.name?.message} {...register("name", { required: "Name is required" })} />
-          <Textarea label="Description" {...register("description")} />
-        </form>
-      </Modal>
-
-      <ConfirmDialog
-        open={confirmReset}
-        onClose={() => setConfirmReset(false)}
-        onConfirm={handleResetDemo}
-        title="Reset demo data?"
-        message="This restores the original sample data and clears any changes you made in this session."
-        confirmLabel="Reset"
-        tone="primary"
-      />
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function DatabaseConnectionCard() {
     setStatus(null);
     setMessage("");
     try {
-      if (!isSupabaseConfigured || !supabase) {
+      if (!isSupabaseConfigured) {
         throw new Error("Supabase is not configured on this deployment.");
       }
       // Lightweight reachability check: list institutions (admin-readable).

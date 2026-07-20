@@ -3,17 +3,13 @@
  * User creation service.
  *
  * Creating an auth user requires the Supabase service-role key, which must never
- * be exposed to the browser. Therefore:
- * - In Supabase mode we delegate to the serverless API route (/api/admin/create-user)
- *   which uses the service-role key server-side.
- * - In demo mode (no Supabase env) we create the profile row directly in the
- *   in-memory mock backend so the prototype is fully functional without a backend.
+ * be exposed to the browser. Therefore we delegate to the serverless API route
+ * (/api/admin/create-user) which uses the service-role key server-side.
  *
- * Both branches return `{ id, email }` so callers can link the new auth user to a
- * supervisors / interns record via `profile_id`.
+ * Both methods return `{ id, email }` (or true) so callers can link the new auth
+ * user to a supervisors / interns record via `profile_id`.
  */
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import mockBackend from "@/lib/mockBackend";
+import { supabase } from "@/lib/supabase";
 
 export const userService = {
   /**
@@ -22,36 +18,32 @@ export const userService = {
    * @returns {Promise<{ id: string, email: string }>}
    */
   async createAuthUser({ email, password, full_name, role }) {
-    if (isSupabaseConfigured) {
-      // Forward the caller's session token so the API can authorize the request.
-      let token = null;
-      try {
-        const { data } = await supabase.auth.getSession();
-        token = data?.session?.access_token ?? null;
-      } catch {
-        token = null;
-      }
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const response = await fetch("/api/admin/create-user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          email,
-          password,
-          user_metadata: { full_name, role },
-        }),
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to create user");
-      }
-      const { user } = await response.json();
-      return { id: user.id, email: user.email };
+    // Forward the caller's session token so the API can authorize the request.
+    let token = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      token = data?.session?.access_token ?? null;
+    } catch {
+      token = null;
     }
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    return mockBackend.createUser({ email, password, full_name, role });
+    const response = await fetch("/api/admin/create-user", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        email,
+        password,
+        user_metadata: { full_name, role },
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Failed to create user");
+    }
+    const { user } = await response.json();
+    return { id: user.id, email: user.email };
   },
 
   /**
@@ -62,28 +54,25 @@ export const userService = {
    * @param {string} userId
    */
   async deleteAuthUser(userId) {
-    if (isSupabaseConfigured) {
-      let token = null;
-      try {
-        const { data } = await supabase.auth.getSession();
-        token = data?.session?.access_token ?? null;
-      } catch {
-        token = null;
-      }
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const response = await fetch("/api/admin/delete-user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ userId }),
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to delete user");
-      }
-      return true;
+    let token = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      token = data?.session?.access_token ?? null;
+    } catch {
+      token = null;
     }
-    return mockBackend.deleteUser?.(userId);
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch("/api/admin/delete-user", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Failed to delete user");
+    }
+    return true;
   },
 };

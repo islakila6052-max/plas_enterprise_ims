@@ -1,13 +1,8 @@
 // src/services/departmentService.js
 import { supabase } from "@/lib/supabase";
-import mockBackend from "@/lib/mockBackend";
 
 export const departmentService = {
   async list() {
-    if (!supabase) {
-      return mockBackend.listDepartments?.() || [];
-    }
-
     try {
       const { data, error } = await supabase
         .from("departments")
@@ -22,10 +17,6 @@ export const departmentService = {
   },
 
   async getById(id) {
-    if (!supabase) {
-      return mockBackend.getDepartmentById?.(id) || null;
-    }
-
     try {
       const { data, error } = await supabase
         .from("departments")
@@ -41,10 +32,6 @@ export const departmentService = {
   },
 
   async create(payload) {
-    if (!supabase) {
-      return mockBackend.createDepartment?.(payload) || null;
-    }
-
     try {
       const { data, error } = await supabase
         .from("departments")
@@ -60,10 +47,6 @@ export const departmentService = {
   },
 
   async update(id, payload) {
-    if (!supabase) {
-      return mockBackend.updateDepartment?.(id, payload) || null;
-    }
-
     try {
       const { data, error } = await supabase
         .from("departments")
@@ -80,10 +63,6 @@ export const departmentService = {
   },
 
   async remove(id) {
-    if (!supabase) {
-      return mockBackend.removeDepartment?.(id) || null;
-    }
-
     try {
       const { error } = await supabase
         .from("departments")

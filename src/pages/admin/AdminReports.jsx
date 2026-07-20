@@ -12,7 +12,6 @@ import { internService } from "@/services/internService";
 import { attendanceService } from "@/services/attendanceService";
 import { journalService } from "@/services/journalService";
 import { evaluationService } from "@/services/evaluationService";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, formatHours } from "@/utils/format";
 
 const REPORTS = [
@@ -24,7 +23,6 @@ const REPORTS = [
 ];
 
 export default function AdminReports() {
-  const { isConfigured } = useAuth();
   const [type, setType] = useState("intern_list");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -97,7 +95,6 @@ export default function AdminReports() {
   }
 
   async function generatePreview() {
-    if (!isConfigured) return toast.error("Connect Supabase to export.");
     setBusy(true);
     try {
       const data = await fetchData();
@@ -110,7 +107,6 @@ export default function AdminReports() {
   }
 
   async function exportExcel() {
-    if (!isConfigured) return toast.error("Connect Supabase to export.");
     setBusy(true);
     try {
       const data = await fetchData();
@@ -127,7 +123,6 @@ export default function AdminReports() {
   }
 
   async function exportPDF() {
-    if (!isConfigured) return toast.error("Connect Supabase to export.");
     setBusy(true);
     try {
       const data = await fetchData();

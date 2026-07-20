@@ -2,7 +2,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";
-import { isSupabaseConfigured } from "@/lib/supabase";
 import { ROLES } from "@/lib/constants";
 
 const AuthContext = createContext(null);
@@ -10,16 +9,10 @@ const AuthContext = createContext(null);
 /**
  * Provides authentication state, the current user's profile, and role helpers.
  *
- * Works in two modes:
- * - Supabase mode: real auth + profile lookup.
- * - Demo mode (no Supabase env): a localStorage session + in-memory mock backend
- *   so the prototype is fully functional without a backend.
- *
  * - `user`        : auth user (or null)
  * - `profile`     : linked profile row (or null)
  * - `role`        : profile.role (or null)
  * - `loading`     : initial bootstrap in progress
- * - `isConfigured`: whether Supabase env vars are present
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -78,7 +71,6 @@ export function AuthProvider({ children }) {
     const role = profile?.role ?? null;
     // Resolved linked record ids. In the DB these live on profiles.intern_id /
     // profiles.supervisor_id (kept in sync by the sync_profile_links trigger).
-    // The mock backend mirrors the same shape (see mockBackend/sampleData).
     const internId = profile?.intern_id ?? null;
     const supervisorId = profile?.supervisor_id ?? null;
     return {
@@ -88,13 +80,12 @@ export function AuthProvider({ children }) {
       internId,
       supervisorId,
       loading,
-      isConfigured: isSupabaseConfigured,
       isAuthenticated: Boolean(user),
       isAdmin: role === ROLES.ADMIN || role === ROLES.HR_STAFF,
       isSupervisor: role === ROLES.SUPERVISOR,
       isIntern: role === ROLES.INTERN,
-      // Re-reads the current auth user (works in both Supabase and demo mode)
-      // and refreshes the linked profile so callers can read role immediately.
+      // Re-reads the current auth user and refreshes the linked profile so
+      // callers can read role immediately.
       refreshProfile: async () => {
         const current = await authService.getCurrentUser();
         setUser(current ?? null);

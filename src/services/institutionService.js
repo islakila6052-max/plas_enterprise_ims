@@ -1,11 +1,10 @@
 // src/services/institutionService.js
 import { supabase } from "@/lib/supabase";
-import mockBackend from "@/lib/mockBackend";
 
 /**
  * Institution service. Institutions are master setup data (schools / universities)
  * that own academic programs. Admin-only writes; authenticated users can read.
- * Falls back to the in-memory mock backend when Supabase is not configured.
+ * All data is sourced from Supabase.
  */
 const COLUMNS = [
   "institution_id",
@@ -23,19 +22,6 @@ const COLUMNS = [
 
 export const institutionService = {
   async list({ search = "" } = {}) {
-    if (!supabase) {
-      let rows = mockBackend.listInstitutions?.() || [];
-      if (search) {
-        const q = search.toLowerCase();
-        rows = rows.filter(
-          (r) =>
-            (r.institution_name || "").toLowerCase().includes(q) ||
-            (r.abbreviation || "").toLowerCase().includes(q) ||
-            (r.campus || "").toLowerCase().includes(q),
-        );
-      }
-      return rows;
-    }
     try {
       let query = supabase
         .from("institutions")
@@ -55,7 +41,6 @@ export const institutionService = {
   },
 
   async getById(id) {
-    if (!supabase) return mockBackend.getInstitutionById?.(id) || null;
     const { data, error } = await supabase
       .from("institutions")
       .select(COLUMNS.join(","))
@@ -89,7 +74,6 @@ export const institutionService = {
   },
 
   async create(payload) {
-    if (!supabase) return mockBackend.createInstitution?.(payload) || null;
     const { data, error } = await supabase
       .from("institutions")
       .insert(this._payload(payload))
@@ -100,7 +84,6 @@ export const institutionService = {
   },
 
   async update(id, payload) {
-    if (!supabase) return mockBackend.updateInstitution?.(id, payload) || null;
     const { data, error } = await supabase
       .from("institutions")
       .update(this._payload(payload))
@@ -112,7 +95,6 @@ export const institutionService = {
   },
 
   async remove(id) {
-    if (!supabase) return mockBackend.removeInstitution?.(id);
     const { error } = await supabase.from("institutions").delete().eq("institution_id", id);
     if (error) throw new Error(error.message);
   },
@@ -122,7 +104,6 @@ export const institutionService = {
    * return its public URL. Admin-only (enforced by storage RLS).
    */
   async uploadLogo(file, institutionId) {
-    if (!supabase) return `mock://${file.name}`;
     const path = `${institutionId || "shared"}/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage
       .from("institution-logos")
@@ -133,7 +114,7 @@ export const institutionService = {
 
   /** Resolve a stored logo path to its public URL. */
   getLogoUrl(path) {
-    if (!supabase || !path) return null;
+    if (!path) return null;
     if (path.startsWith("http")) return path;
     const { data } = supabase.storage.from("institution-logos").getPublicUrl(path);
     return data?.publicUrl ?? null;
@@ -141,7 +122,7 @@ export const institutionService = {
 
   /** Delete a previously stored logo (admin-only). */
   async removeLogo(path) {
-    if (!supabase || !path || path.startsWith("http")) return;
+    if (!path || path.startsWith("http")) return;
     await supabase.storage.from("institution-logos").remove([path]);
   },
 };
