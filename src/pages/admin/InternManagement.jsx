@@ -189,7 +189,7 @@ export default function InternManagement() {
         supervisor_id: internValues.supervisor_id || null,
         institution_id: selectedInstitutionId || null,
         program_id: internValues.program_id || null,
-        created_by: user?.id,
+        created_by: user?.id ?? profile?.id,
       };
       // Backend guard: ensure the chosen supervisor actually belongs to the
       // chosen department. Reject any invalid department-supervisor pairing

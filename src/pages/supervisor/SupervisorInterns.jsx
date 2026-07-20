@@ -134,7 +134,13 @@ export default function SupervisorInterns() {
       // A supervisor's profile.supervisor_id is their supervisors.id (kept in sync
       // by the DB trigger). Fall back to looking up by profile_id so we never pass
       // an undefined id into the query.
-      let supervisorRecordId = profile?.supervisor_id ?? null;
+      //
+      // `actorId` is the logged-in supervisor's auth user id (= auth.uid()). We use
+      // `user?.id ?? profile?.id` so created_by is ALWAYS set to auth.uid() — the
+      // RLS policy "supervisor manages assigned interns" permits an insert when
+      // `created_by = auth.uid()`, which is what lets a supervisor create interns.
+      const actorId = user?.id ?? profile?.id;
+      let supervisorRecordId = supervisorId ?? profile?.supervisor_id ?? null;
       let departmentId = profile?.department_id ?? null;
       if (!supervisorRecordId && profile?.id) {
         const supRow = await supervisorService.getByProfileId(profile.id);
@@ -157,7 +163,7 @@ export default function SupervisorInterns() {
         supervisor_id: supervisorRecordId || null,
         institution_id: selectedInstitutionId || null,
         program_id: selectedProgramId || null,
-        created_by: user?.id,
+        created_by: actorId,
         start_date: values.start_date,
         end_date: values.end_date || null,
         required_hours: Number(values.required_hours) || 0,
