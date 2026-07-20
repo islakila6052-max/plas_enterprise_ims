@@ -65,7 +65,7 @@ export default function Login() {
             <img
               src="/login-logo.png"
               alt="PLAS Enterprise"
-              className="mx-auto mb-3 h-20 w-auto object-contain"
+              className="mx-auto mb-3 h-60 w-auto object-contain"
             />
             <h1 className="text-2xl font-bold text-slate-800">
               Internship Management System
