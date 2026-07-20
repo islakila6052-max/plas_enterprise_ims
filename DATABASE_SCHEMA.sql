@@ -482,10 +482,31 @@ create policy "admins manage supervisors"
   on public.supervisors for all to authenticated
   using (public.is_admin ()) with check (public.is_admin ());
 
+-- Helper: the current user's supervisor department id.
+create or replace function public.current_supervisor_department_id ()
+  returns uuid
+  language sql
+  stable
+  security definer
+  set search_path = public
+as $$
+  select s.department_id
+  from public.supervisors s
+  join public.profiles p on p.id = s.profile_id
+  where p.id = auth.uid ();
+$$;
+
 -- interns
+-- SELECT: role-scoped (admin | own intern | assigned supervisor | created_by).
 drop policy if exists "interns readable" on public.interns;
 create policy "interns readable"
-  on public.interns for select to authenticated using (true);
+  on public.interns for select to authenticated
+  using (
+    public.is_admin()
+    or id = public.current_intern_id()
+    or supervisor_id = public.current_supervisor_id()
+    or created_by = auth.uid()
+  );
 drop policy if exists "admins manage interns" on public.interns;
 create policy "admins manage interns"
   on public.interns for all to authenticated
@@ -498,6 +519,22 @@ drop policy if exists "supervisor reads assigned interns" on public.interns;
 create policy "supervisor reads assigned interns"
   on public.interns for select to authenticated
   using (supervisor_id = public.current_supervisor_id ());
+-- Supervisor write policy (INSERT/UPDATE/DELETE): STRICT scoping. A supervisor
+-- may only create/modify interns assigned to THEIR OWN supervisor record, within
+-- THEIR OWN department, and recorded as created by themselves. This blocks
+-- cross-supervisor / cross-department assignment.
+drop policy if exists "supervisor manages assigned interns" on public.interns;
+create policy "supervisor manages assigned interns"
+  on public.interns for all to authenticated
+  using (
+    supervisor_id = public.current_supervisor_id()
+    or created_by = auth.uid()
+  )
+  with check (
+    supervisor_id = public.current_supervisor_id()
+    and department_id = public.current_supervisor_department_id()
+    and created_by = auth.uid()
+  );
 
 -- attendance
 drop policy if exists "attendance readable" on public.attendance;
