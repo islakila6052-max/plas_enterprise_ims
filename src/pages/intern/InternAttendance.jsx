@@ -76,11 +76,11 @@ export default function InternAttendance() {
 
   const columns = [
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-    { key: "time_in", header: "Time In", render: (r) => formatTime(r.time_in) },
+    { key: "time_in", header: "Time In (Login)", render: (r) => formatTime(r.time_in) },
     {
       key: "time_out",
-      header: "Time Out",
-      render: (r) => formatTime(r.time_out) ?? "—",
+      header: "Time Out (Logout)",
+      render: (r) => (r.time_out ? formatTime(r.time_out) : <span className="text-amber-600">Still in</span>),
     },
     { key: "hours", header: "Hours", render: (r) => formatHours(r.total_hours) },
     {
