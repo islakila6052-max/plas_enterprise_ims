@@ -72,6 +72,7 @@ export default function InternManagement() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({ defaultValues: EMPTY });
 
@@ -97,6 +98,14 @@ export default function InternManagement() {
     supervisorService.list().then(setSupervisors).catch(() => {});
     institutionService.list({}).then(setInstitutions).catch(() => {});
   }, []);
+
+  // Supervisors filtered by the chosen department. Drives the Supervisor
+  // dropdown so an intern can only be assigned to a supervisor in the same
+  // department. Recomputes immediately whenever the department selection changes.
+  const selectedDepartmentId = watch("department_id");
+  const filteredSupervisors = selectedDepartmentId
+    ? supervisors.filter((s) => s.department_id === selectedDepartmentId)
+    : [];
 
   function openCreate() {
     setEditing(null);
@@ -182,6 +191,18 @@ export default function InternManagement() {
         program_id: internValues.program_id || null,
         created_by: user?.id,
       };
+      // Backend guard: ensure the chosen supervisor actually belongs to the
+      // chosen department. Reject any invalid department-supervisor pairing
+      // before we persist the intern (defense in depth beyond the UI filter).
+      if (payload.supervisor_id && payload.department_id) {
+        const assignedSup = supervisors.find((s) => s.id === payload.supervisor_id);
+        if (!assignedSup || assignedSup.department_id !== payload.department_id) {
+          throw new Error(
+            "The selected supervisor does not belong to the selected department. Please choose a supervisor from the same department.",
+          );
+        }
+      }
+
       if (editing) {
         await internService.update(editing.id, payload);
         await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
@@ -404,15 +425,28 @@ export default function InternManagement() {
               placeholder={selectedInstitutionId ? "Search programs…" : "Select an institution first"}
             />
             <input type="hidden" {...register("program_id")} />
-            <Select label="Department" {...register("department_id")}>
+            <Select
+              label="Department"
+              {...register("department_id", {
+                onChange: () => setValue("supervisor_id", ""),
+              })}>
               <option value="">Unassigned</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </Select>
-            <Select label="Supervisor" {...register("supervisor_id")}>
-              <option value="">Unassigned</option>
-              {supervisors.map((s) => (
+            <Select
+              label="Supervisor"
+              disabled={!selectedDepartmentId}
+              {...register("supervisor_id")}>
+              {!selectedDepartmentId ? (
+                <option value="">Select a department first</option>
+              ) : filteredSupervisors.length === 0 ? (
+                <option value="">No supervisors available for this department</option>
+              ) : (
+                <option value="">Unassigned</option>
+              )}
+              {filteredSupervisors.map((s) => (
                 <option key={s.id} value={s.id}>{s.full_name || s.profile?.full_name || "Supervisor"}</option>
               ))}
             </Select>
