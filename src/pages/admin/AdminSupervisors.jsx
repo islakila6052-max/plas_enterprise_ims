@@ -111,8 +111,9 @@ export default function AdminSupervisors() {
           role: "supervisor",
         });
 
-        // Step 2: Update profile role + name.
-        if (supabase) {
+        // Step 2: Update profile role + name (the create-user API already
+        // sets these via user_metadata, but keep it in sync defensively).
+        if (supabase && newUser?.id) {
           await supabase
             .from("profiles")
             .update({
@@ -120,6 +121,8 @@ export default function AdminSupervisors() {
               full_name: values.full_name,
             })
             .eq("id", newUser.id);
+        } else if (!newUser?.id) {
+          throw new Error("User creation did not return an id. Check the create-user API response.");
         }
 
         // Step 3: Create supervisor record

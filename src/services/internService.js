@@ -57,9 +57,11 @@ export const internService = {
   },
 
   async create(payload) {
+    // Upsert on profile_id so re-running creation (e.g. double-click) does not
+    // 409 on the interns_profile_id_key unique constraint.
     const { data, error } = await supabase
       .from("interns")
-      .insert(payload)
+      .upsert(payload, { onConflict: "profile_id" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);

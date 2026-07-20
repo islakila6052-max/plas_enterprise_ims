@@ -78,15 +78,21 @@ export const supervisorService = {
   },
 
   async create(payload) {
+    // Upsert on profile_id so re-running creation (e.g. double-click, or a
+    // partial failure that left a row behind) does not 409 on the
+    // supervisors_profile_id_key unique constraint.
     const { data, error } = await supabase
       .from("supervisors")
-      .insert({
-        profile_id: payload.profile_id,
-        department_id: payload.department_id,
-        full_name: payload.full_name,
-        email: payload.email,
-        created_by: payload.created_by,
-      })
+      .upsert(
+        {
+          profile_id: payload.profile_id,
+          department_id: payload.department_id,
+          full_name: payload.full_name,
+          email: payload.email,
+          created_by: payload.created_by,
+        },
+        { onConflict: "profile_id" },
+      )
       .select(
         `
         *,
