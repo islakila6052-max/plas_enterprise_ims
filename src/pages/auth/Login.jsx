@@ -63,7 +63,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
             <img
-              src="/plas-enterprise-logo-ims-project.png"
+              src="/login-logo.png"
               alt="PLAS Enterprise"
               className="mx-auto mb-3 h-16 w-auto object-contain"
             />
