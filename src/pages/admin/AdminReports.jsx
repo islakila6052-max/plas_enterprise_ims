@@ -1,9 +1,6 @@
 // src/pages/admin/AdminReports.jsx
 import { useState, useMemo } from "react";
 import { toast } from "react-hot-toast";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -110,6 +107,9 @@ export default function AdminReports() {
     setBusy(true);
     try {
       const data = await fetchData();
+      // Lazy-load the heavy xlsx lib only when needed (keeps the page light and
+      // isolates any load failure to this action).
+      const XLSX = (await import("xlsx")).default;
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Report");
@@ -126,11 +126,14 @@ export default function AdminReports() {
     setBusy(true);
     try {
       const data = await fetchData();
+      // Lazy-load jspdf + autotable (v5 API: call autoTable(doc, options)).
+      const jsPDF = (await import("jspdf")).default;
+      const { autoTable } = await import("jspdf-autotable");
       const doc = new jsPDF();
       const headers = data.length ? Object.keys(data[0]) : [];
       const rows = data.map((d) => Object.values(d));
       doc.text(`IMS Report — ${type}`, 14, 16);
-      doc.autoTable({ head: [headers], body: rows, startY: 22 });
+      autoTable(doc, { head: [headers], body: rows, startY: 22 });
       doc.save(`ims-${type}-report.pdf`);
       toast.success("PDF exported.");
     } catch (err) {
