@@ -90,8 +90,9 @@ export default async function handler(req, res) {
   }
 
 try {
-    // Create user using admin API
-    const { data: user, error } = await supabaseAdmin.auth.admin.createUser({
+    // Create user using admin API. Note: admin.createUser resolves to
+    // { data: { user }, error } — the user object lives at data.user.
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Auto-confirm email
@@ -102,6 +103,7 @@ try {
     });
 
     if (error) throw error;
+    const authUser = data.user;
 
     // Ensure the linked profiles row exists. The on_auth_user_created trigger
     // normally creates it, but we upsert defensively so downstream inserts that
@@ -109,9 +111,9 @@ try {
     try {
       await supabaseAdmin.from("profiles").upsert(
         {
-          id: user.id,
+          id: authUser.id,
           full_name: user_metadata?.full_name || "",
-          email: user.email,
+          email: authUser.email,
           role: user_metadata?.role || "intern",
         },
         { onConflict: "id" },
@@ -126,7 +128,7 @@ try {
         user_id: caller.id,
         action: "create",
         resource_type: "auth_user",
-        resource_id: user.id,
+        resource_id: authUser.id,
         changes: { email, role: user_metadata?.role || "intern" },
       });
     } catch {
@@ -136,9 +138,9 @@ try {
     return res.status(200).json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        user_metadata: user.user_metadata,
+        id: authUser.id,
+        email: authUser.email,
+        user_metadata: authUser.user_metadata,
       },
     });
   } catch (error) {
