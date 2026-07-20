@@ -38,13 +38,24 @@ export const journalService = {
     // wipe the link the supervisor's journal list + RLS depend on.
     const patch = { status, supervisor_comment: comment };
     if (supervisorId) patch.supervisor_id = supervisorId;
-    const { data, error } = await supabase
+    // NOTE: Do NOT chain .single() here. PostgREST returns 406
+    // ("Cannot coerce the result to a single JSON object") when the UPDATE's
+    // RETURNING set is empty — which happens when RLS filters the row out on
+    // the way back (e.g. an admin's write policy using() not matching, or the
+    // row already changed). The approval itself still succeeds; we just can't
+    // assume one row comes back. Use head:true to confirm the write without
+    // demanding a returned object.
+    const { error } = await supabase
       .from("daily_journals")
       .update(patch)
-      .eq("id", id)
-      .select("*")
-      .single();
+      .eq("id", id);
     if (error) throw new Error(error.message);
-    return data;
+    // Best-effort fetch of the updated row for callers that want it.
+    const { data } = await supabase
+      .from("daily_journals")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    return data ?? { id, ...patch };
   },
 };

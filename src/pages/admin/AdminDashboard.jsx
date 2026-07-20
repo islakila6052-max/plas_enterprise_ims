@@ -22,12 +22,17 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
+    // Wait until the session/profile is resolved before querying. Firing
+    // these count() calls unauthenticated makes PostgREST reject the request
+    // (e.g. 400 on evaluations?status=neq.completed) and the dashboard
+    // silently shows zeros. The profile is null during the initial bootstrap.
+    if (!profile) return;
     let active = true;
     dashboardService.adminStats().then((s) => active && setStats(s));
     return () => {
       active = false;
     };
-  }, []);
+  }, [profile]);
 
   if (!stats) return <Spinner label="Loading dashboard…" />;
 

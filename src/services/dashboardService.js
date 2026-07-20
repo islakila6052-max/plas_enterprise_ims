@@ -10,7 +10,12 @@ async function count(table, query) {
   let q = supabase.from(table).select("*", { count: "exact", head: true });
   if (query) q = query(q);
   const { count, error } = await q;
-  if (error) return 0;
+  if (error) {
+    // A single failing count (e.g. an unauthenticated request, or a filter
+    // the gateway rejects) must never break the whole dashboard. Degrade to 0.
+    console.error(`[IMS] count(${table}) failed:`, error.message);
+    return 0;
+  }
   return count ?? 0;
 }
 
@@ -20,7 +25,10 @@ export const dashboardService = {
       count("interns"),
       count("interns", (q) => q.eq("status", "active")),
       count("interns", (q) => q.eq("status", "completed")),
-      count("evaluations", (q) => q.neq("status", "completed")),
+      // NOTE: `neq` on an enum column can be rejected by the gateway in some
+      // configurations. Compute "pending" (the only other live status) and
+      // treat that as the pending-evaluation count instead of `neq.completed`.
+      count("evaluations", (q) => q.eq("status", "pending")),
       count("attendance", (q) => q.eq("date", new Date().toISOString().slice(0, 10))),
     ]);
     return { totalInterns, activeInterns, completedInternships: completed, pendingEvaluations: pendingEvals, attendanceToday };
