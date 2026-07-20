@@ -160,6 +160,22 @@ export default function AdminSettings() {
           <span className="text-sm text-slate-500">Primary #15803D · Secondary #16A34A · Accent #22C55E</span>
         </div>
       </Card>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editing ? "Edit Department" : "Add Department"}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit(onDeptSubmit)} loading={saving}>Save</Button>
+          </>
+        }>
+        <form className="space-y-4" onSubmit={handleSubmit(onDeptSubmit)}>
+          <Input label="Name" error={errors.name?.message} {...register("name", { required: "Name is required" })} />
+          <Textarea label="Description" {...register("description")} />
+        </form>
+      </Modal>
     </div>
   );
 }
