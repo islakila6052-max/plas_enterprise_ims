@@ -103,25 +103,6 @@ export default function AdminReports() {
     }
   }
 
-  async function exportExcel() {
-    setBusy(true);
-    try {
-      const data = await fetchData();
-      // Lazy-load the heavy xlsx lib only when needed (keeps the page light and
-      // isolates any load failure to this action).
-      const XLSX = (await import("xlsx")).default;
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Report");
-      XLSX.writeFile(wb, `ims-${type}-report.xlsx`);
-      toast.success("Excel exported.");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function exportPDF() {
     setBusy(true);
     try {
@@ -191,8 +172,7 @@ export default function AdminReports() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Button onClick={generatePreview} loading={busy}>Preview</Button>
-            <Button variant="secondary" onClick={exportExcel} loading={busy}>Export Excel</Button>
-            <Button variant="secondary" onClick={exportPDF} loading={busy}>Export PDF</Button>
+            <Button variant="secondary" onClick={exportPDF} loading={busy}>Download PDF</Button>
             <Button variant="ghost" onClick={printPreview}>Print</Button>
           </div>
         </div>
