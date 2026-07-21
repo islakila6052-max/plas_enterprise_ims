@@ -51,7 +51,7 @@ create policy "intern reads own row"
   on public.interns for select to authenticated
   using (id = public.current_intern_id());
 
--- 5. Supervisor manages assigned/created interns (INSERT/UPDATE/DELETE).
+-- 5. Supervisor manages assigned interns (INSERT/UPDATE/DELETE).
 drop policy if exists "supervisor reads assigned interns" on public.interns;
 create policy "supervisor reads assigned interns"
   on public.interns for select to authenticated
@@ -65,8 +65,47 @@ create policy "supervisor manages assigned interns"
     or created_by = auth.uid()
   )
   with check (
-    supervisor_id = public.current_supervisor_id()
-    or created_by = auth.uid()
+    -- A supervisor can only manage interns assigned to THEIR OWN supervisor record,
+    -- within THEIR OWN department, and recorded as created by themselves.
+    -- This blocks cross-supervisor / cross-department assignment.
+    -- For INSERT operations, allow setting supervisor_id and department_id as long as
+    -- they match the supervisor's own record. For UPDATE operations, require that
+    -- the existing row matches the supervisor's own record.
+    (
+      -- INSERT: allow setting supervisor_id and department_id if they match the supervisor's own
+      TG_OP = 'INSERT' AND
+      (
+        (supervisor_id = public.current_supervisor_id() AND (department_id IS NULL OR department_id = public.current_supervisor_department_id()))
+        OR
+        (created_by = auth.uid() AND supervisor_id IS NULL AND department_id IS NULL)
+      )
+    ) OR (
+      -- UPDATE/DELETE: require that the existing row matches the supervisor's own
+      TG_OP != 'INSERT' AND
+      supervisor_id = public.current_supervisor_id() AND
+      department_id = public.current_supervisor_department_id() AND
+      created_by = auth.uid()
+    )
+  );
+    -- A supervisor can only manage interns assigned to THEIR OWN supervisor record,
+    -- within THEIR OWN department, and recorded as created by themselves.
+    -- This blocks cross-supervisor / cross-department assignment.
+    -- For INSERT operations, allow setting supervisor_id and department_id as long as
+    -- they match the supervisor's own record.
+    (
+      -- INSERT: allow setting supervisor_id and department_id if they match the supervisor's own
+      TG_OP = 'INSERT' AND
+      supervisor_id = public.current_supervisor_id() AND
+      department_id = public.current_supervisor_department_id()
+    ) OR (
+      -- UPDATE/DELETE: require that the existing row matches the supervisor's own
+      TG_OP != 'INSERT' AND
+      supervisor_id = public.current_supervisor_id() AND
+      department_id = public.current_supervisor_department_id()
+    ) OR (
+      -- Allow existing rows created by the same user (created_by = auth.uid())
+      created_by = auth.uid()
+    )
   );
 
 -- 6. Reload PostgREST schema cache.
