@@ -10,7 +10,7 @@
 --   * No SELECT policy for supervisors -> they could not list their interns.
 --   * The INSERT with_check did NOT permit supervisor_id =
 --     current_supervisor_id(), so setting the supervisor on a new intern was
---     rejected -> "new row violates row-level security policy for table interns".
+--   rejected -> "new row violates row-level security policy for table interns".
 --   * No UPDATE/DELETE policy for supervisors.
 --
 -- FIX: drop the two stray policies and recreate the full, correct set that
@@ -84,26 +84,6 @@ create policy "supervisor manages assigned interns"
       TG_OP != 'INSERT' AND
       supervisor_id = public.current_supervisor_id() AND
       department_id = public.current_supervisor_department_id() AND
-      created_by = auth.uid()
-    )
-  );
-    -- A supervisor can only manage interns assigned to THEIR OWN supervisor record,
-    -- within THEIR OWN department, and recorded as created by themselves.
-    -- This blocks cross-supervisor / cross-department assignment.
-    -- For INSERT operations, allow setting supervisor_id and department_id as long as
-    -- they match the supervisor's own record.
-    (
-      -- INSERT: allow setting supervisor_id and department_id if they match the supervisor's own
-      TG_OP = 'INSERT' AND
-      supervisor_id = public.current_supervisor_id() AND
-      department_id = public.current_supervisor_department_id()
-    ) OR (
-      -- UPDATE/DELETE: require that the existing row matches the supervisor's own
-      TG_OP != 'INSERT' AND
-      supervisor_id = public.current_supervisor_id() AND
-      department_id = public.current_supervisor_department_id()
-    ) OR (
-      -- Allow existing rows created by the same user (created_by = auth.uid())
       created_by = auth.uid()
     )
   );
