@@ -1,3 +1,4 @@
+// src/pages/admin/AdminSupervisors.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
@@ -15,7 +16,11 @@ import { supervisorService } from "@/services/supervisorService";
 import { userService } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/utils/format";
-import { recordAudit } from "@/services/activityService";
+import {
+  recordAudit,
+  notify,
+  notifyAllWithType,
+} from "@/services/activityService"; // ✅ Fixed import
 
 export default function AdminSupervisors() {
   const { user } = useAuth();
@@ -40,10 +45,10 @@ export default function AdminSupervisors() {
       department_id: "",
     },
   });
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Load separately so one failure doesn't block the other.
       let supData = [];
       let deptData = [];
 
@@ -93,17 +98,20 @@ export default function AdminSupervisors() {
     setSaving(true);
     try {
       if (editing) {
-        // Update supervisor
         await supervisorService.update(editing.id, {
           full_name: values.full_name,
           email: values.email,
           department_id: values.department_id,
         });
-        await recordAudit({ user_id: user?.id, action: "update", resource_type: "supervisor", resource_id: editing.id, changes: { full_name: values.full_name } });
+        await recordAudit({
+          user_id: user?.id,
+          action: "update",
+          resource_type: "supervisor",
+          resource_id: editing.id,
+          changes: { full_name: values.full_name },
+        });
         toast.success("Supervisor updated.");
       } else {
-        // Create new supervisor with auth user
-        // Step 1: Create auth user via the serverless admin API.
         const newUser = await userService.createAuthUser({
           email: values.email,
           password: values.password,
@@ -111,8 +119,6 @@ export default function AdminSupervisors() {
           role: "supervisor",
         });
 
-        // Step 2: Update profile role + name (the create-user API already
-        // sets these via user_metadata, but keep it in sync defensively).
         if (supabase && newUser?.id) {
           await supabase
             .from("profiles")
@@ -122,10 +128,11 @@ export default function AdminSupervisors() {
             })
             .eq("id", newUser.id);
         } else if (!newUser?.id) {
-          throw new Error("User creation did not return an id. Check the create-user API response.");
+          throw new Error(
+            "User creation did not return an id. Check the create-user API response.",
+          );
         }
 
-        // Step 3: Create supervisor record
         await supervisorService.create({
           profile_id: newUser.id,
           department_id: values.department_id,
@@ -134,7 +141,39 @@ export default function AdminSupervisors() {
           created_by: user?.id,
         });
 
-        await recordAudit({ user_id: user?.id, action: "create", resource_type: "supervisor", resource_id: newUser?.id, changes: { full_name: values.full_name, department_id: values.department_id } });
+        await recordAudit({
+          user_id: user?.id,
+          action: "create",
+          resource_type: "supervisor",
+          resource_id: newUser?.id,
+          changes: {
+            full_name: values.full_name,
+            department_id: values.department_id,
+          },
+        });
+
+        // ✅ Add notifications
+        if (newUser?.id) {
+          await notify({
+            user_id: newUser.id,
+            type: "account_created",
+            title: "Your supervisor account is ready",
+            message: `Welcome ${values.full_name}! You have been created as a supervisor. You can now log in and manage interns.`,
+            link: "/supervisor",
+          });
+        }
+
+        await notifyAllWithType({
+          type: "announcement",
+          title: "New supervisor created",
+          message: `${values.full_name} has been created as a new supervisor.`,
+          link: "/admin/supervisors",
+          metadata: {
+            supervisor_id: newUser?.id,
+            supervisor_name: values.full_name,
+          },
+        });
+
         toast.success(`Supervisor ${values.full_name} created successfully!`);
       }
       setModalOpen(false);
@@ -149,7 +188,15 @@ export default function AdminSupervisors() {
   async function removeSupervisor() {
     try {
       await supervisorService.remove(confirm.id);
-      await recordAudit({ user_id: user?.id, action: "delete", resource_type: "supervisor", resource_id: confirm.id, changes: { full_name: confirm?.full_name || confirm?.profile?.full_name } });
+      await recordAudit({
+        user_id: user?.id,
+        action: "delete",
+        resource_type: "supervisor",
+        resource_id: confirm.id,
+        changes: {
+          full_name: confirm?.full_name || confirm?.profile?.full_name,
+        },
+      });
       toast.success("Supervisor removed.");
       setConfirm(null);
       load();
@@ -221,7 +268,6 @@ export default function AdminSupervisors() {
         )}
       </Card>
 
-      {/* Create/Edit Modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

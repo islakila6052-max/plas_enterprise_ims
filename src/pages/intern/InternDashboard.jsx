@@ -1,6 +1,7 @@
 // src/pages/intern/InternDashboard.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-hot-toast"; // ✅ ADD THIS - it was missing
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
@@ -23,7 +24,10 @@ export default function InternDashboard() {
 
   useEffect(() => {
     let active = true;
-    dashboardService.internStats(internId).then((s) => active && setStats(s)).catch((err) => toast.error(err.message));
+    dashboardService
+      .internStats(internId)
+      .then((s) => active && setStats(s))
+      .catch((err) => toast.error(err.message));
     return () => {
       active = false;
     };
@@ -36,11 +40,36 @@ export default function InternDashboard() {
     : 0;
 
   const cards = [
-    { label: "Hours Rendered", value: formatHours(stats.hoursRendered), icon: ICONS.hours, tone: "brand" },
-    { label: "Required Hours", value: formatHours(stats.requiredHours), icon: ICONS.required, tone: "blue" },
-    { label: "Remaining Hours", value: formatHours(stats.remainingHours), icon: ICONS.remaining, tone: "green" },
-    { label: "Today's Attendance", value: formatNumber(stats.todayAttendance), icon: ICONS.today, tone: "amber" },
-    { label: "Latest Announcements", value: formatNumber(stats.latestAnnouncements), icon: ICONS.announce, tone: "red" },
+    {
+      label: "Hours Rendered",
+      value: formatHours(stats.hoursRendered),
+      icon: ICONS.hours,
+      tone: "brand",
+    },
+    {
+      label: "Required Hours",
+      value: formatHours(stats.requiredHours),
+      icon: ICONS.required,
+      tone: "blue",
+    },
+    {
+      label: "Remaining Hours",
+      value: formatHours(stats.remainingHours),
+      icon: ICONS.remaining,
+      tone: "green",
+    },
+    {
+      label: "Today's Attendance",
+      value: formatNumber(stats.todayAttendance),
+      icon: ICONS.today,
+      tone: "amber",
+    },
+    {
+      label: "Latest Announcements",
+      value: formatNumber(stats.latestAnnouncements),
+      icon: ICONS.announce,
+      tone: "red",
+    },
   ];
 
   const progressData = [
@@ -68,7 +97,9 @@ export default function InternDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="animate-fade-up">
           <div className="border-b border-brand-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">Progress to completion</h3>
+            <h3 className="text-base font-semibold text-slate-800">
+              Progress to completion
+            </h3>
           </div>
           <div className="p-5">
             <div className="mb-2 flex justify-between text-sm text-slate-500">
@@ -82,7 +113,8 @@ export default function InternDashboard() {
               />
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              {formatHours(stats.remainingHours)} remaining to finish your internship.
+              {formatHours(stats.remainingHours)} remaining to finish your
+              internship.
             </p>
             <div className="mt-4">
               <BarChart data={progressData} />
@@ -92,7 +124,9 @@ export default function InternDashboard() {
 
         <Card className="animate-fade-up">
           <div className="border-b border-brand-100 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-800">Quick links</h3>
+            <h3 className="text-base font-semibold text-slate-800">
+              Quick links
+            </h3>
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Link
