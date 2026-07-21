@@ -2,7 +2,7 @@
 import { supabase } from "@/lib/supabase";
 
 /**
- * Aggregated counts for dashboards. Each function degrades gracefully to zeros
+ * Aggregated counts or dashboards. Each function degrades gracefully to zeros
  * when a table is empty. All data is sourced from Supabase.
  */
 
