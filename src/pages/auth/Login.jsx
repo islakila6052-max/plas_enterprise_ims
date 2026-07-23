@@ -160,9 +160,9 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-emerald-50 via-white to-green-100 overflow-hidden">
-      <div className="flex flex-1 items-center justify-center p-3 sm:p-4">
+      <div className="flex flex-1 items-center justify-center p-3 sm:p-4 mt-0">
         <div className="w-full max-w-sm sm:max-w-md">
-          {/* Logo Section - Reduced sizes for mobile */}
+          {/* Logo Section */}
           <div className="text-center">
             <img
               src="/login-logo.png"
@@ -174,7 +174,7 @@ export default function Login() {
             </h1>
           </div>
 
-          {/* Login Form - Reduced padding for mobile */}
+          {/* Login Form */}
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="surface animate-fade-up space-y-4 p-4 sm:p-6 rounded-xl shadow-lg border border-emerald-100/50 bg-white/80 backdrop-blur-sm mt-4 sm:mt-6">
@@ -247,7 +247,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Developer Credit Footer - Compact for mobile */}
+      {/* Developer Credit Footer */}
       <footer className="pb-3 sm:pb-6 pt-2 sm:pt-4 text-center border-t border-emerald-100/30 bg-white/40 backdrop-blur-sm">
         <div className="max-w-md mx-auto px-3 sm:px-4">
           <p className="text-[10px] sm:text-xs font-medium text-slate-600">
