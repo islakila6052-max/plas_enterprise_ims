@@ -19,6 +19,7 @@ const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" }
 export default function InternAttendance() {
   const { profile, internId } = useAuth();
   const [open, setOpen] = useState(null);
+  const [todayRec, setTodayRec] = useState(null); // today's record (open or closed)
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -26,11 +27,13 @@ export default function InternAttendance() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [openRec, res] = await Promise.all([
-        attendanceService.getOpen(internId),
+      const [todayRecord, res] = await Promise.all([
+        attendanceService.getToday(internId),
         attendanceService.list({ internId, page: 1, pageSize: 30 }),
       ]);
-      setOpen(openRec);
+      setTodayRec(todayRecord);
+      // Derive open session state: a record exists and hasn't been timed out yet.
+      setOpen(todayRecord && !todayRecord.time_out ? todayRecord : null);
       setRows(res.data);
     } catch (err) {
       toast.error(err.message);
@@ -109,6 +112,10 @@ export default function InternAttendance() {
               <p className="mt-1 text-sm font-medium text-emerald-600">
                 You are timed in since {formatTime(open.time_in)}
               </p>
+            ) : todayRec?.time_out ? (
+              <p className="mt-1 text-sm font-medium text-slate-600">
+                You have completed your attendance for today.
+              </p>
             ) : (
               <p className="mt-1 text-sm font-medium text-slate-600">
                 You haven't timed in today.
@@ -118,6 +125,10 @@ export default function InternAttendance() {
           {open ? (
             <Button onClick={timeOut} loading={busy}>
               Time Out
+            </Button>
+          ) : todayRec?.time_out ? (
+            <Button disabled variant="secondary">
+              Attendance Completed
             </Button>
           ) : (
             <Button onClick={() => setConfirmOpen(true)} loading={busy}>

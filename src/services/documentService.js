@@ -84,7 +84,7 @@ export const documentService = {
           metadata: { intern_id: internId, document_id: data.id },
         });
       }
-    } catch (err) {
+    } catch (err  ) {
       console.error("[DOCUMENT NOTIFICATION] Failed:", err);
     }
 

@@ -330,7 +330,7 @@ export default function AdminSupervisors() {
           </Select>
           {!editing && (
             <p className="text-xs text-slate-500">
-              Supervisor will receive these credentials and can create interns.
+              Supervisors can view and manage their assigned interns.
             </p>
           )}
         </form>

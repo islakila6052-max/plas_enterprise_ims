@@ -170,10 +170,9 @@ create table if not exists public.attendance (
 
 create index if not exists attendance_intern_idx on public.attendance (intern_id);
 create index if not exists attendance_date_idx on public.attendance (date);
--- One OPEN (not yet timed-out) record per intern per day. Closed records may repeat.
-create unique index if not exists attendance_open_unique
-  on public.attendance (intern_id, date)
-  where (time_out is null);
+-- One attendance record per intern per day (enforced by unique index).
+create unique index if not exists attendance_unique_per_day
+  on public.attendance (intern_id, date);
 
 
 -- ---------------------------------------------------------------------------
@@ -515,25 +514,33 @@ drop policy if exists "intern reads own row" on public.interns;
 create policy "intern reads own row"
   on public.interns for select to authenticated
   using (id = public.current_intern_id ());
+-- Supervisor may READ assigned interns or interns they created.
 drop policy if exists "supervisor reads assigned interns" on public.interns;
 create policy "supervisor reads assigned interns"
   on public.interns for select to authenticated
-  using (supervisor_id = public.current_supervisor_id ());
--- Supervisor write policy (INSERT/UPDATE/DELETE): STRICT scoping. A supervisor
--- may only create/modify interns assigned to THEIR OWN supervisor record, within
--- THEIR OWN department, and recorded as created by themselves. This blocks
--- cross-supervisor / cross-department assignment.
-drop policy if exists "supervisor manages assigned interns" on public.interns;
-create policy "supervisor manages assigned interns"
-  on public.interns for all to authenticated
   using (
     supervisor_id = public.current_supervisor_id()
     or created_by = auth.uid()
+  );
+
+-- Supervisor may UPDATE assigned interns only (no INSERT).
+drop policy if exists "supervisor modifies assigned interns" on public.interns;
+create policy "supervisor modifies assigned interns"
+  on public.interns for update to authenticated
+  using (
+    supervisor_id = public.current_supervisor_id()
   )
   with check (
     supervisor_id = public.current_supervisor_id()
     and department_id = public.current_supervisor_department_id()
-    and created_by = auth.uid()
+  );
+
+-- Supervisor may DELETE assigned interns only.
+drop policy if exists "supervisor deletes assigned interns" on public.interns;
+create policy "supervisor deletes assigned interns"
+  on public.interns for delete to authenticated
+  using (
+    supervisor_id = public.current_supervisor_id()
   );
 
 -- attendance

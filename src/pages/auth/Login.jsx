@@ -261,7 +261,7 @@ export default function Login() {
             </a>
           </p>
           <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400">
-            Intern | Computer Engineering Student
+            Intern | Computer Engineering   
           </p>
           <p className="text-[9px] sm:text-[10px] text-slate-400/70 mt-0.5">
             © {new Date().getFullYear()} Internship Management System. All

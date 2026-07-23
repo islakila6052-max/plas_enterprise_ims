@@ -23,10 +23,24 @@ export const attendanceService = {
     return data;
   },
 
+  /** Today's attendance record (open or closed) for an intern, if any. */
+  async getToday(internId) {
+    if (!internId) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("intern_id", internId)
+      .eq("date", today)
+      .maybeSingle();
+    if (error) return null;
+    return data;
+  },
+
   async timeIn(internId, method = "manual") {
     const today = new Date().toISOString().slice(0, 10);
-    // Enforce one attendance record per day: reuse today's record if it exists
-    // (open or already closed) instead of creating a duplicate.
+    // Enforce one attendance record per intern per day.
+    // If a record already exists (open or closed), reject the request.
     const { data: existing } = await supabase
       .from("attendance")
       .select("*")
@@ -34,31 +48,37 @@ export const attendanceService = {
       .eq("date", today)
       .maybeSingle();
     if (existing) {
-      // Reuse today's record. If it was already closed (timed out),
-      // reopen it so the intern can log a new session — avoids a stuck
-      // "can't time in" state.
-      if (existing.time_out) {
-        const { data, error } = await supabase
-          .from("attendance")
-          .update({ time_in: new Date().toISOString(), time_out: null, total_hours: 0, status: "present", method })
-          .eq("id", existing.id)
-          .select("*")
-          .single();
-        if (error) throw new Error(error.message);
-        return data;
-      }
-      return existing;
+      throw new Error("You have already submitted your attendance for today.");
     }
     const { data, error } = await supabase
       .from("attendance")
       .insert({ intern_id: internId, date: today, time_in: new Date().toISOString(), method, status: "present" })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Catch duplicate-key violations from the database-level unique index
+      // in case a race condition bypassed the existence check above.
+      if (error.code === "23505") {
+        throw new Error("You have already submitted your attendance for today.");
+      }
+      throw new Error(error.message);
+    }
     return data;
   },
 
   async timeOut(recordId, timeInISO) {
+    // Enforce at most one time-out per attendance record.
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("time_out")
+      .eq("id", recordId)
+      .maybeSingle();
+    if (!existing) {
+      throw new Error("Attendance record not found.");
+    }
+    if (existing.time_out) {
+      throw new Error("You have already timed out for today.");
+    }
     const timeOut = new Date().toISOString();
     const total = diffHours(timeInISO, timeOut);
     const { data, error } = await supabase

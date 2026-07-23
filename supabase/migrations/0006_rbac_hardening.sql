@@ -78,17 +78,24 @@ create policy "supervisor reads assigned interns"
   on public.interns for select to authenticated
   using (supervisor_id = public.current_supervisor_id());
 
--- Supervisor may INSERT/UPDATE interns they are assigned to or created.
-drop policy if exists "supervisor manages assigned interns" on public.interns;
-create policy "supervisor manages assigned interns"
-  on public.interns for all to authenticated
+-- Supervisor may UPDATE assigned interns only (no INSERT).
+drop policy if exists "supervisor modifies assigned interns" on public.interns;
+create policy "supervisor modifies assigned interns"
+  on public.interns for update to authenticated
   using (
     supervisor_id = public.current_supervisor_id()
-    or created_by = auth.uid()
   )
   with check (
     supervisor_id = public.current_supervisor_id()
-    or created_by = auth.uid()
+    and department_id = public.current_supervisor_department_id()
+  );
+
+-- Supervisor may DELETE assigned interns only.
+drop policy if exists "supervisor deletes assigned interns" on public.interns;
+create policy "supervisor deletes assigned interns"
+  on public.interns for delete to authenticated
+  using (
+    supervisor_id = public.current_supervisor_id()
   );
 
 -- ---------------------------------------------------------------------------
