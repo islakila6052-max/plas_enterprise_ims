@@ -8,6 +8,7 @@ import { Input, Textarea } from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Spinner from "@/components/ui/Spinner";
 import { departmentService } from "@/services/departmentService";
 import { settingsService } from "@/services/settingsService";
@@ -18,6 +19,7 @@ export default function AdminSettings() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
 
   const {
     register,
@@ -78,13 +80,15 @@ export default function AdminSettings() {
     }
   }
 
-  async function removeDept(d) {
+  async function confirmDelete() {
     try {
-      await departmentService.remove(d.id);
-      setDepartments((prev) => prev.filter((x) => x.id !== d.id));
+      await departmentService.remove(toDelete.id);
+      setDepartments((prev) => prev.filter((x) => x.id !== toDelete.id));
       toast.success("Department deleted.");
+      setToDelete(null);
     } catch (err) {
       toast.error(err.message);
+      setToDelete(null);
     }
   }
 
@@ -122,7 +126,7 @@ export default function AdminSettings() {
               render: (d) => (
                 <div className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => openEdit(d)}>Edit</Button>
-                  <Button size="sm" variant="danger" onClick={() => removeDept(d)}>Delete</Button>
+                  <Button size="sm" variant="danger" onClick={() => setToDelete(d)}>Delete</Button>
                 </div>
               ),
             },
@@ -176,6 +180,16 @@ export default function AdminSettings() {
           <Textarea label="Description" {...register("description")} />
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(toDelete)}
+        onClose={() => setToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete department?"
+        message={`Delete "${toDelete?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        tone="danger"
+      />
     </div>
   );
 }
