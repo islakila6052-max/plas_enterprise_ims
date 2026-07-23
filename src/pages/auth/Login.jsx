@@ -167,11 +167,7 @@ export default function Login() {
             <img
               src="/login-logo.png"
               alt="PLAS Enterprise"
-<<<<<<< HEAD
-              className="mx-auto h-36 w-auto object-contain"
-=======
-              className="mx-auto mb-3 h-40 w-auto object-contain"
->>>>>>> 17e2670c50a3efc080042c8099e04318834207fe
+              className="mx-auto h-33 w-auto object-contain"
             />
             <h1 className="text-2xl font-bold text-emerald-900 tracking-tight">
               Internship Management System
@@ -265,7 +261,7 @@ export default function Login() {
             </a>
           </p>
           <p className="mt-1 text-[11px] text-slate-400">
-            Intern | Full-stack Developer
+            Intern | Computer Engineering Student
           </p>
           <p className="text-[10px] text-slate-400/70 mt-0.5">
             © {new Date().getFullYear()} Internship Management System. All
