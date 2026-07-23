@@ -13,7 +13,7 @@ import { documentService } from "@/services/documentService";
 
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES, PAGE_SIZE } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
-import { recordAudit, notify } from "@/services/activityService";
+import { recordAudit } from "@/services/activityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
 
@@ -60,18 +60,9 @@ export default function AdminDocuments() {
 
   async function review(row, status) {
     try {
+      // documentService.review() already sends a notification to the intern.
       await documentService.review(row.id, status);
       await recordAudit({ user_id: user?.id, action: "review", resource_type: "document", resource_id: row.id, changes: { status } });
-      // Notify the intern who owns this document that it was reviewed.
-      if (row.intern?.profile_id) {
-        await notify({
-          user_id: row.intern.profile_id,
-          type: "document_review",
-          title: `Document ${status}`,
-          message: `Your document "${row.file_name ?? TYPE_LABEL[row.type] ?? "submission"}" was ${status}.`,
-          link: "/intern/documents",
-        });
-      }
       toast.success(`Document ${status}.`);
       load();
     } catch (err) {

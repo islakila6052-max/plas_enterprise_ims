@@ -14,6 +14,7 @@ import { announcementService } from "@/services/announcementService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
 import { formatDateTime, timeAgo } from "@/utils/format";
+import { notifyAllWithType } from "@/services/activityService";
 
 export default function AdminAnnouncements() {
   const { user } = useAuth();
@@ -67,6 +68,16 @@ export default function AdminAnnouncements() {
         toast.success("Announcement updated.");
       } else {
         await announcementService.create({ ...values, published_by: user?.id });
+
+        // Notify all users about the new announcement.
+        notifyAllWithType({
+          type: "announcement",
+          title: `New announcement: ${values.title}`,
+          message: values.body?.substring(0, 120) + (values.body?.length > 120 ? "…" : ""),
+          link: "/intern/announcements",
+          metadata: { category: values.category },
+        }).catch(() => {});
+
         toast.success("Announcement published.");
       }
       setModalOpen(false);

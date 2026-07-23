@@ -13,7 +13,8 @@ import { journalService } from "@/services/journalService";
 import { useAuth } from "@/contexts/AuthContext";
 import { JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, todayISO } from "@/utils/format";
-import { recordAudit } from "@/services/activityService";
+import { recordAudit, notify } from "@/services/activityService";
+import { supabase } from "@/lib/supabase";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -67,6 +68,35 @@ export default function InternJournal() {
         status: "pending",
       });
       await recordAudit({ user_id: profile?.id, action: "create", resource_type: "daily_journal", resource_id: created?.id, changes: { date: values.date } });
+
+      // Notify the assigned supervisor about the new journal entry.
+      try {
+        const { data: intern } = await supabase
+          .from("interns")
+          .select("full_name, supervisor_id")
+          .eq("id", internId)
+          .single();
+        if (intern?.supervisor_id) {
+          const { data: supProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", intern.supervisor_id)
+            .single();
+          if (supProfile?.id) {
+            await notify({
+              user_id: supProfile.id,
+              type: "journal_submitted",
+              title: "New journal entry",
+              message: `${profile?.full_name || "An intern"} submitted a journal entry for ${values.date}.`,
+              link: "/supervisor/journals",
+              metadata: { intern_id: internId, journal_id: created?.id },
+            });
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+
       toast.success("Journal submitted.");
       reset({ date: todayISO(), activities: "", hours_worked: "", challenges: "", learnings: "" });
       load();

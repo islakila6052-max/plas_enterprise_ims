@@ -110,6 +110,18 @@ export default function AdminSupervisors() {
           resource_id: editing.id,
           changes: { full_name: values.full_name },
         });
+
+        // Notify the supervisor their account was updated.
+        if (editing.profile_id) {
+          await notify({
+            user_id: editing.profile_id,
+            type: "account_created",
+            title: "Your account was updated",
+            message: `${values.full_name}, your supervisor account details were updated by an admin.`,
+            link: "/supervisor",
+          }).catch(() => {});
+        }
+
         toast.success("Supervisor updated.");
       } else {
         const newUser = await userService.createAuthUser({

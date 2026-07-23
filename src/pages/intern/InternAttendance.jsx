@@ -12,7 +12,8 @@ import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
-import { recordAudit } from "@/services/activityService";
+import { recordAudit, notify } from "@/services/activityService";
+import { supabase } from "@/lib/supabase";
 
 const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
 
@@ -54,6 +55,35 @@ export default function InternAttendance() {
     try {
       const rec = await attendanceService.timeIn(internId, "manual");
       await recordAudit({ user_id: profile?.id, action: "create", resource_type: "attendance", resource_id: rec?.id, changes: { type: "time_in", date: todayISO() } });
+
+      // Notify the assigned supervisor about time-in.
+      try {
+        const { data: intern } = await supabase
+          .from("interns")
+          .select("full_name, supervisor_id")
+          .eq("id", internId)
+          .single();
+        if (intern?.supervisor_id) {
+          const { data: supProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", intern.supervisor_id)
+            .single();
+          if (supProfile?.id) {
+            await notify({
+              user_id: supProfile.id,
+              type: "attendance_update",
+              title: "Time in recorded",
+              message: `${intern.full_name || "Your intern"} just timed in for ${todayISO()}.`,
+              link: "/supervisor/attendance",
+              metadata: { intern_id: internId },
+            });
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+
       toast.success("Timed in.");
       load();
     } catch (err) {
@@ -68,6 +98,35 @@ export default function InternAttendance() {
     try {
       await attendanceService.timeOut(open.id, open.time_in);
       await recordAudit({ user_id: profile?.id, action: "update", resource_type: "attendance", resource_id: open.id, changes: { type: "time_out" } });
+
+      // Notify the supervisor about time-out.
+      try {
+        const { data: intern } = await supabase
+          .from("interns")
+          .select("full_name, supervisor_id")
+          .eq("id", internId)
+          .single();
+        if (intern?.supervisor_id) {
+          const { data: supProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", intern.supervisor_id)
+            .single();
+          if (supProfile?.id) {
+            await notify({
+              user_id: supProfile.id,
+              type: "attendance_update",
+              title: "Time out recorded",
+              message: `${intern.full_name || "Your intern"} just timed out for ${todayISO()}.`,
+              link: "/supervisor/attendance",
+              metadata: { intern_id: internId },
+            });
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+
       toast.success("Timed out.");
       load();
     } catch (err) {

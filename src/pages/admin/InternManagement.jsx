@@ -206,6 +206,21 @@ export default function InternManagement() {
       if (editing) {
         await internService.update(editing.id, payload);
         await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
+
+        // Notify if supervisor changed.
+        if (payload.supervisor_id && payload.supervisor_id !== editing.supervisor_id) {
+          const sup = supervisors.find((x) => x.id === payload.supervisor_id);
+          if (sup?.profile_id) {
+            await notify({
+              user_id: sup.profile_id,
+              type: "intern_assigned",
+              title: "Intern reassigned",
+              message: `${payload.full_name || "An intern"} was reassigned to you.`,
+              link: "/supervisor/interns",
+            }).catch(() => {});
+          }
+        }
+
         toast.success("Intern updated.");
       } else {
         // Create a real auth user + linked intern record so the intern can log in.
@@ -247,9 +262,29 @@ export default function InternManagement() {
     try {
       if (confirm.type === "archive") {
         await internService.archive(confirm.row.id);
+        // Notify the intern.
+        if (confirm.row.profile_id) {
+          await notify({
+            user_id: confirm.row.profile_id,
+            type: "intern_status",
+            title: "Internship archived",
+            message: "Your internship record has been archived.",
+            link: "/intern",
+          }).catch(() => {});
+        }
         toast.success("Intern archived.");
       } else if (confirm.type === "restore") {
         await internService.restore(confirm.row.id);
+        // Notify the intern.
+        if (confirm.row.profile_id) {
+          await notify({
+            user_id: confirm.row.profile_id,
+            type: "intern_status",
+            title: "Internship restored",
+            message: "Your internship record has been reactivated.",
+            link: "/intern",
+          }).catch(() => {});
+        }
         toast.success("Intern restored.");
       } else {
         await internService.remove(confirm.row.id);

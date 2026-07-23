@@ -3,11 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { notificationService } from "@/services/notificationService";
+import { supabase } from "@/lib/supabase";
 import Spinner from "@/components/ui/Spinner";
 
 /**
  * Notification bell in the navbar. Shows an unread count badge, opens a
  * dropdown of recent notifications, and supports mark-as-read / mark-all.
+ * Subscribes to real-time INSERTs on the notifications table so new
+ * notifications appear without a manual refresh.
  */
 export default function NotificationBell() {
   const { profile, user } = useAuth();
@@ -32,6 +35,32 @@ export default function NotificationBell() {
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Real-time subscription: listen for new notifications inserted for this user.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Refresh the list and unread count when a new notification arrives.
+          refresh();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 

@@ -305,7 +305,7 @@ now fully implemented** (service + navbar bell + mock seed).
 |--------|------|-------------|
 | `id` | UUID | PK DEFAULT gen_random_uuid() |
 | `user_id` | UUID | NOT NULL, FK → `profiles(id)` ON DELETE CASCADE |
-| `type` | TEXT | NOT NULL, CHECK IN ('announcement','journal_review','document_review','evaluation_created','attendance_reminder') |
+| `type` | TEXT | NOT NULL, CHECK IN ('announcement','journal_review','journal_submitted','document_review','evaluation_created','evaluation_submitted','attendance_reminder','attendance_update','account_created','intern_assigned','intern_status','supervisor_assigned') |
 | `title` | TEXT | NOT NULL |
 | `message` | TEXT | NOT NULL |
 | `link` | TEXT | — (in-app route to navigate to) |
@@ -711,7 +711,7 @@ CREATE TABLE IF NOT EXISTS public.settings (
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('announcement','journal_review','document_review','evaluation_created','attendance_reminder')),
+  type TEXT NOT NULL CHECK (type IN ('announcement','journal_review','journal_submitted','document_review','evaluation_created','evaluation_submitted','attendance_reminder','attendance_update','account_created','intern_assigned','intern_status','supervisor_assigned')),
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   link TEXT,
