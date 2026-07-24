@@ -48,6 +48,7 @@ export default function InternAttendance() {
   }, [load]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTimeOutOpen, setConfirmTimeOutOpen] = useState(false);
 
   async function confirmTimeIn() {
     setConfirmOpen(false);
@@ -94,6 +95,7 @@ export default function InternAttendance() {
   }
 
   async function timeOut() {
+    setConfirmTimeOutOpen(false);
     setBusy(true);
     try {
       await attendanceService.timeOut(open.id, open.time_in);
@@ -182,7 +184,7 @@ export default function InternAttendance() {
             )}
           </div>
           {open ? (
-            <Button onClick={timeOut} loading={busy}>
+            <Button onClick={() => setConfirmTimeOutOpen(true)} loading={busy}>
               Time Out
             </Button>
           ) : todayRec?.time_out ? (
@@ -205,6 +207,17 @@ export default function InternAttendance() {
         message={`You can only record one attendance per day. Confirm to time in for ${todayISO()}.`}
         confirmLabel="Yes, Time In"
         tone="primary"
+        loading={busy}
+      />
+
+      <ConfirmDialog
+        open={confirmTimeOutOpen}
+        onClose={() => setConfirmTimeOutOpen(false)}
+        onConfirm={timeOut}
+        title="Time out for today?"
+        message={`You timed in at ${open ? formatTime(open.time_in) : "—"}. Once you time out, you cannot time in again today.`}
+        confirmLabel="Yes, Time Out"
+        tone="danger"
         loading={busy}
       />
 
