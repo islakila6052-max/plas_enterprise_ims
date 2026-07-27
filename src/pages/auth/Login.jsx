@@ -251,7 +251,7 @@ export default function Login() {
       <footer className="pb-3 sm:pb-6 pt-2 sm:pt-4 text-center border-t border-emerald-100/30 bg-white/40 backdrop-blur-sm">
         <div className="max-w-md mx-auto px-3 sm:px-4">
           <p className="text-[10px] sm:text-xs font-medium text-slate-600">
-            Developed with <span className="text-red-500">❤</span> by
+            Developed by
             <a
               href="https://www.facebook.com/Mashiro.Villacampa"
               target="_blank"
