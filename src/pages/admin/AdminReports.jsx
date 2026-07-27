@@ -9,7 +9,8 @@ import { internService } from "@/services/internService";
 import { attendanceService } from "@/services/attendanceService";
 import { journalService } from "@/services/journalService";
 import { evaluationService } from "@/services/evaluationService";
-import { formatDate, formatHours } from "@/utils/format";
+import { settingsService } from "@/services/settingsService";
+import { formatDate, formatTime, formatHours } from "@/utils/format";
 
 const REPORTS = [
   { key: "intern_list", label: "Intern List" },
@@ -30,11 +31,11 @@ export default function AdminReports() {
         const res = await internService.list({ page: 1, pageSize: 1000 });
         return res.data.map((r) => ({
           Name: r.full_name,
-          StudentNo: r.student_number,
+          "Student No.": r.student_number,
           Institution: r.institution?.institution_name ?? "",
           Program: r.program?.program_name ?? "",
           Status: r.status,
-          RequiredHours: r.required_hours,
+          "Required Hours": r.required_hours,
         }));
       }
       case "attendance": {
@@ -42,8 +43,8 @@ export default function AdminReports() {
         return res.data.map((r) => ({
           Intern: r.intern?.full_name,
           Date: formatDate(r.date),
-          TimeIn: r.time_in,
-          TimeOut: r.time_out,
+          "Time In": r.time_in ? formatTime(r.time_in) : "—",
+          "Time Out": r.time_out ? formatTime(r.time_out) : "—",
           Hours: formatHours(r.total_hours),
           Status: r.status,
         }));
@@ -53,16 +54,16 @@ export default function AdminReports() {
         return res.data.map((r) => ({
           Intern: r.intern?.full_name,
           Date: formatDate(r.date),
-          Hours: r.hours_worked,
-          Status: r.status,
+          "Hours Worked": r.hours_worked,
+          "Status": r.status,
         }));
       }
       case "evaluations": {
         const res = await evaluationService.list({ page: 1, pageSize: 1000 });
         return res.data.map((r) => ({
           Intern: r.intern?.full_name,
-          Overall: r.overall_rating,
-          Recommendation: r.final_recommendation,
+          "Overall Rating": `${r.overall_rating ?? "—"}/5`,
+          "Recommendation": r.final_recommendation,
         }));
       }
       case "hours": {
@@ -77,13 +78,10 @@ export default function AdminReports() {
           }
           return acc;
         }, {});
-        const nameById = new Map(
-          (internsRes.data ?? []).map((i) => [i.id, i.full_name]),
-        );
         return (internsRes.data ?? []).map((r) => ({
           Name: r.full_name,
-          RequiredHours: r.required_hours,
-          RenderedHours: Math.round((renderedByIntern[r.id] ?? 0) * 100) / 100,
+          "Required Hours": r.required_hours,
+          "Rendered Hours": formatHours(renderedByIntern[r.id] ?? 0),
         }));
       }
       default:
@@ -107,15 +105,90 @@ export default function AdminReports() {
     setBusy(true);
     try {
       const data = await fetchData();
-      // Lazy-load jspdf + autotable (v5 API: call autoTable(doc, options)).
+      if (!data.length) {
+        toast.error("No data to export.");
+        return;
+      }
+
+      // Fetch company name for the header.
+      let companyName = "Internship Management System";
+      try {
+        const settings = await settingsService.get();
+        if (settings?.company_name) companyName = settings.company_name;
+      } catch { /* use default */ }
+
       const jsPDF = (await import("jspdf")).default;
       const { autoTable } = await import("jspdf-autotable");
-      const doc = new jsPDF();
-      const headers = data.length ? Object.keys(data[0]) : [];
+      const doc = new jsPDF({ orientation: data.length > 5 ? "landscape" : "portrait" });
+
+      const reportLabel = REPORTS.find((r) => r.key === type)?.label ?? type;
+      const generated = new Date().toLocaleDateString("en-US", {
+        year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
       const rows = data.map((d) => Object.values(d));
-      doc.text(`IMS Report — ${type}`, 14, 16);
-      autoTable(doc, { head: [headers], body: rows, startY: 22 });
-      doc.save(`ims-${type}-report.pdf`);
+      const rawHeaders = Object.keys(data[0]);
+      // Format headers: StudentNo → Student No., RequiredHours → Required Hours, etc.
+      const headers = rawHeaders.map((h) =>
+        h.replace(/([A-Z])/g, " $1").replace(/^\s/, "").replace(/\s+/g, " ").trim(),
+      );
+
+      // ── Header ──
+      doc.setFontSize(16);
+      doc.setTextColor(21, 128, 61); // brand-700
+      doc.text(companyName, 14, 18);
+      doc.setFontSize(11);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Report: ${reportLabel}`, 14, 26);
+      doc.text(`Generated: ${generated}  ·  ${data.length} records`, 14, 33);
+
+      // ── Table ──
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 40,
+        margin: { left: 14, right: 14 },
+        styles: {
+          fontSize: 9,
+          cellPadding: 4,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.5,
+        },
+        headStyles: {
+          fillColor: [21, 128, 61],
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        bodyStyles: {
+          textColor: [51, 65, 85],
+          valign: "middle",
+        },
+        alternateRowStyles: {
+          fillColor: [240, 253, 244],
+        },
+        columnStyles: {
+          // Left-align text columns, center numeric columns.
+        },
+        didDrawPage: (hookData) => {
+          // Footer with page number on every page.
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text(
+            `Page ${hookData.pageNumber}`,
+            doc.internal.pageSize.getWidth() - 20,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: "right" },
+          );
+          doc.text(
+            `IMS Report — ${reportLabel}`,
+            14,
+            doc.internal.pageSize.getHeight() - 10,
+          );
+        },
+      });
+
+      doc.save(`IMS-${type}-Report.pdf`);
       toast.success("PDF exported.");
     } catch (err) {
       toast.error(err.message);
