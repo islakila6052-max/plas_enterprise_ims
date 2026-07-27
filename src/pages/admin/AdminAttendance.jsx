@@ -134,7 +134,8 @@ export default function AdminAttendance() {
               setStatus(e.target.value);
               setPage(1);
             }}
-            className="max-w-xs">
+            className="max-w-xs"
+            label="Status">
             <option value="">All Statuses</option>
             {Object.values(ATTENDANCE_STATUS).map((s) => (
               <option key={s} value={s}>{ATTENDANCE_STATUS_LABELS[s]}</option>
