@@ -22,14 +22,15 @@ export default function AdminAttendance() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("");
   const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await attendanceService.adminList({ date, page });
+      const res = await attendanceService.adminList({ dateFrom, dateTo, page });
       let data = res.data;
       if (status) data = data.filter((r) => r.status === status);
       setRows(data);
@@ -39,7 +40,7 @@ export default function AdminAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [date, status, page]);
+  }, [dateFrom, dateTo, status, page]);
 
   useEffect(() => {
     load();
@@ -63,7 +64,9 @@ export default function AdminAttendance() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `attendance-${date || "all"}.csv`;
+      const from = dateFrom || "start";
+      const to = dateTo || "end";
+      a.download = `attendance-${from}-${to}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Attendance exported (CSV).");
@@ -104,15 +107,26 @@ export default function AdminAttendance() {
         action={<Button variant="secondary" onClick={exportCSV} loading={exporting}>Export CSV</Button>}
       />
       <Card>
-        <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-3">
           <Input
             type="date"
-            value={date}
+            value={dateFrom}
             onChange={(e) => {
-              setDate(e.target.value);
+              setDateFrom(e.target.value);
               setPage(1);
             }}
             className="max-w-xs"
+            label="From"
+          />
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-xs"
+            label="To"
           />
           <Select
             value={status}

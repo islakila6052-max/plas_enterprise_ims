@@ -105,14 +105,15 @@ export const attendanceService = {
     return { data: data ?? [], count: count ?? 0 };
   },
 
-  async adminList({ date, supervisorId, page = 1, pageSize = 15 } = {}) {
+  async adminList({ dateFrom, dateTo, supervisorId, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("attendance")
       .select("*, intern:interns(full_name, student_number, supervisor_id)", { count: "exact" })
       .order("date", { ascending: false })
       .order("time_in", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
-    if (date) query = query.eq("date", date);
+    if (dateFrom) query = query.gte("date", dateFrom);
+    if (dateTo) query = query.lte("date", dateTo);
     // Filter to this supervisor's interns server-side (the embedded
     // intern.supervisor_id column is what the UI previously read client-side).
     if (supervisorId) query = query.eq("intern.supervisor_id", supervisorId);
