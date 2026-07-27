@@ -35,6 +35,7 @@ export default function InternDocuments() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [type, setType] = useState(DOCUMENT_TYPES[0].value);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -71,6 +72,7 @@ export default function InternDocuments() {
   }
 
   async function download(row) {
+    setDownloading(true);
     try {
       const url = row.file_url || (await documentService.downloadUrl(row.file_path));
       if (!url) {
@@ -80,6 +82,8 @@ export default function InternDocuments() {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -106,7 +110,7 @@ export default function InternDocuments() {
       render: (r) => (
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => setPreview(r)}>Preview</Button>
-          <Button size="sm" variant="ghost" onClick={() => download(r)}>Download</Button>
+          <Button size="sm" variant="ghost" onClick={() => download(r)} loading={downloading}>Download</Button>
         </div>
       ),
     },
@@ -162,7 +166,7 @@ export default function InternDocuments() {
               Document preview is not available in the browser.
             </div>
             <div className="flex justify-end">
-              <Button variant="secondary" onClick={() => download(preview)}>Download</Button>
+              <Button variant="secondary" onClick={() => download(preview)} loading={downloading}>Download</Button>
             </div>
           </div>
         )}

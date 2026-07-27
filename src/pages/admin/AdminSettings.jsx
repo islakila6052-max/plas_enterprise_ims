@@ -20,6 +20,8 @@ export default function AdminSettings() {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const {
     register,
@@ -81,6 +83,7 @@ export default function AdminSettings() {
   }
 
   async function confirmDelete() {
+    setDeleting(true);
     try {
       await departmentService.remove(toDelete.id);
       setDepartments((prev) => prev.filter((x) => x.id !== toDelete.id));
@@ -89,10 +92,13 @@ export default function AdminSettings() {
     } catch (err) {
       toast.error(err.message);
       setToDelete(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
   async function onSettingsSubmit(values) {
+    setSettingsSaving(true);
     try {
       await settingsService.upsert({
         company_name: values.company_name,
@@ -102,6 +108,8 @@ export default function AdminSettings() {
       toast.success("Settings saved.");
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setSettingsSaving(false);
     }
   }
 
@@ -147,7 +155,7 @@ export default function AdminSettings() {
             <Input label="Internship duration" placeholder="e.g. 6 months" {...regSettings("internship_duration")} />
             <Input label="Required hours" type="number" {...regSettings("required_hours", { required: "Required" })} />
           </div>
-          <Button type="submit">Save Settings</Button>
+          <Button type="submit" loading={settingsSaving}>Save Settings</Button>
         </form>
       </Card>
 
@@ -189,6 +197,7 @@ export default function AdminSettings() {
         message={`Delete "${toDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
+        loading={deleting}
       />
     </div>
   );

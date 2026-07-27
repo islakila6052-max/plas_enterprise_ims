@@ -66,6 +66,7 @@ export default function InternManagement() {
 
   const [detail, setDetail] = useState(null);
   const [confirm, setConfirm] = useState(null); // { type, row }
+  const [confirming, setConfirming] = useState(false);
 
   const {
     register,
@@ -259,6 +260,7 @@ export default function InternManagement() {
 
   async function confirmAction() {
     if (!confirm) return;
+    setConfirming(true);
     try {
       if (confirm.type === "archive") {
         await internService.archive(confirm.row.id);
@@ -296,6 +298,8 @@ export default function InternManagement() {
     } catch (err) {
       toast.error(err.message);
       setConfirm(null);
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -538,6 +542,7 @@ export default function InternManagement() {
         }
         confirmLabel={confirm?.type === "delete" ? "Delete" : confirm?.type === "archive" ? "Archive" : "Restore"}
         tone={confirm?.type === "delete" ? "danger" : "primary"}
+        loading={confirming}
       />
     </div>
   );

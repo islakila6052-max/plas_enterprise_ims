@@ -35,6 +35,7 @@ export default function InstitutionProfile() {
   const [editingProg, setEditingProg] = useState(null);
   const [savingProg, setSavingProg] = useState(false);
   const [progToDelete, setProgToDelete] = useState(null);
+  const [deletingProg, setDeletingProg] = useState(false);
   const [progPage, setProgPage] = useState(1);
   const [instModalOpen, setInstModalOpen] = useState(false);
   const [savingInst, setSavingInst] = useState(false);
@@ -170,6 +171,7 @@ export default function InstitutionProfile() {
     }
   }
   async function confirmDeleteProg() {
+    setDeletingProg(true);
     try {
       await programService.remove(progToDelete.program_id);
       toast.success("Program deleted.");
@@ -177,6 +179,8 @@ export default function InstitutionProfile() {
       await load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDeletingProg(false);
     }
   }
 
@@ -315,6 +319,7 @@ export default function InstitutionProfile() {
         title="Delete program?"
         message="This action cannot be undone."
         confirmLabel="Delete"
+        loading={deletingProg}
       />
     </div>
   );

@@ -31,6 +31,7 @@ export default function AdminInstitutions() {
   const [editingInst, setEditingInst] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search, 500);
@@ -162,6 +163,7 @@ export default function AdminInstitutions() {
   }
 
   async function confirmDelete() {
+    setDeleting(true);
     try {
       await institutionService.remove(toDelete.institution_id);
       toast.success("Institution deleted (programs removed too).");
@@ -169,6 +171,8 @@ export default function AdminInstitutions() {
       await refresh();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -229,6 +233,7 @@ export default function AdminInstitutions() {
         title="Delete institution?"
         message="This will also delete all programs linked to this institution. This cannot be undone."
         confirmLabel="Delete"
+        loading={deleting}
       />
     </div>
   );

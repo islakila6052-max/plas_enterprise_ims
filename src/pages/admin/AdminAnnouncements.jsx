@@ -24,6 +24,8 @@ export default function AdminAnnouncements() {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [pinning, setPinning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -90,15 +92,19 @@ export default function AdminAnnouncements() {
   }
 
   async function togglePin(a) {
+    setPinning(true);
     try {
       await announcementService.update(a.id, { pinned: !a.pinned });
       load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setPinning(false);
     }
   }
 
   async function remove() {
+    setDeleting(true);
     try {
       await announcementService.remove(confirm.id);
       toast.success("Deleted.");
@@ -107,6 +113,8 @@ export default function AdminAnnouncements() {
     } catch (err) {
       toast.error(err.message);
       setConfirm(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -139,8 +147,8 @@ export default function AdminAnnouncements() {
                   <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{a.body}</p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2">
-                  <button className="text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => togglePin(a)}>
-                    {a.pinned ? "Unpin" : "Pin"}
+                  <button className="text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => togglePin(a)} disabled={pinning}>
+                    {pinning ? "…" : a.pinned ? "Unpin" : "Pin"}
                   </button>
                   <button className="text-xs font-medium text-slate-500 hover:text-slate-700" onClick={() => openEdit(a)}>
                     Edit
@@ -191,6 +199,7 @@ export default function AdminAnnouncements() {
         message={`Delete "${confirm?.title}"? This cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
+        loading={deleting}
       />
     </div>
   );

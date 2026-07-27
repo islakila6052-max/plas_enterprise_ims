@@ -40,6 +40,8 @@ export default function AdminDocuments() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +61,7 @@ export default function AdminDocuments() {
   }, [load]);
 
   async function review(row, status) {
+    setReviewing(true);
     try {
       // documentService.review() already sends a notification to the intern.
       await documentService.review(row.id, status);
@@ -67,10 +70,13 @@ export default function AdminDocuments() {
       load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setReviewing(false);
     }
   }
 
   async function download(row) {
+    setDownloading(true);
     try {
       // The bucket is public, so file_url is directly usable. Fall back to a
       // signed URL for private buckets / expired links.
@@ -82,6 +88,8 @@ export default function AdminDocuments() {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -118,11 +126,11 @@ export default function AdminDocuments() {
       render: (r) => (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={() => setPreview(r)}>Preview</Button>
-          <Button size="sm" variant="ghost" onClick={() => download(r)}>Download</Button>
+          <Button size="sm" variant="ghost" onClick={() => download(r)} loading={downloading}>Download</Button>
           {r.status === "pending" && (
             <>
-              <Button size="sm" onClick={() => review(r, "approved")}>Approve</Button>
-              <Button size="sm" variant="danger" onClick={() => review(r, "rejected")}>Reject</Button>
+              <Button size="sm" onClick={() => review(r, "approved")} loading={reviewing}>Approve</Button>
+              <Button size="sm" variant="danger" onClick={() => review(r, "rejected")} loading={reviewing}>Reject</Button>
             </>
           )}
         </div>
@@ -163,11 +171,11 @@ export default function AdminDocuments() {
               Document preview is not available in the browser.
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => download(preview)}>Download</Button>
+              <Button variant="secondary" onClick={() => download(preview)} loading={downloading}>Download</Button>
               {preview.status === "pending" && (
                 <>
-                  <Button onClick={() => { review(preview, "approved"); setPreview(null); }}>Approve</Button>
-                  <Button variant="danger" onClick={() => { review(preview, "rejected"); setPreview(null); }}>Reject</Button>
+                  <Button onClick={() => { review(preview, "approved"); setPreview(null); }} loading={reviewing}>Approve</Button>
+                  <Button variant="danger" onClick={() => { review(preview, "rejected"); setPreview(null); }} loading={reviewing}>Reject</Button>
                 </>
               )}
             </div>

@@ -24,6 +24,7 @@ export default function AdminAttendance() {
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,24 +47,29 @@ export default function AdminAttendance() {
 
   function exportCSV() {
     if (!rows.length) return toast.error("No rows to export.");
-    const header = ["Intern", "Date", "Time In", "Time Out", "Hours", "Status"];
-    const lines = rows.map((r) => [
-      r.intern?.full_name ?? "",
-      r.date,
-      r.time_in ?? "",
-      r.time_out ?? "",
-      r.total_hours,
-      r.status,
-    ]);
-    const csv = [header, ...lines].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${date || "all"}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Attendance exported (CSV).");
+    setExporting(true);
+    try {
+      const header = ["Intern", "Date", "Time In", "Time Out", "Hours", "Status"];
+      const lines = rows.map((r) => [
+        r.intern?.full_name ?? "",
+        r.date,
+        r.time_in ?? "",
+        r.time_out ?? "",
+        r.total_hours,
+        r.status,
+      ]);
+      const csv = [header, ...lines].map((row) => row.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attendance-${date || "all"}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Attendance exported (CSV).");
+    } finally {
+      setExporting(false);
+    }
   }
 
   const columns = [
@@ -95,7 +101,7 @@ export default function AdminAttendance() {
       <PageHeader
         title="Attendance"
         description="Organization-wide attendance records."
-        action={<Button variant="secondary" onClick={exportCSV}>Export CSV</Button>}
+        action={<Button variant="secondary" onClick={exportCSV} loading={exporting}>Export CSV</Button>}
       />
       <Card>
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2">

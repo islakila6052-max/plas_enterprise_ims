@@ -31,6 +31,7 @@ export default function AdminSupervisors() {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -198,6 +199,7 @@ export default function AdminSupervisors() {
   }
 
   async function removeSupervisor() {
+    setDeleting(true);
     try {
       await supervisorService.remove(confirm.id);
       await recordAudit({
@@ -215,6 +217,8 @@ export default function AdminSupervisors() {
     } catch (err) {
       toast.error(err.message);
       setConfirm(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -356,6 +360,7 @@ export default function AdminSupervisors() {
         message={`Delete ${confirm?.full_name || confirm?.profile?.full_name}? This removes the supervisor and ALL their evaluations, journals, and notifications, disables their login, and unassigns their interns (intern records are kept). This cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
+        loading={deleting}
       />
     </div>
   );
