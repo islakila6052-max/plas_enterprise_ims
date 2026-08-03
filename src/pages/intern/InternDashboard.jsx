@@ -1,10 +1,10 @@
 // src/pages/intern/InternDashboard.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "react-hot-toast"; // ✅ ADD THIS - it was missing
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { BarChart } from "@/components/ui/Chart";
 import { dashboardService } from "@/services/dashboardService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,19 +21,43 @@ const ICONS = {
 export default function InternDashboard() {
   const { profile, internId } = useAuth();
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  async function fetchStats() {
+    if (!profile || !internId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const s = await dashboardService.internStats(internId);
+      setStats(s);
+    } catch (err) {
+      setError(err);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let active = true;
-    dashboardService
-      .internStats(internId)
-      .then((s) => active && setStats(s))
-      .catch((err) => toast.error(err.message));
-    return () => {
-      active = false;
-    };
+    if (!profile || !internId) return;
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, internId]);
 
-  if (!stats) return <Spinner label="Loading dashboard…" />;
+  if (loading && !stats) return <Spinner label="Loading dashboard…" />;
+
+  if (error && !stats) {
+    return (
+      <div className="space-y-6">
+        <ErrorAlert
+          message={error.message}
+          onRetry={fetchStats}
+          loading={loading}
+        />
+      </div>
+    );
+  }
 
   const progress = stats.requiredHours
     ? Math.min(100, (stats.hoursRendered / stats.requiredHours) * 100)

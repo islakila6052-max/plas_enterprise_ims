@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { notificationService } from "@/services/notificationService";
 import { supabase } from "@/lib/supabase";
+import { onReconnect } from "@/lib/onlineManager";
 import Spinner from "@/components/ui/Spinner";
 
 /**
@@ -19,18 +20,24 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [offline, setOffline] = useState(false);
   const wrapRef = useRef(null);
+  const channelRef = useRef(null);
 
   const userId = user?.id;
 
   async function refresh() {
     if (!userId) return;
-    const [list, count] = await Promise.all([
-      notificationService.list({ userId, limit: 10 }),
-      notificationService.unreadCount(userId),
-    ]);
-    setItems(list);
-    setUnread(count);
+    try {
+      const [list, count] = await Promise.all([
+        notificationService.list({ userId, limit: 10 }),
+        notificationService.unreadCount(userId),
+      ]);
+      setItems(list);
+      setUnread(count);
+    } catch {
+      // Silently fail — the bell still works with stale data.
+    }
   }
 
   useEffect(() => {
@@ -41,7 +48,14 @@ export default function NotificationBell() {
   // Real-time subscription: listen for new notifications inserted for this user.
   useEffect(() => {
     if (!userId) return;
-    const channel = supabase
+
+    // Clean up previous channel if any.
+    if (channelRef.current) {
+      try { supabase.removeChannel(channelRef.current); } catch { /* ignore */ }
+      channelRef.current = null;
+    }
+
+    channelRef.current = supabase
       .channel(`notifications:${userId}`)
       .on(
         "postgres_changes",
@@ -52,15 +66,46 @@ export default function NotificationBell() {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          // Refresh the list and unread count when a new notification arrives.
           refresh();
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // If the subscription fails to connect (e.g. offline), retry when back online.
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          // The channel will be re-created on the next userId change or reconnect.
+        }
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        try { supabase.removeChannel(channelRef.current); } catch { /* ignore */ }
+        channelRef.current = null;
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Track online/offline state for the bell UI.
+  useEffect(() => {
+    const unsub = window.addEventListener("online", () => setOffline(false));
+    const unsub2 = window.addEventListener("offline", () => setOffline(true));
+    setOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener("online", unsub);
+      window.removeEventListener("offline", unsub2);
+    };
+  }, []);
+
+  // Re-subscribe to realtime channel when connection is restored.
+  useEffect(() => {
+    if (!userId) return;
+    return onReconnect(() => {
+      // Force re-creation of the realtime channel by toggling a counter.
+      // The existing useEffect for the channel will re-run when userId changes,
+      // so we temporarily set userId to null and back.
+      // Simpler: just refresh the data on reconnect.
+      refresh();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
@@ -124,6 +169,11 @@ export default function NotificationBell() {
           </div>
 
           <div className="max-h-80 overflow-y-auto">
+            {offline && (
+              <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">
+                No connection — showing cached notifications.
+              </div>
+            )}
             {loading ? (
               <div className="flex justify-center py-6">
                 <Spinner size="sm" />

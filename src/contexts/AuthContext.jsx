@@ -28,7 +28,12 @@ export function AuthProvider({ children }) {
       const p = await profileService.getByUserId(authUser.id);
       setProfile(p);
       return p;
-    } catch {
+    } catch (err) {
+      // Network errors (offline, Supabase down) are non-fatal —
+      // the user can still interact with the app and data will
+      // refresh once connectivity is restored.
+      // eslint-disable-next-line no-console
+      console.warn("[IMS] Profile load failed (network?):", err.message);
       setProfile(null);
       return null;
     }

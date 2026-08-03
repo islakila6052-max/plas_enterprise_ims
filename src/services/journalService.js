@@ -1,6 +1,19 @@
 // src/services/journalService.js
 import { supabase } from "@/lib/supabase";
 
+/**
+ * Safely execute a Supabase query, returning null on network failure.
+ * Used for non-critical queries that should not crash the UI.
+ */
+async function safeQuery(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("[IMS] Safe query failed:", err.message);
+    return null;
+  }
+}
+
 export const journalService = {
   async list({ internId, status, supervisorId, page = 1, pageSize = 15 } = {}) {
     let query = supabase
@@ -57,5 +70,27 @@ export const journalService = {
       .eq("id", id)
       .maybeSingle();
     return data ?? { id, ...patch };
+  },
+
+  /**
+   * Fetch journal stats with graceful degradation.
+   * Returns safe defaults on network failure.
+   */
+  async getStats(internId) {
+    if (!internId) return { totalJournals: 0, pendingCount: 0 };
+
+    const [totalResult, pendingResult] = await Promise.all([
+      safeQuery(() =>
+        supabase.from("daily_journals").select("*", { count: "exact", head: true }).eq("intern_id", internId)
+      ),
+      safeQuery(() =>
+        supabase.from("daily_journals").select("*", { count: "exact", head: true }).eq("intern_id", internId).eq("status", "pending")
+      ),
+    ]);
+
+    return {
+      totalJournals: totalResult?.count ?? 0,
+      pendingCount: pendingResult?.count ?? 0,
+    };
   },
 };

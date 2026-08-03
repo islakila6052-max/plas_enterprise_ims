@@ -19,6 +19,19 @@ async function count(table, query) {
   return count ?? 0;
 }
 
+/**
+ * Safely execute a Supabase query, returning null on network failure
+ * instead of throwing. Used by dashboard stats that must never crash.
+ */
+async function safeQuery(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error(`[IMS] safeQuery failed:`, err.message);
+    return null;
+  }
+}
+
 export const dashboardService = {
   async adminStats() {
     const [totalInterns, activeInterns, completed, pendingEvals, attendanceToday] = await Promise.all([
@@ -57,24 +70,33 @@ export const dashboardService = {
 
   async internStats(internId) {
     const today = new Date().toISOString().slice(0, 10);
-    const [hoursRows, required, attendanceToday, announcements] = await Promise.all([
+    const results = await Promise.all([
       internId
-        ? supabase
-            .from("attendance")
-            .select("total_hours")
-            .eq("intern_id", internId)
-            .then((r) => r.data ?? [])
-        : [],
-      supabase
-        .from("interns")
-        .select("required_hours")
-        .eq("id", internId)
-        .single()
-        .then((r) => r.data?.required_hours ?? 0)
-        .catch(() => 0),
+        ? safeQuery(() =>
+            supabase
+              .from("attendance")
+              .select("total_hours")
+              .eq("intern_id", internId)
+          ).then((r) => r?.data ?? [])
+        : Promise.resolve([]),
+      internId
+        ? safeQuery(() =>
+            supabase
+              .from("interns")
+              .select("required_hours")
+              .eq("id", internId)
+              .single()
+          ).then((r) => r?.data?.required_hours ?? 0)
+        : Promise.resolve(0),
       count("attendance", (q) => q.eq("intern_id", internId).eq("date", today)),
       count("announcements"),
     ]);
+
+    const hoursRows = results[0];
+    const required = results[1];
+    const attendanceToday = results[2];
+    const announcements = results[3];
+
     const rendered = (hoursRows ?? []).reduce(
       (sum, r) => sum + (Number(r.total_hours) || 0),
       0,

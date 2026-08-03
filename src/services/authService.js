@@ -1,5 +1,6 @@
 // src/services/authService.js
 import { supabase } from "@/lib/supabase";
+import { classifyError } from "@/lib/api";
 
 /**
  * Authentication service. Wraps Supabase Auth. All data is sourced from the
@@ -8,11 +9,8 @@ import { supabase } from "@/lib/supabase";
 
 function normalizeError(error) {
   if (!error) return new Error("Something went wrong. Please try again.");
-  const message =
-    error.message ||
-    error.error_description ||
-    "Authentication failed. Please try again.";
-  return new Error(message);
+  const classified = classifyError(error);
+  return new Error(classified.message);
 }
 
 export const authService = {

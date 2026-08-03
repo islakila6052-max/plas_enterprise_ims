@@ -1,8 +1,21 @@
 // src/services/documentService.js
 import { supabase } from "@/lib/supabase";
-import { notify, notifyAll } from "@/services/activityService"; // ✅ Added import
+import { notify } from "@/services/activityService";
 
 const BUCKET = "intern-documents";
+
+/**
+ * Safely execute a Supabase query, returning null on network failure.
+ * Used for non-critical queries that should not crash the UI.
+ */
+async function safeQuery(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("[IMS] Safe query failed:", err.message);
+    return null;
+  }
+}
 
 export const documentService = {
   async list({ internId, status, page = 1, pageSize = 15 } = {}) {
@@ -68,7 +81,7 @@ export const documentService = {
         }
       }
 
-      // ✅ Fixed: Only one admin notification
+      // Only one admin notification
       const { data: adminProfiles } = await supabase
         .from("profiles")
         .select("id")
@@ -84,7 +97,7 @@ export const documentService = {
           metadata: { intern_id: internId, document_id: data.id },
         });
       }
-    } catch (err  ) {
+    } catch (err) {
       console.error("[DOCUMENT NOTIFICATION] Failed:", err);
     }
 
@@ -138,5 +151,19 @@ export const documentService = {
     const { error } = await supabase.from("documents").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return;
+  },
+
+  /**
+   * Fetch document count with graceful degradation.
+   * Returns safe defaults on network failure.
+   */
+  async getStats(internId) {
+    if (!internId) return { totalDocuments: 0 };
+
+    const result = await safeQuery(() =>
+      supabase.from("documents").select("*", { count: "exact", head: true }).eq("intern_id", internId)
+    );
+
+    return { totalDocuments: result?.count ?? 0 };
   },
 };

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { BarChart, DonutChart } from "@/components/ui/Chart";
 import { dashboardService } from "@/services/dashboardService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,21 +21,47 @@ const ICONS = {
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  async function fetchStats() {
+    if (!profile) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const s = await dashboardService.adminStats();
+      setStats(s);
+    } catch (err) {
+      setError(err);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     // Wait until the session/profile is resolved before querying. Firing
     // these count() calls unauthenticated makes PostgREST reject the request
     // (e.g. 400 on evaluations?status=neq.completed) and the dashboard
-    // silently shows zeros. The profile is null during the initial bootstrap.
+    // silently shows zeros.
     if (!profile) return;
-    let active = true;
-    dashboardService.adminStats().then((s) => active && setStats(s));
-    return () => {
-      active = false;
-    };
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
-  if (!stats) return <Spinner label="Loading dashboard…" />;
+  if (loading && !stats) return <Spinner label="Loading dashboard…" />;
+
+  if (error && !stats) {
+    return (
+      <div className="space-y-6">
+        <ErrorAlert
+          message={error.message}
+          onRetry={fetchStats}
+          loading={loading}
+        />
+      </div>
+    );
+  }
 
   const cards = [
     { label: "Total Interns", value: formatNumber(stats.totalInterns), icon: ICONS.interns, tone: "brand" },

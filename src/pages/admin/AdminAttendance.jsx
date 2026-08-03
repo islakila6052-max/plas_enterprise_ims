@@ -8,6 +8,7 @@ import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { Input, Select } from "@/components/ui/Input";
 import { attendanceService } from "@/services/attendanceService";
 
@@ -22,6 +23,7 @@ export default function AdminAttendance() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("");
@@ -29,6 +31,7 @@ export default function AdminAttendance() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await attendanceService.adminList({ dateFrom, dateTo, page });
       let data = res.data;
@@ -36,6 +39,7 @@ export default function AdminAttendance() {
       setRows(data);
       setTotal(res.count);
     } catch (err) {
+      setError(err);
       toast.error(err.message);
     } finally {
       setLoading(false);
@@ -45,6 +49,15 @@ export default function AdminAttendance() {
   useEffect(() => {
     load();
   }, [load]);
+
+  if (error && rows.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Attendance" description="View and manage attendance records." />
+        <ErrorAlert message={error.message} onRetry={load} loading={loading} />
+      </div>
+    );
+  }
 
   function exportCSV() {
     if (!rows.length) return toast.error("No rows to export.");

@@ -2,6 +2,19 @@ import { supabase } from "@/lib/supabase";
 import { PAGE_SIZE } from "@/lib/constants";
 import { userService } from "@/services/userService";
 
+/**
+ * Safely execute a Supabase query, returning null on network failure.
+ * Used for non-critical queries that should not crash the UI.
+ */
+async function safeQuery(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("[IMS] Safe query failed:", err.message);
+    return null;
+  }
+}
+
 export const internService = {
   async list({
     search = "",
@@ -114,5 +127,31 @@ export const internService = {
 
   async restore(id) {
     return this.update(id, { status: "active" });
+  },
+
+  /**
+   * Fetch intern stats with graceful degradation.
+   * Returns safe defaults on network failure.
+   */
+  async getStats(internId) {
+    if (!internId) return { totalInterns: 0, activeInterns: 0, completed: 0 };
+
+    const [totalResult, activeResult, completedResult] = await Promise.all([
+      safeQuery(() =>
+        supabase.from("interns").select("*", { count: "exact", head: true })
+      ),
+      safeQuery(() =>
+        supabase.from("interns").select("*", { count: "exact", head: true }).eq("status", "active")
+      ),
+      safeQuery(() =>
+        supabase.from("interns").select("*", { count: "exact", head: true }).eq("status", "completed")
+      ),
+    ]);
+
+    return {
+      totalInterns: totalResult?.count ?? 0,
+      activeInterns: activeResult?.count ?? 0,
+      completedInternships: completedResult?.count ?? 0,
+    };
   },
 };

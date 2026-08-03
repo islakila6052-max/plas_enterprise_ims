@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { BarChart } from "@/components/ui/Chart";
 import { dashboardService } from "@/services/dashboardService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,16 +20,43 @@ const ICONS = {
 export default function SupervisorDashboard() {
   const { profile, supervisorId } = useAuth();
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  async function fetchStats() {
+    if (!profile || !supervisorId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const s = await dashboardService.supervisorStats(supervisorId);
+      setStats(s);
+    } catch (err) {
+      setError(err);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let active = true;
-    dashboardService.supervisorStats(supervisorId).then((s) => active && setStats(s));
-    return () => {
-      active = false;
-    };
+    if (!profile || !supervisorId) return;
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, supervisorId]);
 
-  if (!stats) return <Spinner label="Loading dashboard…" />;
+  if (loading && !stats) return <Spinner label="Loading dashboard…" />;
+
+  if (error && !stats) {
+    return (
+      <div className="space-y-6">
+        <ErrorAlert
+          message={error.message}
+          onRetry={fetchStats}
+          loading={loading}
+        />
+      </div>
+    );
+  }
 
   const cards = [
     { label: "Assigned Interns", value: formatNumber(stats.assignedInterns), icon: ICONS.assigned, tone: "brand" },
