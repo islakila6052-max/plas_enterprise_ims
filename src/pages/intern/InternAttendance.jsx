@@ -8,6 +8,7 @@ import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import TimeOutForm from "@/components/attendance/TimeOutForm";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
@@ -15,15 +16,23 @@ import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
 
-const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
+const TONE = {
+  present: "green",
+  late: "amber",
+  absent: "red",
+  pending: "gray",
+};
 
 export default function InternAttendance() {
   const { profile, internId } = useAuth();
   const [open, setOpen] = useState(null);
-  const [todayRec, setTodayRec] = useState(null); // today's record (open or closed)
+  const [todayRec, setTodayRec] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [showTimeOutForm, setShowTimeOutForm] = useState(false);
+  const [timeOutRecord, setTimeOutRecord] = useState(null);
+  const [isForgottenTimeout, setIsForgottenTimeout] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,7 +42,6 @@ export default function InternAttendance() {
         attendanceService.list({ internId, page: 1, pageSize: 30 }),
       ]);
       setTodayRec(todayRecord);
-      // Derive open session state: a record exists and hasn't been timed out yet.
       setOpen(todayRecord && !todayRecord.time_out ? todayRecord : null);
       setRows(res.data);
     } catch (err) {
@@ -48,16 +56,21 @@ export default function InternAttendance() {
   }, [load]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTimeOutOpen, setConfirmTimeOutOpen] = useState(false);
 
   async function confirmTimeIn() {
     setConfirmOpen(false);
     setBusy(true);
     try {
       const rec = await attendanceService.timeIn(internId, "manual");
-      await recordAudit({ user_id: profile?.id, action: "create", resource_type: "attendance", resource_id: rec?.id, changes: { type: "time_in", date: todayISO() } });
+      await recordAudit({
+        user_id: profile?.id,
+        action: "create",
+        resource_type: "attendance",
+        resource_id: rec?.id,
+        changes: { type: "time_in", date: todayISO() },
+      });
 
-      // Notify the assigned supervisor about time-in.
+      // Notify supervisor
       try {
         const { data: intern } = await supabase
           .from("interns")
@@ -94,14 +107,22 @@ export default function InternAttendance() {
     }
   }
 
-  async function timeOut() {
-    setConfirmTimeOutOpen(false);
+  // src/pages/intern/InternAttendance.jsx
+  // Update the handleTimeOut function:
+
+  async function handleTimeOut({ timeOut, remarks }) {
     setBusy(true);
     try {
-      await attendanceService.timeOut(open.id, open.time_in);
-      await recordAudit({ user_id: profile?.id, action: "update", resource_type: "attendance", resource_id: open.id, changes: { type: "time_out" } });
+      await attendanceService.timeOut(open.id, timeOut, remarks);
+      await recordAudit({
+        user_id: profile?.id,
+        action: "update",
+        resource_type: "attendance",
+        resource_id: open.id,
+        changes: { type: "time_out", timeOut, remarks },
+      });
 
-      // Notify the supervisor about time-out.
+      // Notify supervisor
       try {
         const { data: intern } = await supabase
           .from("interns")
@@ -119,7 +140,7 @@ export default function InternAttendance() {
               user_id: supProfile.id,
               type: "attendance_update",
               title: "Time out recorded",
-              message: `${intern.full_name || "Your intern"} just timed out for ${todayISO()}.`,
+              message: `${intern.full_name || "Your intern"} timed out for ${formatDate(open.date)}.`,
               link: "/supervisor/attendance",
               metadata: { intern_id: internId },
             });
@@ -130,6 +151,8 @@ export default function InternAttendance() {
       }
 
       toast.success("Timed out.");
+      setShowTimeOutForm(false);
+      setTimeOutRecord(null);
       load();
     } catch (err) {
       toast.error(err.message);
@@ -138,15 +161,34 @@ export default function InternAttendance() {
     }
   }
 
+  const handleOpenTimeOutForm = () => {
+    // Check if this is a forgotten timeout (record from a previous day)
+    const today = new Date().toISOString().slice(0, 10);
+    const isForgotten = open?.date !== today;
+
+    setIsForgottenTimeout(isForgotten);
+    setTimeOutRecord(open);
+    setShowTimeOutForm(true);
+  };
+
   const columns = [
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-    { key: "time_in", header: "Time In (Login)", render: (r) => formatTime(r.time_in) },
+    { key: "time_in", header: "Time In", render: (r) => formatTime(r.time_in) },
     {
       key: "time_out",
-      header: "Time Out (Logout)",
-      render: (r) => (r.time_out ? formatTime(r.time_out) : <span className="text-amber-600">Still in</span>),
+      header: "Time Out",
+      render: (r) =>
+        r.time_out ? (
+          formatTime(r.time_out)
+        ) : (
+          <span className="text-amber-600">Still In</span>
+        ),
     },
-    { key: "hours", header: "Hours", render: (r) => formatHours(r.total_hours) },
+    {
+      key: "hours",
+      header: "Hours",
+      render: (r) => formatHours(r.total_hours),
+    },
     {
       key: "status",
       header: "Status",
@@ -155,6 +197,11 @@ export default function InternAttendance() {
           {ATTENDANCE_STATUS_LABELS[r.status] ?? r.status}
         </Badge>
       ),
+    },
+    {
+      key: "remarks",
+      header: "Remarks",
+      render: (r) => r.remarks || "—",
     },
   ];
 
@@ -172,6 +219,11 @@ export default function InternAttendance() {
             {open ? (
               <p className="mt-1 text-sm font-medium text-emerald-600">
                 You are timed in since {formatTime(open.time_in)}
+                {open.date !== new Date().toISOString().slice(0, 10) && (
+                  <span className="ml-2 text-xs text-amber-600">
+                    (Previous day)
+                  </span>
+                )}
               </p>
             ) : todayRec?.time_out ? (
               <p className="mt-1 text-sm font-medium text-slate-600">
@@ -184,7 +236,7 @@ export default function InternAttendance() {
             )}
           </div>
           {open ? (
-            <Button onClick={() => setConfirmTimeOutOpen(true)} loading={busy}>
+            <Button onClick={handleOpenTimeOutForm} loading={busy}>
               Time Out
             </Button>
           ) : todayRec?.time_out ? (
@@ -199,6 +251,7 @@ export default function InternAttendance() {
         </div>
       </Card>
 
+      {/* Time In Confirmation */}
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -210,14 +263,16 @@ export default function InternAttendance() {
         loading={busy}
       />
 
-      <ConfirmDialog
-        open={confirmTimeOutOpen}
-        onClose={() => setConfirmTimeOutOpen(false)}
-        onConfirm={timeOut}
-        title="Time out for today?"
-        message={`You timed in at ${open ? formatTime(open.time_in) : "—"}. Once you time out, you cannot time in again today.`}
-        confirmLabel="Yes, Time Out"
-        tone="danger"
+      {/* Time Out Form */}
+      <TimeOutForm
+        open={showTimeOutForm}
+        onClose={() => {
+          setShowTimeOutForm(false);
+          setTimeOutRecord(null);
+        }}
+        onConfirm={handleTimeOut}
+        attendanceRecord={timeOutRecord}
+        isForgotten={isForgottenTimeout}
         loading={busy}
       />
 

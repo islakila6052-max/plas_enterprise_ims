@@ -65,25 +65,37 @@ export const attendanceService = {
     }
     const { data, error } = await supabase
       .from("attendance")
-      .insert({ intern_id: internId, date: today, time_in: new Date().toISOString(), method, status: "present" })
+      .insert({
+        intern_id: internId,
+        date: today,
+        time_in: new Date().toISOString(),
+        method,
+        status: "present",
+      })
       .select("*")
       .single();
     if (error) {
       // Catch duplicate-key violations from the database-level unique index
       // in case a race condition bypassed the existence check above.
       if (error.code === "23505") {
-        throw new Error("You have already submitted your attendance for today.");
+        throw new Error(
+          "You have already submitted your attendance for today.",
+        );
       }
       throw new Error(error.message);
     }
     return data;
   },
 
-  async timeOut(recordId, timeInISO) {
+  // src/services/attendanceService.js (partial update - replace the timeOut method)
+
+  // src/services/attendanceService.js
+
+  async timeOut(recordId, timeOutISO, remarks = null) {
     // Enforce at most one time-out per attendance record.
     const { data: existing } = await supabase
       .from("attendance")
-      .select("time_out")
+      .select("time_out, time_in")
       .eq("id", recordId)
       .maybeSingle();
     if (!existing) {
@@ -92,11 +104,17 @@ export const attendanceService = {
     if (existing.time_out) {
       throw new Error("You have already timed out for today.");
     }
-    const timeOut = new Date().toISOString();
-    const total = diffHours(timeInISO, timeOut);
+
+    // Calculate total hours from time_in to the provided timeOut
+    const total = diffHours(existing.time_in, timeOutISO);
     const { data, error } = await supabase
       .from("attendance")
-      .update({ time_out: timeOut, total_hours: total })
+      .update({
+        time_out: timeOutISO,
+        total_hours: total,
+        remarks: remarks || null,
+        method: "manual",
+      })
       .eq("id", recordId)
       .select("*")
       .single();
@@ -118,10 +136,18 @@ export const attendanceService = {
     return { data: data ?? [], count: count ?? 0 };
   },
 
-  async adminList({ dateFrom, dateTo, supervisorId, page = 1, pageSize = 15 } = {}) {
+  async adminList({
+    dateFrom,
+    dateTo,
+    supervisorId,
+    page = 1,
+    pageSize = 15,
+  } = {}) {
     let query = supabase
       .from("attendance")
-      .select("*, intern:interns(full_name, student_number, supervisor_id)", { count: "exact" })
+      .select("*, intern:interns(full_name, student_number, supervisor_id)", {
+        count: "exact",
+      })
       .order("date", { ascending: false })
       .order("time_in", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
@@ -145,10 +171,17 @@ export const attendanceService = {
     const today = new Date().toISOString().slice(0, 10);
     const [attendanceResult, hoursResult] = await Promise.all([
       safeQuery(() =>
-        supabase.from("attendance").select("*", { count: "exact", head: true }).eq("intern_id", internId).eq("date", today)
+        supabase
+          .from("attendance")
+          .select("*", { count: "exact", head: true })
+          .eq("intern_id", internId)
+          .eq("date", today),
       ),
       safeQuery(() =>
-        supabase.from("attendance").select("total_hours").eq("intern_id", internId)
+        supabase
+          .from("attendance")
+          .select("total_hours")
+          .eq("intern_id", internId),
       ),
     ]);
 
@@ -167,10 +200,17 @@ export const attendanceService = {
    * Fetch attendance records that were auto-timed out (method = 'auto-timeout').
    * Useful for admin review.
    */
-  async getAutoTimeoutRecords({ dateFrom, dateTo, page = 1, pageSize = 15 } = {}) {
+  async getAutoTimeoutRecords({
+    dateFrom,
+    dateTo,
+    page = 1,
+    pageSize = 15,
+  } = {}) {
     let query = supabase
       .from("attendance")
-      .select("*, intern:interns(full_name, student_number)", { count: "exact" })
+      .select("*, intern:interns(full_name, student_number)", {
+        count: "exact",
+      })
       .eq("method", "auto-timeout")
       .order("date", { ascending: false })
       .order("time_in", { ascending: false })
@@ -205,7 +245,9 @@ export const attendanceService = {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Failed to auto-timeout attendance records");
+      throw new Error(
+        error.error || "Failed to auto-timeout attendance records",
+      );
     }
     const result = await response.json();
     return result;
