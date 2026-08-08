@@ -224,25 +224,29 @@ export default function InternAttendance() {
       key: "claim_status",
       header: "Claim",
       render: (r) => {
-        // For records with no time_out, show claim status or action button
-        if (r.time_out) return "—";
+        // Claim status takes priority so approved/rejected indicators remain
+        // visible even after time_out is set on approval.
         if (r.claim_status === "pending")
           return <Badge tone="amber">Claim Pending</Badge>;
         if (r.claim_status === "approved")
           return <Badge tone="green">Claim Approved</Badge>;
         if (r.claim_status === "rejected")
           return <Badge tone="red">Claim Rejected</Badge>;
-        return (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setClaimRecord(r);
-              setShowClaimForm(true);
-            }}>
-            Claim Time Out
-          </Button>
-        );
+        // Records with no time_out and no claim offer the claim action.
+        if (!r.time_out) {
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setClaimRecord(r);
+                setShowClaimForm(true);
+              }}>
+              Claim Time Out
+            </Button>
+          );
+        }
+        return "—";
       },
     },
     {
