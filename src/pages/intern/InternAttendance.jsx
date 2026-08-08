@@ -232,8 +232,22 @@ export default function InternAttendance() {
           return <Badge tone="green">Claim Approved</Badge>;
         if (r.claim_status === "rejected")
           return <Badge tone="red">Claim Rejected</Badge>;
-        // Records with no time_out and no claim offer the claim action.
+
+        // No time_out and no claim yet.
         if (!r.time_out) {
+          const today = todayISO();
+          const isToday = r.date === today;
+
+          // For today's record, only allow a claim after 5 PM — before that
+          // the intern can still clock out normally via the Time Out button.
+          if (isToday) {
+            const now = new Date();
+            const cutoff = new Date();
+            cutoff.setHours(17, 0, 0, 0); // 5:00 PM
+            if (now < cutoff) return "—";
+          }
+
+          // Previous-day records (or after 5 PM today) offer the claim action.
           return (
             <Button
               size="sm"
