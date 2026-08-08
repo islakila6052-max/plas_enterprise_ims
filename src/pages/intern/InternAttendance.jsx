@@ -9,6 +9,7 @@ import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import TimeOutForm from "@/components/attendance/TimeOutForm";
+import ClaimTimeOutForm from "@/components/attendance/ClaimTimeOutForm";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
@@ -33,6 +34,8 @@ export default function InternAttendance() {
   const [showTimeOutForm, setShowTimeOutForm] = useState(false);
   const [timeOutRecord, setTimeOutRecord] = useState(null);
   const [isForgottenTimeout, setIsForgottenTimeout] = useState(false);
+  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [claimRecord, setClaimRecord] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +174,25 @@ export default function InternAttendance() {
     setShowTimeOutForm(true);
   };
 
+  async function handleClaimSubmit({ claimedTimeOut, remarks }) {
+    setBusy(true);
+    try {
+      await attendanceService.submitClaim(
+        claimRecord.id,
+        claimedTimeOut,
+        remarks,
+      );
+      toast.success("Claim submitted. Awaiting supervisor approval.");
+      setShowClaimForm(false);
+      setClaimRecord(null);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const columns = [
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
     { key: "time_in", header: "Time In", render: (r) => formatTime(r.time_in) },
@@ -181,7 +203,7 @@ export default function InternAttendance() {
         r.time_out ? (
           formatTime(r.time_out)
         ) : (
-          <span className="text-amber-600">Still In</span>
+          <span className="text-amber-600">—</span>
         ),
     },
     {
@@ -197,6 +219,31 @@ export default function InternAttendance() {
           {ATTENDANCE_STATUS_LABELS[r.status] ?? r.status}
         </Badge>
       ),
+    },
+    {
+      key: "claim_status",
+      header: "Claim",
+      render: (r) => {
+        // For records with no time_out, show claim status or action button
+        if (r.time_out) return "—";
+        if (r.claim_status === "pending")
+          return <Badge tone="amber">Claim Pending</Badge>;
+        if (r.claim_status === "approved")
+          return <Badge tone="green">Claim Approved</Badge>;
+        if (r.claim_status === "rejected")
+          return <Badge tone="red">Claim Rejected</Badge>;
+        return (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setClaimRecord(r);
+              setShowClaimForm(true);
+            }}>
+            Claim Time Out
+          </Button>
+        );
+      },
     },
     {
       key: "remarks",
@@ -273,6 +320,18 @@ export default function InternAttendance() {
         onConfirm={handleTimeOut}
         attendanceRecord={timeOutRecord}
         isForgotten={isForgottenTimeout}
+        loading={busy}
+      />
+
+      {/* Claim Missed Clock-out Form */}
+      <ClaimTimeOutForm
+        open={showClaimForm}
+        onClose={() => {
+          setShowClaimForm(false);
+          setClaimRecord(null);
+        }}
+        onConfirm={handleClaimSubmit}
+        attendanceRecord={claimRecord}
         loading={busy}
       />
 

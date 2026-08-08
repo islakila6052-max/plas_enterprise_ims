@@ -12,13 +12,21 @@ import ErrorAlert from "@/components/ui/ErrorAlert";
 import { Input, Select } from "@/components/ui/Input";
 import { attendanceService } from "@/services/attendanceService";
 
-import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
+import {
+  ATTENDANCE_STATUS,
+  ATTENDANCE_STATUS_LABELS,
+  PAGE_SIZE,
+} from "@/lib/constants";
 import { formatDate, formatTime, formatHours } from "@/utils/format";
 
-const TONE = { present: "green", late: "amber", absent: "red", pending: "gray" };
+const TONE = {
+  present: "green",
+  late: "amber",
+  absent: "red",
+  pending: "gray",
+};
 
 export default function AdminAttendance() {
-
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -27,6 +35,7 @@ export default function AdminAttendance() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("");
+  const [claimFilter, setClaimFilter] = useState("");
   const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
@@ -36,6 +45,16 @@ export default function AdminAttendance() {
       const res = await attendanceService.adminList({ dateFrom, dateTo, page });
       let data = res.data;
       if (status) data = data.filter((r) => r.status === status);
+      if (claimFilter) {
+        if (claimFilter === "pending") {
+          data = data.filter((r) => r.claim_status === "pending");
+        } else if (claimFilter === "reviewed") {
+          data = data.filter(
+            (r) =>
+              r.claim_status === "approved" || r.claim_status === "rejected",
+          );
+        }
+      }
       setRows(data);
       setTotal(res.count);
     } catch (err) {
@@ -44,7 +63,7 @@ export default function AdminAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, status, page]);
+  }, [dateFrom, dateTo, status, claimFilter, page]);
 
   useEffect(() => {
     load();
@@ -53,7 +72,10 @@ export default function AdminAttendance() {
   if (error && rows.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Attendance" description="View and manage attendance records." />
+        <PageHeader
+          title="Attendance"
+          description="View and manage attendance records."
+        />
         <ErrorAlert message={error.message} onRetry={load} loading={loading} />
       </div>
     );
@@ -63,7 +85,14 @@ export default function AdminAttendance() {
     if (!rows.length) return toast.error("No rows to export.");
     setExporting(true);
     try {
-      const header = ["Intern", "Date", "Time In", "Time Out", "Hours", "Status"];
+      const header = [
+        "Intern",
+        "Date",
+        "Time In",
+        "Time Out",
+        "Hours",
+        "Status",
+      ];
       const lines = rows.map((r) => [
         r.intern?.full_name ?? "",
         r.date,
@@ -101,14 +130,37 @@ export default function AdminAttendance() {
     },
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
     { key: "time_in", header: "Time In", render: (r) => formatTime(r.time_in) },
-    { key: "time_out", header: "Time Out", render: (r) => formatTime(r.time_out) },
-    { key: "total_hours", header: "Hours", render: (r) => formatHours(r.total_hours) },
+    {
+      key: "time_out",
+      header: "Time Out",
+      render: (r) => formatTime(r.time_out),
+    },
+    {
+      key: "total_hours",
+      header: "Hours",
+      render: (r) => formatHours(r.total_hours),
+    },
     {
       key: "status",
       header: "Status",
       render: (r) => (
-        <Badge tone={TONE[r.status] ?? "gray"}>{ATTENDANCE_STATUS_LABELS[r.status] ?? r.status}</Badge>
+        <Badge tone={TONE[r.status] ?? "gray"}>
+          {ATTENDANCE_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
       ),
+    },
+    {
+      key: "claim",
+      header: "Claim",
+      render: (r) => {
+        if (r.claim_status === "pending")
+          return <Badge tone="amber">Pending</Badge>;
+        if (r.claim_status === "approved")
+          return <Badge tone="green">Approved</Badge>;
+        if (r.claim_status === "rejected")
+          return <Badge tone="red">Rejected</Badge>;
+        return "—";
+      },
     },
   ];
 
@@ -117,10 +169,14 @@ export default function AdminAttendance() {
       <PageHeader
         title="Attendance"
         description="Organization-wide attendance records."
-        action={<Button variant="secondary" onClick={exportCSV} loading={exporting}>Export CSV</Button>}
+        action={
+          <Button variant="secondary" onClick={exportCSV} loading={exporting}>
+            Export CSV
+          </Button>
+        }
       />
       <Card>
-        <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-3">
+        <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             type="date"
             value={dateFrom}
@@ -151,8 +207,22 @@ export default function AdminAttendance() {
             label="Status">
             <option value="">All Statuses</option>
             {Object.values(ATTENDANCE_STATUS).map((s) => (
-              <option key={s} value={s}>{ATTENDANCE_STATUS_LABELS[s]}</option>
+              <option key={s} value={s}>
+                {ATTENDANCE_STATUS_LABELS[s]}
+              </option>
             ))}
+          </Select>
+          <Select
+            value={claimFilter}
+            onChange={(e) => {
+              setClaimFilter(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-xs"
+            label="Claim">
+            <option value="">All Claims</option>
+            <option value="pending">Pending Claims</option>
+            <option value="reviewed">Reviewed Claims</option>
           </Select>
         </div>
         {loading ? (
@@ -162,11 +232,20 @@ export default function AdminAttendance() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No attendance records.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No attendance records.
+              </div>
+            }
           />
         )}
         {rows.length > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         )}
       </Card>
     </div>

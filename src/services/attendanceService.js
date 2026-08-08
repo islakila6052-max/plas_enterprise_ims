@@ -122,6 +122,98 @@ export const attendanceService = {
     return data;
   },
 
+  /**
+   * Submit a missed clock-out claim for an attendance record that has a
+   * time_in but no time_out. The claim is subject to supervisor approval.
+   * @param {string} recordId - Attendance record id
+   * @param {string} claimedTimeOutISO - ISO timestamp the intern claims they left
+   * @param {string} remarks - Reason for the missed clock-out
+   */
+  async submitClaim(recordId, claimedTimeOutISO, remarks) {
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("time_out, time_in, claim_status")
+      .eq("id", recordId)
+      .maybeSingle();
+    if (!existing) {
+      throw new Error("Attendance record not found.");
+    }
+    if (existing.time_out) {
+      throw new Error("This attendance record already has a time out.");
+    }
+    if (existing.claim_status === "pending") {
+      throw new Error("You already have a pending claim for this record.");
+    }
+    if (existing.claim_status === "approved") {
+      throw new Error("This claim has already been approved.");
+    }
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .update({
+        claimed_time_out: claimedTimeOutISO,
+        claim_status: "pending",
+        claim_remarks: remarks || null,
+      })
+      .eq("id", recordId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  /**
+   * Review a missed clock-out claim. On approval, the claimed time becomes
+   * the official time_out and total_hours are recomputed.
+   * @param {string} recordId - Attendance record id
+   * @param {"approved"|"rejected"} decision - Approve or reject the claim
+   * @param {string} reviewerProfileId - Profile id of the reviewing supervisor
+   * @param {string} [comment] - Optional supervisor comment
+   */
+  async reviewClaim(recordId, decision, reviewerProfileId, comment = null) {
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("time_out, time_in, claimed_time_out, claim_status")
+      .eq("id", recordId)
+      .maybeSingle();
+    if (!existing) {
+      throw new Error("Attendance record not found.");
+    }
+    if (!existing.claimed_time_out) {
+      throw new Error("No claim exists for this attendance record.");
+    }
+    if (existing.claim_status !== "pending") {
+      throw new Error("This claim has already been reviewed.");
+    }
+
+    const patch = {
+      claim_status: decision,
+      claim_reviewed_by: reviewerProfileId,
+      claim_reviewed_at: new Date().toISOString(),
+      claim_review_comment: comment || null,
+    };
+
+    // On approval, apply the claimed time as the official time_out and
+    // recompute total hours.
+    if (decision === "approved") {
+      patch.time_out = existing.claimed_time_out;
+      patch.total_hours = diffHours(
+        existing.time_in,
+        existing.claimed_time_out,
+      );
+      patch.method = "claimed";
+    }
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .update(patch)
+      .eq("id", recordId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
   async list({ internId, date, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("attendance")
