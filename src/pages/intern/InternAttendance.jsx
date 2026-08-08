@@ -235,8 +235,16 @@ export default function InternAttendance() {
 
         // No time_out and no claim yet.
         if (!r.time_out) {
+          // If this is the currently-open record (the one the user can time
+          // out via the Time Out button), never show a claim action — the
+          // intern still has the normal Time Out option available.
+          if (open?.id === r.id) return "—";
+
+          // Normalize the row date to YYYY-MM-DD to be safe against any
+          // formatting differences returned by the API.
+          const rowDate = String(r.date || "").slice(0, 10);
           const today = todayISO();
-          const isToday = r.date === today;
+          const isToday = rowDate === today;
 
           // For today's record, only allow a claim after 5 PM — before that
           // the intern can still clock out normally via the Time Out button.
