@@ -193,6 +193,12 @@ export const attendanceService = {
       claim_review_comment: comment || null,
     };
 
+    // Populate the attendance remarks with the supervisor's review comment so
+    // the intern can see what the supervisor communicated about the claim.
+    if (comment) {
+      patch.remarks = comment;
+    }
+
     // On approval, apply the claimed time as the official time_out and
     // recompute total hours.
     if (decision === "approved") {
