@@ -23,7 +23,10 @@ export const authService = {
 
   /** Sign in with email + password. */
   async signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) throw normalizeError(error);
     return data;
   },
@@ -34,11 +37,23 @@ export const authService = {
     if (error) throw normalizeError(error);
     return;
   },
-
   /** Send a password reset email. */
   async forgotPassword(email) {
+    // Auto-detect Vercel URL in production
+    const vercelUrl = import.meta.env.VERCEL_URL;
+    const appUrl = import.meta.env.VITE_APP_URL;
+
+    let baseUrl;
+    if (vercelUrl) {
+      baseUrl = `https://${vercelUrl}`;
+    } else if (appUrl) {
+      baseUrl = appUrl;
+    } else {
+      baseUrl = window.location.origin;
+    }
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${baseUrl}/reset-password`,
     });
     if (error) throw normalizeError(error);
     return;
