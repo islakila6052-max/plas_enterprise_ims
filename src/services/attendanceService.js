@@ -204,6 +204,12 @@ export const attendanceService = {
       patch.method = "claimed";
     }
 
+    // On rejection, the intern has no valid time-out for the day, so mark
+    // the attendance status as absent instead of leaving it as present.
+    if (decision === "rejected") {
+      patch.status = "absent";
+    }
+
     const { data, error } = await supabase
       .from("attendance")
       .update(patch)
