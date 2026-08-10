@@ -13,7 +13,7 @@ import ClaimTimeOutForm from "@/components/attendance/ClaimTimeOutForm";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
-import { formatDate, formatTime, formatHours, todayISO } from "@/utils/format";
+import { formatDate, formatTime, formatHours, todayDateInAttendanceTZ, nowMinuteInAttendanceTZ } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
 
@@ -70,7 +70,7 @@ export default function InternAttendance() {
         action: "create",
         resource_type: "attendance",
         resource_id: rec?.id,
-        changes: { type: "time_in", date: todayISO() },
+        changes: { type: "time_in", date: todayDateInAttendanceTZ() },
       });
 
       // Notify supervisor
@@ -91,7 +91,7 @@ export default function InternAttendance() {
               user_id: supProfile.id,
               type: "attendance_update",
               title: "Time in recorded",
-              message: `${intern.full_name || "Your intern"} just timed in for ${todayISO()}.`,
+              message: `${intern.full_name || "Your intern"} just timed in for ${todayDateInAttendanceTZ()}.`,
               link: "/supervisor/attendance",
               metadata: { intern_id: internId },
             });
@@ -166,7 +166,7 @@ export default function InternAttendance() {
 
   const handleOpenTimeOutForm = () => {
     // Check if this is a forgotten timeout (record from a previous day)
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const isForgotten = open?.date !== today;
 
     setIsForgottenTimeout(isForgotten);
@@ -243,16 +243,16 @@ export default function InternAttendance() {
           // Normalize the row date to YYYY-MM-DD to be safe against any
           // formatting differences returned by the API.
           const rowDate = String(r.date || "").slice(0, 10);
-          const today = todayISO();
+          const today = todayDateInAttendanceTZ();
           const isToday = rowDate === today;
 
           // For today's record, only allow a claim after 5 PM — before that
           // the intern can still clock out normally via the Time Out button.
           if (isToday) {
-            const now = new Date();
-            const cutoff = new Date();
-            cutoff.setHours(17, 0, 0, 0); // 5:00 PM
-            if (now < cutoff) return "—";
+            // Claim allowed for today only after 5:00 PM in the attendance
+            // timezone (Asia/Manila). Before that the intern clocks out
+            // normally via the Time Out button.
+            if (nowMinuteInAttendanceTZ() < 17 * 60) return "—";
           }
 
           // Previous-day records (or after 5 PM today) offer the claim action.
@@ -288,11 +288,11 @@ export default function InternAttendance() {
       <Card>
         <div className="flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-slate-500">Today · {todayISO()}</p>
+            <p className="text-sm text-slate-500">Today · {todayDateInAttendanceTZ()}</p>
             {open ? (
               <p className="mt-1 text-sm font-medium text-emerald-600">
                 You are timed in since {formatTime(open.time_in)}
-                {open.date !== new Date().toISOString().slice(0, 10) && (
+                {open.date !== todayDateInAttendanceTZ() && (
                   <span className="ml-2 text-xs text-amber-600">
                     (Previous day)
                   </span>
@@ -330,7 +330,7 @@ export default function InternAttendance() {
         onClose={() => setConfirmOpen(false)}
         onConfirm={confirmTimeIn}
         title="Time in for today?"
-        message={`You can only record one attendance per day. Confirm to time in for ${todayISO()}.`}
+        message={`You can only record one attendance per day. Confirm to time in for ${todayDateInAttendanceTZ()}.`}
         confirmLabel="Yes, Time In"
         tone="primary"
         loading={busy}

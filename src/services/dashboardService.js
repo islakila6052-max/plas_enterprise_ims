@@ -1,5 +1,6 @@
 // src/services/dashboardService.js
 import { supabase } from "@/lib/supabase";
+import { todayDateInAttendanceTZ } from "@/utils/format";
 
 /**
  * Aggregated counts or dashboards. Each function degrades gracefully to zeros
@@ -42,7 +43,7 @@ export const dashboardService = {
       // configurations. Compute "pending" (the only other live status) and
       // treat that as the pending-evaluation count instead of `neq.completed`.
       count("evaluations", (q) => q.eq("status", "pending")),
-      count("attendance", (q) => q.eq("date", new Date().toISOString().slice(0, 10))),
+      count("attendance", (q) => q.eq("date", todayDateInAttendanceTZ())),
     ]);
     return { totalInterns, activeInterns, completedInternships: completed, pendingEvaluations: pendingEvals, attendanceToday };
   },
@@ -56,7 +57,7 @@ export const dashboardService = {
       .eq("supervisor_id", supervisorId);
     if (internErr) return { assignedInterns: 0, attendanceToday: 0, pendingJournals: 0, pendingEvaluations: 0 };
     const internIds = (internRows ?? []).map((i) => i.id);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const [assigned, attendanceToday, pendingJournals, pendingEvals] = await Promise.all([
       count("interns", (q) => q.eq("supervisor_id", supervisorId).eq("status", "active")),
       internIds.length
@@ -69,7 +70,7 @@ export const dashboardService = {
   },
 
   async internStats(internId) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const results = await Promise.all([
       internId
         ? safeQuery(() =>

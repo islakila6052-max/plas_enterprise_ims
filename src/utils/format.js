@@ -49,6 +49,60 @@ export function todayISO() {
 }
 
 /**
+ * Asia/Manila is the single operating timezone for Attendance (UTC+8, no DST).
+ * All attendance day selections, "today" detection, previous-day detection,
+ * claim eligibility and wall-clock time-out parsing use this timezone, so the
+ * attendance domain never mixes UTC-derived dates with browser-local cutoffs.
+ */
+export const ATTENDANCE_TIMEZONE = "Asia/Manila";
+
+function zoneParts(instant, timeZone, extra = {}) {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...extra,
+  });
+  return Object.fromEntries(
+    dtf
+      .formatToParts(instant)
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value]),
+  );
+}
+
+/** Today's calendar date (YYYY-MM-DD) in the attendance timezone (Asia/Manila). */
+export function todayDateInAttendanceTZ(now = new Date()) {
+  const p = zoneParts(now, ATTENDANCE_TIMEZONE);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** Minute of day (0-1439) right now, in the attendance timezone. */
+export function nowMinuteInAttendanceTZ(now = new Date()) {
+  const p = zoneParts(now, ATTENDANCE_TIMEZONE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return (Number(p.hour) % 24) * 60 + Number(p.minute);
+}
+
+/**
+ * Build a UTC ISO instant from a Manila wall-clock date ("YYYY-MM-DD") and a
+ * "HH:mm" wall-clock time. Asia/Manila is a fixed UTC+8 with no DST, so the
+ * instant is the naive wall time minus 8 hours.
+ */
+export function manilaWallTimeToISO(dateStr, hhmm) {
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  const [hh, mm] = String(hhmm).split(":").map(Number);
+  if ([y, m, d, hh, mm].some((n) => Number.isNaN(n))) return null;
+  const utcMs = Date.UTC(y, m - 1, d, hh, mm) - 8 * 60 * 60 * 1000;
+  return new Date(utcMs).toISOString();
+}
+
+
+/**
  * Compute decimal hours between two ISO timestamps.
  * @returns {number} hours rounded to 2 decimals (0 if invalid).
  */

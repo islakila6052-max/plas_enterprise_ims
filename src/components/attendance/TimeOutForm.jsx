@@ -1,6 +1,6 @@
 // src/components/attendance/TimeOutForm.jsx
 import { useState, useEffect } from "react";
-import { formatDate, formatTime } from "@/utils/format";
+import { formatDate, formatTime, manilaWallTimeToISO, todayDateInAttendanceTZ } from "@/utils/format";
 import Button from "@/components/ui/Button";
 
 export default function TimeOutForm({
@@ -37,16 +37,18 @@ export default function TimeOutForm({
 
     // Create full datetime from the date and time input
     const dateStr =
-      attendanceRecord?.date || new Date().toISOString().slice(0, 10);
-    const timeOutDateTime = new Date(`${dateStr}T${timeOut}:00`);
+      attendanceRecord?.date || todayDateInAttendanceTZ();
+    // Interpret the chosen wall-clock time as Asia/Manila (the attendance
+    // timezone) and store the resulting instant.
+    const timeOutDateTime = manilaWallTimeToISO(dateStr, timeOut);
 
-    if (isNaN(timeOutDateTime.getTime())) {
+    if (!timeOutDateTime) {
       alert("Please enter a valid time.");
       return;
     }
 
     onConfirm({
-      timeOut: timeOutDateTime.toISOString(),
+      timeOut: timeOutDateTime,
       remarks: remarks.trim() || null,
     });
   };

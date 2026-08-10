@@ -1,6 +1,6 @@
 // src/components/attendance/ClaimTimeOutForm.jsx
 import { useState, useEffect } from "react";
-import { formatDate, formatTime } from "@/utils/format";
+import { formatDate, formatTime, manilaWallTimeToISO, todayDateInAttendanceTZ } from "@/utils/format";
 import Button from "@/components/ui/Button";
 
 export default function ClaimTimeOutForm({
@@ -35,16 +35,18 @@ export default function ClaimTimeOutForm({
     }
 
     const dateStr =
-      attendanceRecord?.date || new Date().toISOString().slice(0, 10);
-    const claimedDateTime = new Date(`${dateStr}T${claimedTimeOut}:00`);
+      attendanceRecord?.date || todayDateInAttendanceTZ();
+    // Interpret the chosen wall-clock time as Asia/Manila (the attendance
+    // timezone) and store the resulting instant.
+    const claimedDateTime = manilaWallTimeToISO(dateStr, claimedTimeOut);
 
-    if (isNaN(claimedDateTime.getTime())) {
+    if (!claimedDateTime) {
       alert("Please enter a valid time.");
       return;
     }
 
     onConfirm({
-      claimedTimeOut: claimedDateTime.toISOString(),
+      claimedTimeOut: claimedDateTime,
       remarks: remarks.trim(),
     });
   };

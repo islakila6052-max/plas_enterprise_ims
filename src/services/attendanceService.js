@@ -1,6 +1,6 @@
 // src/services/attendanceService.js
 import { supabase } from "@/lib/supabase";
-import { diffHours } from "@/utils/format";
+import { diffHours, todayDateInAttendanceTZ } from "@/utils/format";
 
 /**
  * Safely execute a Supabase query, returning null on network failure.
@@ -24,7 +24,7 @@ export const attendanceService = {
   /** Open (no time_out) attendance record for an intern today, if any. */
   async getOpen(internId) {
     if (!internId) return null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const { data, error } = await supabase
       .from("attendance")
       .select("*")
@@ -39,7 +39,7 @@ export const attendanceService = {
   /** Today's attendance record (open or closed) for an intern, if any. */
   async getToday(internId) {
     if (!internId) return null;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const { data, error } = await supabase
       .from("attendance")
       .select("*")
@@ -51,7 +51,7 @@ export const attendanceService = {
   },
 
   async timeIn(internId, method = "manual") {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     // Enforce one attendance record per intern per day.
     // If a record already exists (open or closed), reject the request.
     const { data: existing } = await supabase
@@ -272,7 +272,7 @@ export const attendanceService = {
   async getStats(internId) {
     if (!internId) return { presentToday: 0, totalHours: 0 };
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayDateInAttendanceTZ();
     const [attendanceResult, hoursResult] = await Promise.all([
       safeQuery(() =>
         supabase
@@ -298,62 +298,5 @@ export const attendanceService = {
       presentToday: attendanceResult?.count ?? 0,
       totalHours: Math.round(totalHours * 100) / 100,
     };
-  },
-
-  /**
-   * Fetch attendance records that were auto-timed out (method = 'auto-timeout').
-   * Useful for admin review.
-   */
-  async getAutoTimeoutRecords({
-    dateFrom,
-    dateTo,
-    page = 1,
-    pageSize = 15,
-  } = {}) {
-    let query = supabase
-      .from("attendance")
-      .select("*, intern:interns(full_name, student_number)", {
-        count: "exact",
-      })
-      .eq("method", "auto-timeout")
-      .order("date", { ascending: false })
-      .order("time_in", { ascending: false })
-      .range((page - 1) * pageSize, page * pageSize - 1);
-    if (dateFrom) query = query.gte("date", dateFrom);
-    if (dateTo) query = query.lte("date", dateTo);
-    const { data, error, count } = await query;
-    if (error) throw new Error(error.message);
-    return { data: data ?? [], count: count ?? 0 };
-  },
-
-  /**
-   * Manually trigger the auto-timeout process for today.
-   * This runs the same logic as the cron job: finds all records
-   * with time_in but no time_out and sets time_out to 5:00 PM.
-   * Returns the number of records updated.
-   */
-  async triggerAutoTimeout() {
-    let token = null;
-    try {
-      const { data } = await supabase.auth.getSession();
-      token = data?.session?.access_token ?? null;
-    } catch {
-      token = null;
-    }
-    const headers = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    const response = await fetch("/api/admin/auto-timeout", {
-      method: "POST",
-      headers,
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        error.error || "Failed to auto-timeout attendance records",
-      );
-    }
-    const result = await response.json();
-    return result;
   },
 };
