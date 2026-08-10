@@ -390,20 +390,13 @@ export default function InternAttendance() {
           <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-800">Remarks</h3>
-              <button
-                type="button"
-                className="text-xl text-slate-500 transition hover:text-slate-700"
-                onClick={() => setRemarksModal({ open: false, text: "" })}
-                aria-label="Close remarks"
-              >
-                ×
-              </button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               {remarksModal.text}
             </div>
             <div className="mt-4 flex justify-end">
-              <Button onClick={() => setRemarksModal({ open: false, text: "" })}>
+              <Button
+                onClick={() => setRemarksModal({ open: false, text: "" })}>
                 Close
               </Button>
             </div>
