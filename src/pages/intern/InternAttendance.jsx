@@ -13,7 +13,13 @@ import ClaimTimeOutForm from "@/components/attendance/ClaimTimeOutForm";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
-import { formatDate, formatTime, formatHours, todayDateInAttendanceTZ, nowMinuteInAttendanceTZ } from "@/utils/format";
+import {
+  formatDate,
+  formatTime,
+  formatHours,
+  todayDateInAttendanceTZ,
+  nowMinuteInAttendanceTZ,
+} from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
 
@@ -36,6 +42,7 @@ export default function InternAttendance() {
   const [isForgottenTimeout, setIsForgottenTimeout] = useState(false);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [claimRecord, setClaimRecord] = useState(null);
+  const [expandedRemarksId, setExpandedRemarksId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,7 +281,27 @@ export default function InternAttendance() {
     {
       key: "remarks",
       header: "Remarks",
-      render: (r) => r.remarks || "—",
+      render: (r) => {
+        const text = r.remarks?.trim();
+        if (!text) return "—";
+
+        const isExpanded = expandedRemarksId === r.id;
+        const preview = text.length > 18 ? `${text.slice(0, 18)}...` : text;
+
+        return (
+          <button
+            type="button"
+            className="max-w-[220px] truncate text-left text-sm text-slate-700 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-900"
+            onClick={() =>
+              setExpandedRemarksId((current) =>
+                current === r.id ? null : r.id,
+              )
+            }
+            title={text}>
+            {isExpanded ? text : preview}
+          </button>
+        );
+      },
     },
   ];
 
@@ -288,7 +315,9 @@ export default function InternAttendance() {
       <Card>
         <div className="flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-slate-500">Today · {todayDateInAttendanceTZ()}</p>
+            <p className="text-sm text-slate-500">
+              Today · {todayDateInAttendanceTZ()}
+            </p>
             {open ? (
               <p className="mt-1 text-sm font-medium text-emerald-600">
                 You are timed in since {formatTime(open.time_in)}
