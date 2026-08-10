@@ -1,6 +1,11 @@
 // src/components/attendance/ClaimTimeOutForm.jsx
 import { useState, useEffect } from "react";
-import { formatDate, formatTime, manilaWallTimeToISO, todayDateInAttendanceTZ } from "@/utils/format";
+import {
+  formatDate,
+  formatTime,
+  manilaWallTimeToISO,
+  todayDateInAttendanceTZ,
+} from "@/utils/format";
 import Button from "@/components/ui/Button";
 
 export default function ClaimTimeOutForm({
@@ -14,14 +19,28 @@ export default function ClaimTimeOutForm({
   const [claimedTimeOut, setClaimedTimeOut] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setRemarks("");
-      // Default to current time in HH:mm format
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      setClaimedTimeOut(`${hours}:${minutes}`);
-    }
+    if (!open) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflowX = document.body.style.overflowX;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.overflowX = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    setRemarks("");
+    // Default to current time in HH:mm format
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    setClaimedTimeOut(`${hours}:${minutes}`);
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overflowX = previousBodyOverflowX;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
   }, [open]);
 
   if (!open) return null;
@@ -34,8 +53,7 @@ export default function ClaimTimeOutForm({
       return;
     }
 
-    const dateStr =
-      attendanceRecord?.date || todayDateInAttendanceTZ();
+    const dateStr = attendanceRecord?.date || todayDateInAttendanceTZ();
     // Interpret the chosen wall-clock time as Asia/Manila (the attendance
     // timezone) and store the resulting instant.
     const claimedDateTime = manilaWallTimeToISO(dateStr, claimedTimeOut);
