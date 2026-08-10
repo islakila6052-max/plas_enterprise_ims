@@ -42,7 +42,7 @@ export default function InternAttendance() {
   const [isForgottenTimeout, setIsForgottenTimeout] = useState(false);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [claimRecord, setClaimRecord] = useState(null);
-  const [expandedRemarksId, setExpandedRemarksId] = useState(null);
+  const [remarksModal, setRemarksModal] = useState({ open: false, text: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -285,20 +285,15 @@ export default function InternAttendance() {
         const text = r.remarks?.trim();
         if (!text) return "—";
 
-        const isExpanded = expandedRemarksId === r.id;
         const preview = text.length > 18 ? `${text.slice(0, 18)}...` : text;
 
         return (
           <button
             type="button"
             className="max-w-[220px] truncate text-left text-sm text-slate-700 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-900"
-            onClick={() =>
-              setExpandedRemarksId((current) =>
-                current === r.id ? null : r.id,
-              )
-            }
+            onClick={() => setRemarksModal({ open: true, text })}
             title={text}>
-            {isExpanded ? text : preview}
+            {preview}
           </button>
         );
       },
@@ -389,6 +384,32 @@ export default function InternAttendance() {
         attendanceRecord={claimRecord}
         loading={busy}
       />
+
+      {remarksModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-800">Remarks</h3>
+              <button
+                type="button"
+                className="text-xl text-slate-500 transition hover:text-slate-700"
+                onClick={() => setRemarksModal({ open: false, text: "" })}
+                aria-label="Close remarks"
+              >
+                ×
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              {remarksModal.text}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => setRemarksModal({ open: false, text: "" })}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card>
         <div className="border-b border-slate-100 px-5 py-4">
