@@ -1,5 +1,6 @@
 // src/components/attendance/ClaimTimeOutForm.jsx
 import { useState, useEffect } from "react";
+import Modal from "@/components/ui/Modal";
 import {
   formatDate,
   formatTime,
@@ -21,29 +22,13 @@ export default function ClaimTimeOutForm({
   useEffect(() => {
     if (!open) return;
 
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousBodyOverflowX = document.body.style.overflowX;
-
-    document.body.style.overflow = "hidden";
-    document.body.style.overflowX = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
     setRemarks("");
     // Default to current time in HH:mm format
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     setClaimedTimeOut(`${hours}:${minutes}`);
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.body.style.overflowX = previousBodyOverflowX;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
   }, [open]);
-
-  if (!open) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -54,8 +39,6 @@ export default function ClaimTimeOutForm({
     }
 
     const dateStr = attendanceRecord?.date || todayDateInAttendanceTZ();
-    // Interpret the chosen wall-clock time as Asia/Manila (the attendance
-    // timezone) and store the resulting instant.
     const claimedDateTime = manilaWallTimeToISO(dateStr, claimedTimeOut);
 
     if (!claimedDateTime) {
@@ -70,97 +53,90 @@ export default function ClaimTimeOutForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-        <form onSubmit={handleSubmit}>
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h3 className="text-lg font-semibold text-slate-800">
-              Claim Missed Clock-out
-            </h3>
-            <p className="mt-1 text-sm text-amber-600">
-              ⚠️ You forgot to clock out for this attendance record. Submit a
-              claimed time-out for supervisor approval.
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Claim Missed Clock-out"
+      description="⚠️ You forgot to clock out for this attendance record. Submit a claimed time-out for supervisor approval."
+      size="sm"
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} loading={loading}>
+            Submit Claim
+          </Button>
+        </>
+      }>
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-slate-600">
+              Attendance Date
+            </label>
+            <p className="text-sm text-slate-800">
+              {attendanceRecord?.date
+                ? formatDate(attendanceRecord.date)
+                : new Date().toLocaleDateString()}
             </p>
           </div>
 
-          <div className="space-y-4 px-6 py-4">
-            <div>
-              <label className="text-sm font-medium text-slate-600">
-                Attendance Date
-              </label>
-              <p className="text-sm text-slate-800">
-                {attendanceRecord?.date
-                  ? formatDate(attendanceRecord.date)
-                  : new Date().toLocaleDateString()}
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-600">
-                Time In
-              </label>
-              <p className="text-sm text-slate-800">
-                {attendanceRecord?.time_in
-                  ? formatTime(attendanceRecord.time_in)
-                  : "—"}
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="claimedTimeOut"
-                className="text-sm font-medium text-slate-600">
-                Claimed Time Out *
-              </label>
-              <input
-                id="claimedTimeOut"
-                type="time"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                value={claimedTimeOut}
-                onChange={(e) => setClaimedTimeOut(e.target.value)}
-                required
-              />
-              <p className="mt-0.5 text-xs text-slate-500">
-                Enter the time you claim to have clocked out.
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="claimRemarks"
-                className="text-sm font-medium text-slate-600">
-                Reason *{" "}
-                <span className="text-xs text-slate-400">(required)</span>
-              </label>
-              <textarea
-                id="claimRemarks"
-                rows={3}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="Why did you forget to clock out? e.g., I had to leave urgently..."
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                required
-              />
-              <p className="mt-1 text-xs text-amber-600">
-                * Required: Please explain why you missed the clock-out.
-              </p>
-            </div>
+          <div>
+            <label className="text-sm font-medium text-slate-600">
+              Time In
+            </label>
+            <p className="text-sm text-slate-800">
+              {attendanceRecord?.time_in
+                ? formatTime(attendanceRecord.time_in)
+                : "—"}
+            </p>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading}>
-              Submit Claim
-            </Button>
+          <div>
+            <label
+              htmlFor="claimedTimeOut"
+              className="text-sm font-medium text-slate-600">
+              Claimed Time Out *
+            </label>
+            <input
+              id="claimedTimeOut"
+              type="time"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              value={claimedTimeOut}
+              onChange={(e) => setClaimedTimeOut(e.target.value)}
+              required
+            />
+            <p className="mt-0.5 text-xs text-slate-500">
+              Enter the time you claim to have clocked out.
+            </p>
           </div>
-        </form>
-      </div>
-    </div>
+
+          <div>
+            <label
+              htmlFor="claimRemarks"
+              className="text-sm font-medium text-slate-600">
+              Reason * <span className="text-xs text-slate-400">(required)</span>
+            </label>
+            <textarea
+              id="claimRemarks"
+              rows={3}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              placeholder="Why did you forget to clock out? e.g., I had to leave urgently..."
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              required
+            />
+            <p className="mt-1 text-xs text-amber-600">
+              * Required: Please explain why you missed the clock-out.
+            </p>
+          </div>
+        </div>
+      </form>
+    </Modal>
   );
 }
