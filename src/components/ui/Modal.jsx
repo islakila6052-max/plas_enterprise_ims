@@ -39,12 +39,12 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 min-h-screen min-h-[100dvh] overflow-y-auto flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}>
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 h-full w-full bg-slate-900/50 backdrop-blur-sm"
         onClick={onClose}
       />
       <div

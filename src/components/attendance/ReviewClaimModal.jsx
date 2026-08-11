@@ -27,7 +27,7 @@ export default function ReviewClaimModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 min-h-screen min-h-[100dvh] overflow-y-auto flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
         <div className="border-b border-slate-200 px-6 py-4">
           <h3 className="text-lg font-semibold text-slate-800">

@@ -386,7 +386,7 @@ export default function InternAttendance() {
       />
 
       {remarksModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+        <div className="fixed inset-0 z-50 min-h-screen min-h-[100dvh] overflow-y-auto flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-800">Remarks</h3>
