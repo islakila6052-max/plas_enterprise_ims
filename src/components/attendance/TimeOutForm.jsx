@@ -1,6 +1,11 @@
 // src/components/attendance/TimeOutForm.jsx
 import { useState, useEffect } from "react";
-import { formatDate, formatTime, manilaWallTimeToISO, todayDateInAttendanceTZ } from "@/utils/format";
+import {
+  formatDate,
+  formatTime,
+  manilaWallTimeToISO,
+  todayDateInAttendanceTZ,
+} from "@/utils/format";
 import Button from "@/components/ui/Button";
 
 export default function TimeOutForm({
@@ -36,8 +41,7 @@ export default function TimeOutForm({
     }
 
     // Create full datetime from the date and time input
-    const dateStr =
-      attendanceRecord?.date || todayDateInAttendanceTZ();
+    const dateStr = attendanceRecord?.date || todayDateInAttendanceTZ();
     // Interpret the chosen wall-clock time as Asia/Manila (the attendance
     // timezone) and store the resulting instant.
     const timeOutDateTime = manilaWallTimeToISO(dateStr, timeOut);
@@ -54,7 +58,7 @@ export default function TimeOutForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 min-h-screen min-h-[100dvh] overflow-y-auto flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 min-h-dvh overflow-y-auto flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
         <form onSubmit={handleSubmit}>
           <div className="border-b border-slate-200 px-6 py-4">
