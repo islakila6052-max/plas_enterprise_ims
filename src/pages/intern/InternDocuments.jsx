@@ -11,6 +11,7 @@ import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
 import { useAuth } from "@/contexts/AuthContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { Icon } from "@/components/ui/icons";
@@ -39,6 +40,8 @@ export default function InternDocuments() {
   const [type, setType] = useState(DOCUMENT_TYPES[0].value);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +90,23 @@ export default function InternDocuments() {
     }
   }
 
+  async function handleDelete(id, filePath) {
+    setDeletingId(id);
+    setDeleteDialog(true);
+  }
+
+  async function confirmedDelete(id, filePath) {
+    setDeleteDialog(false);
+    setDeletingId(null);
+    try {
+      await documentService.remove(id, filePath);
+      toast.success("Document deleted.");
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
   const columns = [
     {
       key: "type",
@@ -111,6 +131,17 @@ export default function InternDocuments() {
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => setPreview(r)}>Preview</Button>
           <Button size="sm" variant="ghost" onClick={() => download(r)} loading={downloading}>Download</Button>
+          {r.status === "pending" && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => handleDelete(r.id, r.file_path)}
+              title="Delete"
+              className="text-slate-600 hover:bg-slate-100"
+            >
+              Delete
+            </Button>
+          )}
         </div>
       ),
     },
@@ -151,6 +182,16 @@ export default function InternDocuments() {
           />
         )}
       </Card>
+
+      <ConfirmDialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        onConfirm={() => confirmedDelete(deletingId)}
+        title="Delete Document"
+        message="Are you sure you want to delete this document? This action cannot be undone."
+        confirmLabel="Delete"
+        tone="danger"
+      />
 
       <Modal open={Boolean(preview)} onClose={() => setPreview(null)} title="Document Preview" size="md">
         {preview && (

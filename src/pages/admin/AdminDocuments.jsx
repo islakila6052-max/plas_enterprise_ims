@@ -16,6 +16,7 @@ import { formatDate } from "@/utils/format";
 import { recordAudit } from "@/services/activityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
@@ -42,6 +43,8 @@ export default function AdminDocuments() {
   const [preview, setPreview] = useState(null);
   const [reviewing, setReviewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,6 +96,23 @@ export default function AdminDocuments() {
     }
   }
 
+  async function handleDelete(id, filePath) {
+    setDeletingId(id);
+    setDeleteDialog(true);
+  }
+
+  async function confirmedDelete(id, filePath) {
+    setDeleteDialog(false);
+    setDeletingId(null);
+    try {
+      await documentService.remove(id, filePath);
+      toast.success("Document deleted.");
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
   const columns = [
     {
       key: "intern",
@@ -131,6 +151,17 @@ export default function AdminDocuments() {
             <>
               <Button size="sm" onClick={() => review(r, "approved")} loading={reviewing}>Approve</Button>
               <Button size="sm" variant="danger" onClick={() => review(r, "rejected")} loading={reviewing}>Reject</Button>
+              {r.intern_id && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleDelete(r.id, r.file_path)}
+                  title="Delete"
+                  className="ml-2 text-slate-600 hover:bg-slate-100"
+                >
+                  Delete
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -182,6 +213,16 @@ export default function AdminDocuments() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        onConfirm={() => confirmedDelete(deletingId)}
+        title="Delete Document"
+        message="Are you sure you want to delete this document? This action cannot be undone."
+        confirmLabel="Delete"
+        tone="danger"
+      />
     </div>
   );
 }
