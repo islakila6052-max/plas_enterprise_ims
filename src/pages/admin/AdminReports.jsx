@@ -173,7 +173,14 @@ function countActiveFilters(f) {
 
 // --- Build filter objects per report type ---
 function buildInternListFilters(f) {
-  const { departmentId, status, institutionId, programId, createdFrom, createdTo } = f;
+  const {
+    departmentId,
+    status,
+    institutionId,
+    programId,
+    createdFrom,
+    createdTo,
+  } = f;
   const obj = {};
   if (departmentId) obj.departmentId = departmentId;
   if (status) obj.status = status;
@@ -246,14 +253,15 @@ function InternListFilters({ filters, setFilters, onReset }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Department</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Department
+        </label>
         <Select
           value={filters.departmentId}
           onChange={(e) =>
             setFilters((f) => ({ ...f, departmentId: e.target.value }))
           }
-          className="w-full"
-        >
+          className="w-full">
           <option value="">All Departments</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id || d.name}>
@@ -264,14 +272,15 @@ function InternListFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Status</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Status
+        </label>
         <Select
           value={filters.status}
           onChange={(e) =>
             setFilters((f) => ({ ...f, status: e.target.value }))
           }
-          className="w-full"
-        >
+          className="w-full">
           <option value="">All</option>
           {Object.values(INTERN_STATUS).map((s) => (
             <option key={s} value={s}>
@@ -282,14 +291,15 @@ function InternListFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Institution</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Institution
+        </label>
         <Select
           value={filters.institutionId}
           onChange={(e) =>
             setFilters((f) => ({ ...f, institutionId: e.target.value }))
           }
-          className="w-full"
-        >
+          className="w-full">
           <option value="">All Institutions</option>
           {institutions.map((i) => (
             <option key={i.institution_id} value={i.institution_id}>
@@ -300,14 +310,15 @@ function InternListFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Program</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Program
+        </label>
         <Select
           value={filters.programId}
           onChange={(e) =>
             setFilters((f) => ({ ...f, programId: e.target.value }))
           }
-          className="w-full"
-        >
+          className="w-full">
           <option value="">All Programs</option>
           {programs.map((p) => (
             <option key={p.program_id} value={p.program_id}>
@@ -319,22 +330,28 @@ function InternListFilters({ filters, setFilters, onReset }) {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">From</label>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            From
+          </label>
           <Input
             type="date"
             value={filters.createdFrom || ""}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, createdFrom: e.target.value }))}
+              setFilters((f) => ({ ...f, createdFrom: e.target.value }))
+            }
             className="w-full"
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">To</label>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            To
+          </label>
           <Input
             type="date"
             value={filters.createdTo || ""}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, createdTo: e.target.value }))}
+              setFilters((f) => ({ ...f, createdTo: e.target.value }))
+            }
             className="w-full"
           />
         </div>
@@ -345,8 +362,7 @@ function InternListFilters({ filters, setFilters, onReset }) {
           variant="outline"
           size="sm"
           onClick={onReset}
-          className="w-full"
-        >
+          className="w-full">
           Reset Filters
         </Button>
       </div>
@@ -371,34 +387,43 @@ function AttendanceFilters({ filters, setFilters, onReset }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date From</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date From
+        </label>
         <Input
           type="date"
           value={filters.dateFrom || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date To</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date To
+        </label>
         <Input
           type="date"
           value={filters.dateTo || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+            setFilters((f) => ({ ...f, dateTo: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Intern</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Intern
+        </label>
         <Select
           value={filters.internId}
-          onChange={(e) => setFilters((f) => ({ ...f, internId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, internId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Interns</option>
           {interns.map((i) => (
             <option key={i.id} value={i.id}>
@@ -409,12 +434,15 @@ function AttendanceFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Status</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Status
+        </label>
         <Select
           value={filters.status}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, status: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Statuses</option>
           {Object.values(ATTENDANCE_STATUS).map((s) => (
             <option key={s} value={s}>
@@ -425,12 +453,15 @@ function AttendanceFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Supervisor</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Supervisor
+        </label>
         <Select
           value={filters.supervisorId}
-          onChange={(e) => setFilters((f) => ({ ...f, supervisorId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, supervisorId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Supervisors</option>
           {supervisors.map((s) => (
             <option key={s.id} value={s.id}>
@@ -445,8 +476,7 @@ function AttendanceFilters({ filters, setFilters, onReset }) {
           variant="outline"
           size="sm"
           onClick={onReset}
-          className="w-full"
-        >
+          className="w-full">
           Reset Filters
         </Button>
       </div>
@@ -471,34 +501,43 @@ function JournalsFilters({ filters, setFilters, onReset }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date From</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date From
+        </label>
         <Input
           type="date"
           value={filters.dateFrom || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date To</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date To
+        </label>
         <Input
           type="date"
           value={filters.dateTo || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+            setFilters((f) => ({ ...f, dateTo: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Intern</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Intern
+        </label>
         <Select
           value={filters.internId}
-          onChange={(e) => setFilters((f) => ({ ...f, internId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, internId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Interns</option>
           {interns.map((i) => (
             <option key={i.id} value={i.id}>
@@ -509,12 +548,15 @@ function JournalsFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Status</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Status
+        </label>
         <Select
           value={filters.status}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, status: e.target.value }))
+          }
+          className="w-full">
           <option value="">All</option>
           {Object.values(JOURNAL_STATUS).map((s) => (
             <option key={s} value={s}>
@@ -525,12 +567,15 @@ function JournalsFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Department</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Department
+        </label>
         <Select
           value={filters.departmentId}
-          onChange={(e) => setFilters((f) => ({ ...f, departmentId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, departmentId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Departments</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id || d.name}>
@@ -545,8 +590,7 @@ function JournalsFilters({ filters, setFilters, onReset }) {
           variant="outline"
           size="sm"
           onClick={onReset}
-          className="w-full"
-        >
+          className="w-full">
           Reset Filters
         </Button>
       </div>
@@ -581,12 +625,15 @@ function EvaluationsFilters({ filters, setFilters, onReset }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Minimum Rating</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Minimum Rating
+        </label>
         <Select
           value={filters.ratingMin || ""}
-          onChange={(e) => setFilters((f) => ({ ...f, ratingMin: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, ratingMin: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Ratings</option>
           {ratingOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -597,12 +644,15 @@ function EvaluationsFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Maximum Rating</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Maximum Rating
+        </label>
         <Select
           value={filters.ratingMax || ""}
-          onChange={(e) => setFilters((f) => ({ ...f, ratingMax: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, ratingMax: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Ratings</option>
           {ratingOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -613,12 +663,15 @@ function EvaluationsFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Recommendation</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Recommendation
+        </label>
         <Select
           value={filters.recommendation || ""}
-          onChange={(e) => setFilters((f) => ({ ...f, recommendation: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, recommendation: e.target.value }))
+          }
+          className="w-full">
           <option value="">All</option>
           {EVALUATION_RECOMMENDATIONS.map((rec) => (
             <option key={rec.value} value={rec.value}>
@@ -629,12 +682,15 @@ function EvaluationsFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Intern</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Intern
+        </label>
         <Select
           value={filters.internId}
-          onChange={(e) => setFilters((f) => ({ ...f, internId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, internId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Interns</option>
           {interns.map((i) => (
             <option key={i.id} value={i.id}>
@@ -649,8 +705,7 @@ function EvaluationsFilters({ filters, setFilters, onReset }) {
           variant="outline"
           size="sm"
           onClick={onReset}
-          className="w-full"
-        >
+          className="w-full">
           Reset Filters
         </Button>
       </div>
@@ -682,34 +737,43 @@ function HoursFilters({ filters, setFilters, onReset }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date From</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date From
+        </label>
         <Input
           type="date"
           value={filters.dateFrom || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Date To</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Date To
+        </label>
         <Input
           type="date"
           value={filters.dateTo || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+            setFilters((f) => ({ ...f, dateTo: e.target.value }))
+          }
           className="w-full"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Intern</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Intern
+        </label>
         <Select
           value={filters.internId}
-          onChange={(e) => setFilters((f) => ({ ...f, internId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, internId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Interns</option>
           {interns.map((i) => (
             <option key={i.id} value={i.id}>
@@ -720,12 +784,15 @@ function HoursFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Department</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Department
+        </label>
         <Select
           value={filters.departmentId || ""}
-          onChange={(e) => setFilters((f) => ({ ...f, departmentId: e.target.value }))}
-          className="w-full"
-        >
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, departmentId: e.target.value }))
+          }
+          className="w-full">
           <option value="">All Departments</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id || d.name}>
@@ -736,12 +803,15 @@ function HoursFilters({ filters, setFilters, onReset }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">Minimum Hours</label>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Minimum Hours
+        </label>
         <Input
           type="number"
           value={filters.minHours || ""}
           onChange={(e) =>
-            setFilters((f) => ({ ...f, minHours: e.target.value }))}
+            setFilters((f) => ({ ...f, minHours: e.target.value }))
+          }
           className="w-full"
           placeholder="e.g., 100"
         />
@@ -752,8 +822,7 @@ function HoursFilters({ filters, setFilters, onReset }) {
           variant="outline"
           size="sm"
           onClick={onReset}
-          className="w-full"
-        >
+          className="w-full">
           Reset Filters
         </Button>
       </div>
@@ -765,9 +834,7 @@ function HoursFilters({ filters, setFilters, onReset }) {
 function FilterBadge({ activeCount }) {
   if (activeCount === 0) return null;
   return (
-    <span
-      className="rounded-full border px-2 py-1 text-xs font-medium text-brand-700 bg-brand-100"
-    >
+    <span className="rounded-full border px-2 py-1 text-xs font-medium text-brand-700 bg-brand-100">
       {activeCount} filter{activeCount !== 1 ? "s" : ""}
     </span>
   );
@@ -787,7 +854,11 @@ export default function AdminReports() {
       if (stored) {
         const parsed = JSON.parse(stored);
         for (const key of Object.keys(base)) {
-          if (parsed && typeof parsed[key] === "object" && parsed[key] !== null) {
+          if (
+            parsed &&
+            typeof parsed[key] === "object" &&
+            parsed[key] !== null
+          ) {
             base[key] = { ...base[key], ...parsed[key] };
           }
         }
@@ -887,7 +958,8 @@ export default function AdminReports() {
         ]);
         const renderedByIntern = (attRes.data ?? []).reduce((acc, r) => {
           if (r.intern_id) {
-            acc[r.intern_id] = (acc[r.intern_id] ?? 0) + (Number(r.total_hours) || 0);
+            acc[r.intern_id] =
+              (acc[r.intern_id] ?? 0) + (Number(r.total_hours) || 0);
           }
           return acc;
         }, {});
@@ -937,20 +1009,31 @@ export default function AdminReports() {
       try {
         const settings = await settingsService.get();
         if (settings?.company_name) companyName = settings.company_name;
-      } catch { /* use default */ }
+      } catch {
+        /* use default */
+      }
 
-      const doc = new jsPDF({ orientation: data.length > 5 ? "landscape" : "portrait" });
+      const doc = new jsPDF({
+        orientation: data.length > 5 ? "landscape" : "portrait",
+      });
 
       const reportLabel = REPORTS.find((r) => r.key === type)?.label ?? type;
       const generated = new Date().toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-        hour: "2-digit", minute: "2-digit",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
       const rows = data.map((d) => Object.values(d));
       const rawHeaders = Object.keys(data[0]);
       // Format headers: StudentNo → Student No., RequiredHours → Required Hours, etc.
       const headers = rawHeaders.map((h) =>
-        h.replace(/([A-Z])/g, " $1").replace(/^\s/, "").replace(/\s+/g, " ").trim(),
+        h
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^\s/, "")
+          .replace(/\s+/g, " ")
+          .trim(),
       );
 
       // ── Header ──
@@ -1016,7 +1099,8 @@ export default function AdminReports() {
   }
 
   function printPreview() {
-    if (!preview || !preview.length) return toast.error("Generate a preview first.");
+    if (!preview || !preview.length)
+      return toast.error("Generate a preview first.");
     const headers = Object.keys(preview[0]);
     const rows = preview.map((d) => Object.values(d));
     const html = `
@@ -1071,41 +1155,75 @@ export default function AdminReports() {
     }
   }
 
+  // Handle report type click - opens filter modal automatically
+  function handleReportClick(key) {
+    setType(key);
+    setPreview(null);
+    // Open the filter modal for this report type
+    switch (key) {
+      case "intern_list":
+        setShowInternListFilter(true);
+        break;
+      case "attendance":
+        setShowAttendanceFilter(true);
+        break;
+      case "journals":
+        setShowJournalsFilter(true);
+        break;
+      case "evaluations":
+        setShowEvaluationsFilter(true);
+        break;
+      case "hours":
+        setShowHoursFilter(true);
+        break;
+    }
+  }
+
   return (
     <div>
-      <PageHeader title="Reports" description="Generate and export internship reports." />
+      <PageHeader
+        title="Reports"
+        description="Generate and export internship reports."
+      />
       <Card>
         <div className="space-y-4 p-5">
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Select report</p>
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Select report
+            </p>
             <div className="flex flex-wrap gap-2">
               {REPORTS.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => {
-                    setType(r.key);
-                    setPreview(null);
-                  }}
+                  onClick={() => handleReportClick(r.key)}
                   className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
                     type === r.key
                       ? "border-brand-500 bg-brand-50 text-brand-700"
                       : "border-brand-100 text-slate-600 hover:bg-brand-50"
                   }`}>
                   {r.label}
-                  <FilterBadge activeCount={countActiveFilters(filters[r.key])} />
+                  <FilterBadge
+                    activeCount={countActiveFilters(filters[r.key])}
+                  />
                 </button>
               ))}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 border-t border-brand-100 pt-4">
-            <Button variant="outline" onClick={openCurrentFilters} disabled={busy}>
+            <Button
+              variant="outline"
+              onClick={openCurrentFilters}
+              disabled={busy}>
               Filters
               {countActiveFilters(filters[type]) > 0 && (
                 <FilterBadge activeCount={countActiveFilters(filters[type])} />
               )}
             </Button>
-            <Button variant="secondary" onClick={generatePreview} disabled={busy}>
+            <Button
+              variant="secondary"
+              onClick={generatePreview}
+              disabled={busy}>
               Generate Preview
             </Button>
             <Button onClick={exportPDF} disabled={busy}>
@@ -1116,34 +1234,34 @@ export default function AdminReports() {
             </Button>
           </div>
 
-          {/* Filter Modals - opened via the "Filters" action button */}
+          {/* Filter Modals - opened via the "Filters" action button OR automatically on report click */}
           {type === "intern_list" && (
             <Modal
               open={showInternListFilter}
               onClose={() => setShowInternListFilter(false)}
               title="Intern List Filters"
-              size="lg"
-            >
+              size="lg">
               <InternListFilters
                 filters={filters.intern_list}
                 setFilters={updateTypeFilters}
                 onReset={() => updateTypeFilters(defaultInternListFilters)}
               />
-              <footer>
+              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowInternListFilter(false)}>
+                  Cancel
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
                     setShowInternListFilter(false);
                     generatePreview();
                   }}
-                  disabled={busy}
-                >
+                  disabled={busy}>
                   Generate Preview
                 </Button>
-                <Button variant="ghost" onClick={() => setShowInternListFilter(false)}>
-                  Cancel
-                </Button>
-              </footer>
+              </div>
             </Modal>
           )}
 
@@ -1152,28 +1270,28 @@ export default function AdminReports() {
               open={showAttendanceFilter}
               onClose={() => setShowAttendanceFilter(false)}
               title="Attendance Filters"
-              size="lg"
-            >
+              size="lg">
               <AttendanceFilters
                 filters={filters.attendance}
                 setFilters={updateTypeFilters}
                 onReset={() => updateTypeFilters(defaultAttendanceFilters)}
               />
-              <footer>
+              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAttendanceFilter(false)}>
+                  Cancel
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
                     setShowAttendanceFilter(false);
                     generatePreview();
                   }}
-                  disabled={busy}
-                >
+                  disabled={busy}>
                   Generate Preview
                 </Button>
-                <Button variant="ghost" onClick={() => setShowAttendanceFilter(false)}>
-                  Cancel
-                </Button>
-              </footer>
+              </div>
             </Modal>
           )}
 
@@ -1182,28 +1300,28 @@ export default function AdminReports() {
               open={showJournalsFilter}
               onClose={() => setShowJournalsFilter(false)}
               title="Daily Journals Filters"
-              size="lg"
-            >
+              size="lg">
               <JournalsFilters
                 filters={filters.journals}
                 setFilters={updateTypeFilters}
                 onReset={() => updateTypeFilters(defaultJournalsFilters)}
               />
-              <footer>
+              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowJournalsFilter(false)}>
+                  Cancel
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
                     setShowJournalsFilter(false);
                     generatePreview();
                   }}
-                  disabled={busy}
-                >
+                  disabled={busy}>
                   Generate Preview
                 </Button>
-                <Button variant="ghost" onClick={() => setShowJournalsFilter(false)}>
-                  Cancel
-                </Button>
-              </footer>
+              </div>
             </Modal>
           )}
 
@@ -1212,28 +1330,28 @@ export default function AdminReports() {
               open={showEvaluationsFilter}
               onClose={() => setShowEvaluationsFilter(false)}
               title="Evaluation Summary Filters"
-              size="lg"
-            >
+              size="lg">
               <EvaluationsFilters
                 filters={filters.evaluations}
                 setFilters={updateTypeFilters}
                 onReset={() => updateTypeFilters(defaultEvaluationsFilters)}
               />
-              <footer>
+              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowEvaluationsFilter(false)}>
+                  Cancel
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
                     setShowEvaluationsFilter(false);
                     generatePreview();
                   }}
-                  disabled={busy}
-                >
+                  disabled={busy}>
                   Generate Preview
                 </Button>
-                <Button variant="ghost" onClick={() => setShowEvaluationsFilter(false)}>
-                  Cancel
-                </Button>
-              </footer>
+              </div>
             </Modal>
           )}
 
@@ -1242,28 +1360,28 @@ export default function AdminReports() {
               open={showHoursFilter}
               onClose={() => setShowHoursFilter(false)}
               title="Hours Rendered Filters"
-              size="lg"
-            >
+              size="lg">
               <HoursFilters
                 filters={filters.hours}
                 setFilters={updateTypeFilters}
                 onReset={() => updateTypeFilters(defaultHoursFilters)}
               />
-              <footer>
+              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowHoursFilter(false)}>
+                  Cancel
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
                     setShowHoursFilter(false);
                     generatePreview();
                   }}
-                  disabled={busy}
-                >
+                  disabled={busy}>
                   Generate Preview
                 </Button>
-                <Button variant="ghost" onClick={() => setShowHoursFilter(false)}>
-                  Cancel
-                </Button>
-              </footer>
+              </div>
             </Modal>
           )}
         </div>
@@ -1275,7 +1393,9 @@ export default function AdminReports() {
             <h3 className="text-base font-semibold text-slate-800">
               Preview — {REPORTS.find((r) => r.key === type)?.label}
             </h3>
-            <p className="mt-0.5 text-sm text-slate-500">{preview.length} records</p>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {preview.length} records
+            </p>
           </div>
           <Table columns={previewColumns} rows={preview} rowKey={(_, i) => i} />
         </Card>
