@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -242,7 +242,7 @@ export default function AdminReports() {
   const [preview, setPreview] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [institutions, setInstitutions] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [allPrograms, setAllPrograms] = useState([]); // Store all programs with institution_id
   const [interns, setInterns] = useState([]);
 
   // Filters are persisted per report type in a nested object so that switching
@@ -269,7 +269,7 @@ export default function AdminReports() {
     return base;
   });
 
-  // Load dropdown data - FIXED: Deduplicate programs
+  // Load dropdown data
   useEffect(() => {
     async function loadData() {
       try {
@@ -288,24 +288,9 @@ export default function AdminReports() {
         const instData = Array.isArray(instRes) ? instRes : instRes?.data || [];
         setInstitutions(instData);
 
-        // Handle programs - DEDUPLICATE by id or program_id
-        let progData = Array.isArray(progRes) ? progRes : progRes?.data || [];
-        // Deduplicate programs by ID
-        const uniquePrograms = new Map();
-        progData.forEach((p) => {
-          const id = getProgramId(p);
-          if (id && !uniquePrograms.has(id)) {
-            uniquePrograms.set(id, p);
-          }
-        });
-        progData = Array.from(uniquePrograms.values());
-        // Sort programs alphabetically by name
-        progData.sort((a, b) => {
-          const nameA = getProgramName(a).toLowerCase();
-          const nameB = getProgramName(b).toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-        setPrograms(progData);
+        // Handle ALL programs (with institution_id)
+        const progData = Array.isArray(progRes) ? progRes : progRes?.data || [];
+        setAllPrograms(progData);
 
         // Handle interns
         const internData = internRes?.data || [];
@@ -317,6 +302,23 @@ export default function AdminReports() {
     }
     loadData();
   }, []);
+
+  // Get filtered programs based on selected institution
+  const filteredPrograms = useMemo(() => {
+    const currentFiltersForType = filters[type] || {};
+    const selectedInstitutionId = currentFiltersForType.institutionId;
+
+    if (!selectedInstitutionId) {
+      // If no institution selected, show all programs
+      return allPrograms;
+    }
+
+    // Filter programs by selected institution
+    return allPrograms.filter((p) => {
+      const instId = p?.institution_id || p?.institutionId;
+      return String(instId) === String(selectedInstitutionId);
+    });
+  }, [allPrograms, filters, type]);
 
   useEffect(() => {
     try {
@@ -568,6 +570,15 @@ export default function AdminReports() {
 
   const currentFilters = filters[type] || {};
 
+  // Handle institution change - clear program selection when institution changes
+  const handleInstitutionChange = (value) => {
+    updateTypeFilters((f) => ({
+      ...f,
+      institutionId: value,
+      programId: "", // Reset program when institution changes
+    }));
+  };
+
   // Render filter fields based on report type
   const renderFilterFields = () => {
     switch (type) {
@@ -623,15 +634,10 @@ export default function AdminReports() {
               </label>
               <Select
                 value={currentFilters.institutionId || ""}
-                onChange={(e) =>
-                  updateTypeFilters((f) => ({
-                    ...f,
-                    institutionId: e.target.value,
-                  }))
-                }
+                onChange={(e) => handleInstitutionChange(e.target.value)}
                 className="w-full text-sm"
                 size="sm">
-                <option value="">All</option>
+                <option value="">All Institutions</option>
                 {institutions.map((i) => (
                   <option key={getInstitutionId(i)} value={getInstitutionId(i)}>
                     {getInstitutionName(i)}
@@ -654,8 +660,12 @@ export default function AdminReports() {
                 }
                 className="w-full text-sm"
                 size="sm">
-                <option value="">All</option>
-                {programs.map((p) => (
+                <option value="">
+                  {currentFilters.institutionId
+                    ? "All Programs"
+                    : "Select Institution First"}
+                </option>
+                {filteredPrograms.map((p) => (
                   <option key={getProgramId(p)} value={getProgramId(p)}>
                     {getProgramName(p)}
                   </option>
