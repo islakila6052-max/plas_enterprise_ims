@@ -243,6 +243,8 @@ export const attendanceService = {
   async adminList({
     dateFrom,
     dateTo,
+    internId,
+    status,
     supervisorId,
     page = 1,
     pageSize = 15,
@@ -257,6 +259,8 @@ export const attendanceService = {
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (dateFrom) query = query.gte("date", dateFrom);
     if (dateTo) query = query.lte("date", dateTo);
+    if (internId) query = query.eq("intern_id", internId);
+    if (status) query = query.eq("status", status);
     // Filter to this supervisor's interns server-side (the embedded
     // intern.supervisor_id column is what the UI previously read client-side).
     if (supervisorId) query = query.eq("intern.supervisor_id", supervisorId);

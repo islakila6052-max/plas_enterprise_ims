@@ -15,7 +15,7 @@ async function safeQuery(fn) {
 }
 
 export const evaluationService = {
-  async list({ internId, supervisorId, status, page = 1, pageSize = 15 } = {}) {
+  async list({ internId, supervisorId, status, ratingMin, ratingMax, recommendation, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("evaluations")
       .select("*, intern:interns(full_name, student_number)", { count: "exact" })
@@ -24,6 +24,9 @@ export const evaluationService = {
     if (internId) query = query.eq("intern_id", internId);
     if (supervisorId) query = query.eq("supervisor_id", supervisorId);
     if (status) query = query.eq("status", status);
+    if (ratingMin) query = query.gte("overall_rating", Number(ratingMin));
+    if (ratingMax) query = query.lte("overall_rating", Number(ratingMax));
+    if (recommendation) query = query.eq("final_recommendation", recommendation);
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);
     return { data: data ?? [], count: count ?? 0 };

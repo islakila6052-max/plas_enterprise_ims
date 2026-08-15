@@ -15,15 +15,18 @@ async function safeQuery(fn) {
 }
 
 export const journalService = {
-  async list({ internId, status, supervisorId, page = 1, pageSize = 15 } = {}) {
+  async list({ internId, status, supervisorId, dateFrom, dateTo, departmentId, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("daily_journals")
-      .select("*, intern:interns(full_name, student_number, profile_id)", { count: "exact" })
+      .select("*, intern:interns(full_name, student_number, profile_id, department:departments(id, name))", { count: "exact" })
       .order("date", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (internId) query = query.eq("intern_id", internId);
     if (status) query = query.eq("status", status);
     if (supervisorId) query = query.eq("supervisor_id", supervisorId);
+    if (dateFrom) query = query.gte("date", dateFrom);
+    if (dateTo) query = query.lte("date", dateTo);
+    if (departmentId) query = query.eq("intern.department_id", departmentId);
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);
     return { data: data ?? [], count: count ?? 0 };
