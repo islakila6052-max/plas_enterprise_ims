@@ -256,7 +256,7 @@ export default function AdminReports() {
     return base;
   });
 
-  // Load dropdown data
+  // Load dropdown data - FIXED: properly map the data
   useEffect(() => {
     async function loadData() {
       try {
@@ -266,11 +266,24 @@ export default function AdminReports() {
           programService.list(),
           internService.list({ page: 1, pageSize: 500 }),
         ]);
-        setDepartments(deptRes ?? []);
-        setInstitutions(instRes ?? []);
-        setPrograms(progRes ?? []);
-        setInterns(internRes.data ?? []);
+
+        // Handle departments - may be array directly or have data property
+        const deptData = Array.isArray(deptRes) ? deptRes : deptRes?.data || [];
+        setDepartments(deptData);
+
+        // Handle institutions - may be array directly or have data property
+        const instData = Array.isArray(instRes) ? instRes : instRes?.data || [];
+        setInstitutions(instData);
+
+        // Handle programs - may be array directly or have data property
+        const progData = Array.isArray(progRes) ? progRes : progRes?.data || [];
+        setPrograms(progData);
+
+        // Handle interns
+        const internData = internRes?.data || [];
+        setInterns(internData);
       } catch (err) {
+        console.error("Failed to load filter options:", err);
         toast.error("Failed to load filter options");
       }
     }
@@ -527,6 +540,22 @@ export default function AdminReports() {
 
   const currentFilters = filters[type] || {};
 
+  // Helper to get value from institution object (handles different property names)
+  const getInstitutionId = (item) =>
+    item?.id || item?.institution_id || item?.Id;
+  const getInstitutionName = (item) =>
+    item?.name || item?.institution_name || item?.Name || "Unnamed";
+
+  // Helper to get value from program object (handles different property names)
+  const getProgramId = (item) => item?.id || item?.program_id || item?.Id;
+  const getProgramName = (item) =>
+    item?.name || item?.program_name || item?.Name || "Unnamed";
+
+  // Helper to get value from department object
+  const getDepartmentId = (item) => item?.id || item?.department_id || item?.Id;
+  const getDepartmentName = (item) =>
+    item?.name || item?.department_name || item?.Name || "Unnamed";
+
   // Render filter fields based on report type
   const renderFilterFields = () => {
     switch (type) {
@@ -549,8 +578,8 @@ export default function AdminReports() {
                 size="sm">
                 <option value="">All</option>
                 {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
+                  <option key={getDepartmentId(d)} value={getDepartmentId(d)}>
+                    {getDepartmentName(d)}
                   </option>
                 ))}
               </Select>
@@ -592,8 +621,8 @@ export default function AdminReports() {
                 size="sm">
                 <option value="">All</option>
                 {institutions.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name}
+                  <option key={getInstitutionId(i)} value={getInstitutionId(i)}>
+                    {getInstitutionName(i)}
                   </option>
                 ))}
               </Select>
@@ -615,8 +644,8 @@ export default function AdminReports() {
                 size="sm">
                 <option value="">All</option>
                 {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                  <option key={getProgramId(p)} value={getProgramId(p)}>
+                    {getProgramName(p)}
                   </option>
                 ))}
               </Select>
@@ -707,7 +736,7 @@ export default function AdminReports() {
                 <option value="">All</option>
                 {interns.map((i) => (
                   <option key={i.id} value={i.id}>
-                    {i.full_name}
+                    {i.full_name || i.name || "—"}
                   </option>
                 ))}
               </Select>
@@ -782,7 +811,7 @@ export default function AdminReports() {
                 <option value="">All</option>
                 {interns.map((i) => (
                   <option key={i.id} value={i.id}>
-                    {i.full_name}
+                    {i.full_name || i.name || "—"}
                   </option>
                 ))}
               </Select>
@@ -931,7 +960,7 @@ export default function AdminReports() {
                 <option value="">All</option>
                 {interns.map((i) => (
                   <option key={i.id} value={i.id}>
-                    {i.full_name}
+                    {i.full_name || i.name || "—"}
                   </option>
                 ))}
               </Select>
