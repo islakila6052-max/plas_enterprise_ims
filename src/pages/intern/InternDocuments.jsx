@@ -11,7 +11,7 @@ import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
 import { useAuth } from "@/contexts/AuthContext";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { Icon } from "@/components/ui/icons";

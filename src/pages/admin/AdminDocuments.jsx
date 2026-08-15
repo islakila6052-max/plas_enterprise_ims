@@ -16,7 +16,7 @@ import { formatDate } from "@/utils/format";
 import { recordAudit } from "@/services/activityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
