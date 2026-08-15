@@ -222,6 +222,19 @@ function FilterBadge({ activeCount }) {
   );
 }
 
+// --- Helper functions to get values from objects with different property names ---
+const getInstitutionId = (item) => item?.id || item?.institution_id || item?.Id;
+const getInstitutionName = (item) =>
+  item?.name || item?.institution_name || item?.Name || "Unnamed";
+
+const getProgramId = (item) => item?.id || item?.program_id || item?.Id;
+const getProgramName = (item) =>
+  item?.name || item?.program_name || item?.Name || "Unnamed";
+
+const getDepartmentId = (item) => item?.id || item?.department_id || item?.Id;
+const getDepartmentName = (item) =>
+  item?.name || item?.department_name || item?.Name || "Unnamed";
+
 // --- Main Component ---
 export default function AdminReports() {
   const [type, setType] = useState("intern_list");
@@ -256,7 +269,7 @@ export default function AdminReports() {
     return base;
   });
 
-  // Load dropdown data - FIXED: properly map the data
+  // Load dropdown data - FIXED: Deduplicate programs
   useEffect(() => {
     async function loadData() {
       try {
@@ -267,16 +280,31 @@ export default function AdminReports() {
           internService.list({ page: 1, pageSize: 500 }),
         ]);
 
-        // Handle departments - may be array directly or have data property
+        // Handle departments
         const deptData = Array.isArray(deptRes) ? deptRes : deptRes?.data || [];
         setDepartments(deptData);
 
-        // Handle institutions - may be array directly or have data property
+        // Handle institutions
         const instData = Array.isArray(instRes) ? instRes : instRes?.data || [];
         setInstitutions(instData);
 
-        // Handle programs - may be array directly or have data property
-        const progData = Array.isArray(progRes) ? progRes : progRes?.data || [];
+        // Handle programs - DEDUPLICATE by id or program_id
+        let progData = Array.isArray(progRes) ? progRes : progRes?.data || [];
+        // Deduplicate programs by ID
+        const uniquePrograms = new Map();
+        progData.forEach((p) => {
+          const id = getProgramId(p);
+          if (id && !uniquePrograms.has(id)) {
+            uniquePrograms.set(id, p);
+          }
+        });
+        progData = Array.from(uniquePrograms.values());
+        // Sort programs alphabetically by name
+        progData.sort((a, b) => {
+          const nameA = getProgramName(a).toLowerCase();
+          const nameB = getProgramName(b).toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
         setPrograms(progData);
 
         // Handle interns
@@ -539,22 +567,6 @@ export default function AdminReports() {
   }
 
   const currentFilters = filters[type] || {};
-
-  // Helper to get value from institution object (handles different property names)
-  const getInstitutionId = (item) =>
-    item?.id || item?.institution_id || item?.Id;
-  const getInstitutionName = (item) =>
-    item?.name || item?.institution_name || item?.Name || "Unnamed";
-
-  // Helper to get value from program object (handles different property names)
-  const getProgramId = (item) => item?.id || item?.program_id || item?.Id;
-  const getProgramName = (item) =>
-    item?.name || item?.program_name || item?.Name || "Unnamed";
-
-  // Helper to get value from department object
-  const getDepartmentId = (item) => item?.id || item?.department_id || item?.Id;
-  const getDepartmentName = (item) =>
-    item?.name || item?.department_name || item?.Name || "Unnamed";
 
   // Render filter fields based on report type
   const renderFilterFields = () => {
