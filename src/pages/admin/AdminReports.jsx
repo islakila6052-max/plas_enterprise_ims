@@ -106,7 +106,6 @@ function defaultAttendanceFilters() {
     dateTo: "",
     internId: "",
     status: "",
-    supervisorId: "",
   };
 }
 
@@ -116,8 +115,6 @@ function defaultJournalsFilters() {
     dateTo: "",
     internId: "",
     status: "",
-    supervisorId: "",
-    departmentId: "",
   };
 }
 
@@ -126,8 +123,6 @@ function defaultEvaluationsFilters() {
     ratingMin: "",
     ratingMax: "",
     recommendation: "",
-    internId: "",
-    supervisorId: "",
   };
 }
 
@@ -191,651 +186,39 @@ function buildInternListFilters(f) {
 }
 
 function buildAttendanceFilters(f) {
-  const { dateFrom, dateTo, internId, status, supervisorId } = f;
+  const { dateFrom, dateTo, internId, status } = f;
   const obj = {};
   if (dateFrom) obj.dateFrom = dateFrom;
   if (dateTo) obj.dateTo = dateTo;
   if (internId) obj.internId = internId;
   if (status) obj.status = status;
-  if (supervisorId) obj.supervisorId = supervisorId;
   return obj;
 }
 
 function buildJournalsFilters(f) {
-  const { dateFrom, dateTo, internId, status, supervisorId, departmentId } = f;
+  const { dateFrom, dateTo, internId, status } = f;
   const obj = {};
   if (dateFrom) obj.dateFrom = dateFrom;
   if (dateTo) obj.dateTo = dateTo;
   if (internId) obj.internId = internId;
   if (status) obj.status = status;
-  if (supervisorId) obj.supervisorId = supervisorId;
-  if (departmentId) obj.departmentId = departmentId;
   return obj;
 }
 
 function buildEvaluationsFilters(f) {
-  const { ratingMin, ratingMax, recommendation, internId, supervisorId } = f;
+  const { ratingMin, ratingMax, recommendation } = f;
   const obj = {};
   if (ratingMin) obj.ratingMin = Number(ratingMin);
   if (ratingMax) obj.ratingMax = Number(ratingMax);
   if (recommendation) obj.recommendation = recommendation;
-  if (internId) obj.internId = internId;
-  if (supervisorId) obj.supervisorId = supervisorId;
   return obj;
 }
 
-// --- Report-specific filter UI components ---
-function InternListFilters({ filters, setFilters, onReset }) {
-  const [departments, setDepartments] = useState([]);
-  const [institutions, setInstitutions] = useState([]);
-  const [programs, setPrograms] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      departmentService.list(),
-      institutionService.list(),
-      programService.list(),
-    ])
-      .then(([depts, insts, progs]) => {
-        if (cancelled) return;
-        setDepartments(depts ?? []);
-        setInstitutions(insts ?? []);
-        setPrograms(progs ?? []);
-      })
-      .catch((err) => toast.error(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Department
-        </label>
-        <Select
-          value={filters.departmentId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, departmentId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Departments</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id || d.name}>
-              {d.name || d.institution_name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Status
-        </label>
-        <Select
-          value={filters.status}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, status: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All</option>
-          {Object.values(INTERN_STATUS).map((s) => (
-            <option key={s} value={s}>
-              {INTERN_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Institution
-        </label>
-        <Select
-          value={filters.institutionId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, institutionId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Institutions</option>
-          {institutions.map((i) => (
-            <option key={i.institution_id} value={i.institution_id}>
-              {i.institution_name || i.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Program
-        </label>
-        <Select
-          value={filters.programId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, programId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Programs</option>
-          {programs.map((p) => (
-            <option key={p.program_id} value={p.program_id}>
-              {p.program_name || p.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-            From
-          </label>
-          <Input
-            type="date"
-            value={filters.createdFrom || ""}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, createdFrom: e.target.value }))
-            }
-            className="w-full"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-            To
-          </label>
-          <Input
-            type="date"
-            value={filters.createdTo || ""}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, createdTo: e.target.value }))
-            }
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="w-full">
-          Reset Filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function AttendanceFilters({ filters, setFilters, onReset }) {
-  const [interns, setInterns] = useState([]);
-  const [supervisors, setSupervisors] = useState([]);
-
-  useEffect(() => {
-    Promise.all([
-      internService.list({ page: 1, pageSize: 200 }),
-      supervisorService.list(),
-    ]).then(([internRes, supRes]) => {
-      setInterns(internRes.data ?? []);
-      setSupervisors(supRes ?? []);
-    });
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date From
-        </label>
-        <Input
-          type="date"
-          value={filters.dateFrom || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date To
-        </label>
-        <Input
-          type="date"
-          value={filters.dateTo || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Intern
-        </label>
-        <Select
-          value={filters.internId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, internId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Interns</option>
-          {interns.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.full_name || "—"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Status
-        </label>
-        <Select
-          value={filters.status}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, status: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Statuses</option>
-          {Object.values(ATTENDANCE_STATUS).map((s) => (
-            <option key={s} value={s}>
-              {ATTENDANCE_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Supervisor
-        </label>
-        <Select
-          value={filters.supervisorId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, supervisorId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Supervisors</option>
-          {supervisors.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.profile?.full_name || s.full_name || "—"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="w-full">
-          Reset Filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function JournalsFilters({ filters, setFilters, onReset }) {
-  const [interns, setInterns] = useState([]);
-  const [departments, setDepartments] = useState([]);
-
-  useEffect(() => {
-    Promise.all([
-      internService.list({ page: 1, pageSize: 200 }),
-      departmentService.list(),
-    ]).then(([internRes, deptRes]) => {
-      setInterns(internRes.data ?? []);
-      setDepartments(deptRes ?? []);
-    });
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date From
-        </label>
-        <Input
-          type="date"
-          value={filters.dateFrom || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date To
-        </label>
-        <Input
-          type="date"
-          value={filters.dateTo || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Intern
-        </label>
-        <Select
-          value={filters.internId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, internId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Interns</option>
-          {interns.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.full_name || "—"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Status
-        </label>
-        <Select
-          value={filters.status}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, status: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All</option>
-          {Object.values(JOURNAL_STATUS).map((s) => (
-            <option key={s} value={s}>
-              {JOURNAL_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Department
-        </label>
-        <Select
-          value={filters.departmentId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, departmentId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Departments</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id || d.name}>
-              {d.name || d.institution_name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="w-full">
-          Reset Filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function EvaluationsFilters({ filters, setFilters, onReset }) {
-  const [interns, setInterns] = useState([]);
-  const [ratingOptions] = useState([
-    { value: "1", label: "1 Star" },
-    { value: "2", label: "2 Stars" },
-    { value: "3", label: "3 Stars" },
-    { value: "4", label: "4 Stars" },
-    { value: "5", label: "5 Stars" },
-    { value: "1-5", label: "1-5 Stars (All)" },
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    internService
-      .list({ page: 1, pageSize: 200 })
-      .then((res) => {
-        if (!cancelled) setInterns(res?.data ?? []);
-      })
-      .catch((err) => toast.error(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Minimum Rating
-        </label>
-        <Select
-          value={filters.ratingMin || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, ratingMin: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Ratings</option>
-          {ratingOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Maximum Rating
-        </label>
-        <Select
-          value={filters.ratingMax || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, ratingMax: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Ratings</option>
-          {ratingOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Recommendation
-        </label>
-        <Select
-          value={filters.recommendation || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, recommendation: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All</option>
-          {EVALUATION_RECOMMENDATIONS.map((rec) => (
-            <option key={rec.value} value={rec.value}>
-              {rec.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Intern
-        </label>
-        <Select
-          value={filters.internId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, internId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Interns</option>
-          {interns.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.full_name || "—"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="w-full">
-          Reset Filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function HoursFilters({ filters, setFilters, onReset }) {
-  const [interns, setInterns] = useState([]);
-  const [departments, setDepartments] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      internService.list({ page: 1, pageSize: 200 }),
-      departmentService.list(),
-    ])
-      .then(([internRes, deptRes]) => {
-        if (cancelled) return;
-        setInterns(internRes?.data ?? []);
-        setDepartments(deptRes ?? []);
-      })
-      .catch((err) => toast.error(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date From
-        </label>
-        <Input
-          type="date"
-          value={filters.dateFrom || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateFrom: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Date To
-        </label>
-        <Input
-          type="date"
-          value={filters.dateTo || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dateTo: e.target.value }))
-          }
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Intern
-        </label>
-        <Select
-          value={filters.internId}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, internId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Interns</option>
-          {interns.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.full_name || "—"}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Department
-        </label>
-        <Select
-          value={filters.departmentId || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, departmentId: e.target.value }))
-          }
-          className="w-full">
-          <option value="">All Departments</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id || d.name}>
-              {d.name || d.institution_name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-          Minimum Hours
-        </label>
-        <Input
-          type="number"
-          value={filters.minHours || ""}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, minHours: e.target.value }))
-          }
-          className="w-full"
-          placeholder="e.g., 100"
-        />
-      </div>
-
-      <div className="mt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="w-full">
-          Reset Filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// --- Filter Indicator Badge ---
+// --- Filter Indicator Badge (no number, just dot) ---
 function FilterBadge({ activeCount }) {
   if (activeCount === 0) return null;
   return (
-    <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-      {activeCount}
-    </span>
+    <span className="ml-1 inline-block h-2 w-2 rounded-full bg-blue-600"></span>
   );
 }
 
@@ -844,6 +227,11 @@ export default function AdminReports() {
   const [type, setType] = useState("intern_list");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [interns, setInterns] = useState([]);
+
   // Filters are persisted per report type in a nested object so that switching
   // between report types never loses filters the admin already configured.
   const [filters, setFilters] = useState(() => {
@@ -867,6 +255,27 @@ export default function AdminReports() {
     }
     return base;
   });
+
+  // Load dropdown data
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [deptRes, instRes, progRes, internRes] = await Promise.all([
+          departmentService.list(),
+          institutionService.list(),
+          programService.list(),
+          internService.list({ page: 1, pageSize: 500 }),
+        ]);
+        setDepartments(deptRes ?? []);
+        setInstitutions(instRes ?? []);
+        setPrograms(progRes ?? []);
+        setInterns(internRes.data ?? []);
+      } catch (err) {
+        toast.error("Failed to load filter options");
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
     try {
@@ -940,9 +349,6 @@ export default function AdminReports() {
         }));
       }
       case "hours": {
-        // Filter interns by intern-level filters (department/status), attendance
-        // by date/intern filters, then apply minHours + single-intern selection
-        // client-side.
         const [internsRes, attRes] = await Promise.all([
           internService.list({
             page: 1,
@@ -1003,7 +409,6 @@ export default function AdminReports() {
         return;
       }
 
-      // Fetch company name for the header.
       let companyName = "Internship Management System";
       try {
         const settings = await settingsService.get();
@@ -1026,7 +431,6 @@ export default function AdminReports() {
       });
       const rows = data.map((d) => Object.values(d));
       const rawHeaders = Object.keys(data[0]);
-      // Format headers: StudentNo → Student No., RequiredHours → Required Hours, etc.
       const headers = rawHeaders.map((h) =>
         h
           .replace(/([A-Z])/g, " $1")
@@ -1035,16 +439,14 @@ export default function AdminReports() {
           .trim(),
       );
 
-      // ── Header ──
       doc.setFontSize(16);
-      doc.setTextColor(21, 128, 61); // brand-700
+      doc.setTextColor(21, 128, 61);
       doc.text(companyName, 14, 18);
       doc.setFontSize(11);
       doc.setTextColor(100, 116, 139);
       doc.text(`Report: ${reportLabel}`, 14, 26);
       doc.text(`Generated: ${generated}  ·  ${data.length} records`, 14, 33);
 
-      // ── Table ──
       autoTable(doc, {
         head: [headers],
         body: rows,
@@ -1071,7 +473,6 @@ export default function AdminReports() {
         },
         columnStyles: {},
         didDrawPage: (hookData) => {
-          // Footer with page number on every page.
           doc.setFontSize(8);
           doc.setTextColor(148, 163, 184);
           doc.text(
@@ -1116,7 +517,6 @@ export default function AdminReports() {
 
   const previewColumns = REPORTS.find((r) => r.key === type)?.columns ?? [];
 
-  // Update filters for ONLY the currently selected report type (nested state).
   function updateTypeFilters(updater) {
     setFilters((f) => {
       const prev = f[type] || {};
@@ -1125,8 +525,443 @@ export default function AdminReports() {
     });
   }
 
-  // Get current filters for the selected type
   const currentFilters = filters[type] || {};
+
+  // Render filter fields based on report type
+  const renderFilterFields = () => {
+    switch (type) {
+      case "intern_list":
+        return (
+          <>
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Department
+              </label>
+              <Select
+                value={currentFilters.departmentId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    departmentId: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Status
+              </label>
+              <Select
+                value={currentFilters.status || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, status: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {Object.values(INTERN_STATUS).map((s) => (
+                  <option key={s} value={s}>
+                    {INTERN_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Institution
+              </label>
+              <Select
+                value={currentFilters.institutionId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    institutionId: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {institutions.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Program
+              </label>
+              <Select
+                value={currentFilters.programId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    programId: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                From
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.createdFrom || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    createdFrom: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                To
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.createdTo || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    createdTo: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+          </>
+        );
+
+      case "attendance":
+        return (
+          <>
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                From
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateFrom || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                To
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateTo || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[150px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Intern
+              </label>
+              <Select
+                value={currentFilters.internId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, internId: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {interns.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.full_name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Status
+              </label>
+              <Select
+                value={currentFilters.status || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, status: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {Object.values(ATTENDANCE_STATUS).map((s) => (
+                  <option key={s} value={s}>
+                    {ATTENDANCE_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </>
+        );
+
+      case "journals":
+        return (
+          <>
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                From
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateFrom || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                To
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateTo || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[150px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Intern
+              </label>
+              <Select
+                value={currentFilters.internId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, internId: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {interns.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.full_name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Status
+              </label>
+              <Select
+                value={currentFilters.status || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, status: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {Object.values(JOURNAL_STATUS).map((s) => (
+                  <option key={s} value={s}>
+                    {JOURNAL_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </>
+        );
+
+      case "evaluations":
+        return (
+          <>
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Min Rating
+              </label>
+              <Select
+                value={currentFilters.ratingMin || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    ratingMin: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                <option value="1">1 Star</option>
+                <option value="2">2 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="5">5 Stars</option>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Max Rating
+              </label>
+              <Select
+                value={currentFilters.ratingMax || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    ratingMax: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                <option value="1">1 Star</option>
+                <option value="2">2 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="5">5 Stars</option>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Recommendation
+              </label>
+              <Select
+                value={currentFilters.recommendation || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    recommendation: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {EVALUATION_RECOMMENDATIONS.map((rec) => (
+                  <option key={rec.value} value={rec.value}>
+                    {rec.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </>
+        );
+
+      case "hours":
+        return (
+          <>
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                From
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateFrom || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                To
+              </label>
+              <Input
+                type="date"
+                value={currentFilters.dateTo || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm"
+              />
+            </div>
+
+            <div className="flex-1 min-w-[150px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Intern
+              </label>
+              <Select
+                value={currentFilters.internId || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({ ...f, internId: e.target.value }))
+                }
+                className="w-full text-sm"
+                size="sm">
+                <option value="">All</option>
+                {interns.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.full_name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Min Hours
+              </label>
+              <Input
+                type="number"
+                value={currentFilters.minHours || ""}
+                onChange={(e) =>
+                  updateTypeFilters((f) => ({
+                    ...f,
+                    minHours: e.target.value,
+                  }))
+                }
+                className="w-full text-sm"
+                size="sm"
+                placeholder="e.g. 100"
+              />
+            </div>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div>
@@ -1165,126 +1000,7 @@ export default function AdminReports() {
 
           {/* Row 2: Filter fields + Action buttons */}
           <div className="flex flex-wrap items-end gap-3 border-t border-brand-100 pt-4">
-            {/* Filter fields - only show for intern_list type */}
-            {type === "intern_list" && (
-              <>
-                <div className="flex-1 min-w-[150px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    Department
-                  </label>
-                  <Select
-                    value={currentFilters.departmentId || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        departmentId: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm">
-                    <option value="">All Departments</option>
-                    {/* Options will be populated from the filter component */}
-                  </Select>
-                </div>
-
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    Status
-                  </label>
-                  <Select
-                    value={currentFilters.status || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        status: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm">
-                    <option value="">All</option>
-                    {Object.values(INTERN_STATUS).map((s) => (
-                      <option key={s} value={s}>
-                        {INTERN_STATUS_LABELS[s]}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="flex-1 min-w-[150px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    Institution
-                  </label>
-                  <Select
-                    value={currentFilters.institutionId || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        institutionId: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm">
-                    <option value="">All Institutions</option>
-                    {/* Options will be populated from the filter component */}
-                  </Select>
-                </div>
-
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    Program
-                  </label>
-                  <Select
-                    value={currentFilters.programId || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        programId: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm">
-                    <option value="">All Programs</option>
-                    {/* Options will be populated from the filter component */}
-                  </Select>
-                </div>
-
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    From
-                  </label>
-                  <Input
-                    type="date"
-                    value={currentFilters.createdFrom || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        createdFrom: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm"
-                  />
-                </div>
-
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">
-                    To
-                  </label>
-                  <Input
-                    type="date"
-                    value={currentFilters.createdTo || ""}
-                    onChange={(e) =>
-                      updateTypeFilters((f) => ({
-                        ...f,
-                        createdTo: e.target.value,
-                      }))
-                    }
-                    className="w-full text-sm"
-                    size="sm"
-                  />
-                </div>
-              </>
-            )}
+            {renderFilterFields()}
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2 ml-auto">
