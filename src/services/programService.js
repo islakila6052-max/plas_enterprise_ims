@@ -17,12 +17,16 @@ const COLUMNS = [
 ];
 
 export const programService = {
+  // src/services/programService.js
   async list({ institutionId = "", search = "" } = {}) {
     try {
       let query = supabase
         .from("programs")
-        .select(COLUMNS.join(","))
+        .select(
+          "program_id, program_name, abbreviation, program_code, required_hours, institution_id",
+        )
         .order("program_name", { ascending: true });
+
       if (institutionId) query = query.eq("institution_id", institutionId);
       if (search) {
         query = query.or(
@@ -31,7 +35,17 @@ export const programService = {
       }
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return data ?? [];
+
+      // Return distinct programs by name (keep first occurrence)
+      const seen = new Set();
+      const distinct = (data ?? []).filter((p) => {
+        const name = (p.program_name || "").trim().toLowerCase();
+        if (!name || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      });
+
+      return distinct;
     } catch (err) {
       throw err;
     }
@@ -79,7 +93,10 @@ export const programService = {
   },
 
   async remove(id) {
-    const { error } = await supabase.from("programs").delete().eq("program_id", id);
+    const { error } = await supabase
+      .from("programs")
+      .delete()
+      .eq("program_id", id);
     if (error) throw new Error(error.message);
   },
 
@@ -93,7 +110,9 @@ export const programService = {
    */
   async reconcile(institutionId, programs = []) {
     const existing = await this.list({ institutionId });
-    const incomingIds = new Set(programs.filter((p) => p.program_id).map((p) => p.program_id));
+    const incomingIds = new Set(
+      programs.filter((p) => p.program_id).map((p) => p.program_id),
+    );
 
     // Delete programs that are no longer present.
     for (const p of existing) {
