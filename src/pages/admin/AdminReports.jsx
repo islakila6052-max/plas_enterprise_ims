@@ -6,7 +6,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
-import Modal from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Input";
 import { internService } from "@/services/internService";
 import { supervisorService } from "@/services/supervisorService";
@@ -834,8 +833,8 @@ function HoursFilters({ filters, setFilters, onReset }) {
 function FilterBadge({ activeCount }) {
   if (activeCount === 0) return null;
   return (
-    <span className="rounded-full border px-2 py-1 text-xs font-medium text-brand-700 bg-brand-100">
-      {activeCount} filter{activeCount !== 1 ? "s" : ""}
+    <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+      {activeCount}
     </span>
   );
 }
@@ -1115,13 +1114,6 @@ export default function AdminReports() {
     w.print();
   }
 
-  // --- Filter Modals per report type ---
-  const [showInternListFilter, setShowInternListFilter] = useState(false);
-  const [showAttendanceFilter, setShowAttendanceFilter] = useState(false);
-  const [showJournalsFilter, setShowJournalsFilter] = useState(false);
-  const [showEvaluationsFilter, setShowEvaluationsFilter] = useState(false);
-  const [showHoursFilter, setShowHoursFilter] = useState(false);
-
   const previewColumns = REPORTS.find((r) => r.key === type)?.columns ?? [];
 
   // Update filters for ONLY the currently selected report type (nested state).
@@ -1133,51 +1125,8 @@ export default function AdminReports() {
     });
   }
 
-  function openCurrentFilters() {
-    switch (type) {
-      case "intern_list":
-        setShowInternListFilter(true);
-        break;
-      case "attendance":
-        setShowAttendanceFilter(true);
-        break;
-      case "journals":
-        setShowJournalsFilter(true);
-        break;
-      case "evaluations":
-        setShowEvaluationsFilter(true);
-        break;
-      case "hours":
-        setShowHoursFilter(true);
-        break;
-      default:
-        break;
-    }
-  }
-
-  // Handle report type click - opens filter modal automatically
-  function handleReportClick(key) {
-    setType(key);
-    setPreview(null);
-    // Open the filter modal for this report type
-    switch (key) {
-      case "intern_list":
-        setShowInternListFilter(true);
-        break;
-      case "attendance":
-        setShowAttendanceFilter(true);
-        break;
-      case "journals":
-        setShowJournalsFilter(true);
-        break;
-      case "evaluations":
-        setShowEvaluationsFilter(true);
-        break;
-      case "hours":
-        setShowHoursFilter(true);
-        break;
-    }
-  }
+  // Get current filters for the selected type
+  const currentFilters = filters[type] || {};
 
   return (
     <div>
@@ -1187,6 +1136,7 @@ export default function AdminReports() {
       />
       <Card>
         <div className="space-y-4 p-5">
+          {/* Row 1: Report type buttons */}
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">
               Select report
@@ -1195,7 +1145,10 @@ export default function AdminReports() {
               {REPORTS.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => handleReportClick(r.key)}
+                  onClick={() => {
+                    setType(r.key);
+                    setPreview(null);
+                  }}
                   className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
                     type === r.key
                       ? "border-brand-500 bg-brand-50 text-brand-700"
@@ -1210,180 +1163,150 @@ export default function AdminReports() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-brand-100 pt-4">
-            <Button
-              variant="outline"
-              onClick={openCurrentFilters}
-              disabled={busy}>
-              Filters
-              {countActiveFilters(filters[type]) > 0 && (
-                <FilterBadge activeCount={countActiveFilters(filters[type])} />
-              )}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={generatePreview}
-              disabled={busy}>
-              Generate Preview
-            </Button>
-            <Button onClick={exportPDF} disabled={busy}>
-              Download PDF
-            </Button>
-            <Button variant="secondary" onClick={printPreview} disabled={busy}>
-              Print
-            </Button>
+          {/* Row 2: Filter fields + Action buttons */}
+          <div className="flex flex-wrap items-end gap-3 border-t border-brand-100 pt-4">
+            {/* Filter fields - only show for intern_list type */}
+            {type === "intern_list" && (
+              <>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    Department
+                  </label>
+                  <Select
+                    value={currentFilters.departmentId || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        departmentId: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm">
+                    <option value="">All Departments</option>
+                    {/* Options will be populated from the filter component */}
+                  </Select>
+                </div>
+
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    Status
+                  </label>
+                  <Select
+                    value={currentFilters.status || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        status: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm">
+                    <option value="">All</option>
+                    {Object.values(INTERN_STATUS).map((s) => (
+                      <option key={s} value={s}>
+                        {INTERN_STATUS_LABELS[s]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    Institution
+                  </label>
+                  <Select
+                    value={currentFilters.institutionId || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        institutionId: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm">
+                    <option value="">All Institutions</option>
+                    {/* Options will be populated from the filter component */}
+                  </Select>
+                </div>
+
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    Program
+                  </label>
+                  <Select
+                    value={currentFilters.programId || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        programId: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm">
+                    <option value="">All Programs</option>
+                    {/* Options will be populated from the filter component */}
+                  </Select>
+                </div>
+
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    From
+                  </label>
+                  <Input
+                    type="date"
+                    value={currentFilters.createdFrom || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        createdFrom: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm"
+                  />
+                </div>
+
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">
+                    To
+                  </label>
+                  <Input
+                    type="date"
+                    value={currentFilters.createdTo || ""}
+                    onChange={(e) =>
+                      updateTypeFilters((f) => ({
+                        ...f,
+                        createdTo: e.target.value,
+                      }))
+                    }
+                    className="w-full text-sm"
+                    size="sm"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2 ml-auto">
+              <Button
+                variant="secondary"
+                onClick={generatePreview}
+                disabled={busy}
+                size="sm">
+                Generate Preview
+              </Button>
+              <Button onClick={exportPDF} disabled={busy} size="sm">
+                Download PDF
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={printPreview}
+                disabled={busy}
+                size="sm">
+                Print
+              </Button>
+            </div>
           </div>
-
-          {/* Filter Modals - opened via the "Filters" action button OR automatically on report click */}
-          {type === "intern_list" && (
-            <Modal
-              open={showInternListFilter}
-              onClose={() => setShowInternListFilter(false)}
-              title="Intern List Filters"
-              size="lg">
-              <InternListFilters
-                filters={filters.intern_list}
-                setFilters={updateTypeFilters}
-                onReset={() => updateTypeFilters(defaultInternListFilters)}
-              />
-              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowInternListFilter(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowInternListFilter(false);
-                    generatePreview();
-                  }}
-                  disabled={busy}>
-                  Generate Preview
-                </Button>
-              </div>
-            </Modal>
-          )}
-
-          {type === "attendance" && (
-            <Modal
-              open={showAttendanceFilter}
-              onClose={() => setShowAttendanceFilter(false)}
-              title="Attendance Filters"
-              size="lg">
-              <AttendanceFilters
-                filters={filters.attendance}
-                setFilters={updateTypeFilters}
-                onReset={() => updateTypeFilters(defaultAttendanceFilters)}
-              />
-              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowAttendanceFilter(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowAttendanceFilter(false);
-                    generatePreview();
-                  }}
-                  disabled={busy}>
-                  Generate Preview
-                </Button>
-              </div>
-            </Modal>
-          )}
-
-          {type === "journals" && (
-            <Modal
-              open={showJournalsFilter}
-              onClose={() => setShowJournalsFilter(false)}
-              title="Daily Journals Filters"
-              size="lg">
-              <JournalsFilters
-                filters={filters.journals}
-                setFilters={updateTypeFilters}
-                onReset={() => updateTypeFilters(defaultJournalsFilters)}
-              />
-              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowJournalsFilter(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowJournalsFilter(false);
-                    generatePreview();
-                  }}
-                  disabled={busy}>
-                  Generate Preview
-                </Button>
-              </div>
-            </Modal>
-          )}
-
-          {type === "evaluations" && (
-            <Modal
-              open={showEvaluationsFilter}
-              onClose={() => setShowEvaluationsFilter(false)}
-              title="Evaluation Summary Filters"
-              size="lg">
-              <EvaluationsFilters
-                filters={filters.evaluations}
-                setFilters={updateTypeFilters}
-                onReset={() => updateTypeFilters(defaultEvaluationsFilters)}
-              />
-              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowEvaluationsFilter(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowEvaluationsFilter(false);
-                    generatePreview();
-                  }}
-                  disabled={busy}>
-                  Generate Preview
-                </Button>
-              </div>
-            </Modal>
-          )}
-
-          {type === "hours" && (
-            <Modal
-              open={showHoursFilter}
-              onClose={() => setShowHoursFilter(false)}
-              title="Hours Rendered Filters"
-              size="lg">
-              <HoursFilters
-                filters={filters.hours}
-                setFilters={updateTypeFilters}
-                onReset={() => updateTypeFilters(defaultHoursFilters)}
-              />
-              <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowHoursFilter(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowHoursFilter(false);
-                    generatePreview();
-                  }}
-                  disabled={busy}>
-                  Generate Preview
-                </Button>
-              </div>
-            </Modal>
-          )}
         </div>
       </Card>
 
