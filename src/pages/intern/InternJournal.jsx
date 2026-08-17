@@ -1,5 +1,6 @@
 // src/pages/intern/InternJournal.jsx
 import { useEffect, useState, useCallback } from "react";
+import { useWatch } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import PageHeader from "@/components/ui/PageHeader";
@@ -18,6 +19,21 @@ import { supabase } from "@/lib/supabase";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
+/** Live character counter for a textarea field, shown next to the limit. */
+function CharCounter({ name, control, limit }) {
+  const value = useWatch({ control, name }) || "";
+  const remaining = limit - String(value).length;
+  const isOver = remaining < 0;
+  return (
+    <p
+      className={`mt-1 text-xs ${isOver ? "text-red-600" : "text-slate-400"}`}
+      aria-live="polite"
+    >
+      {String(value).length}/{limit} characters
+    </p>
+  );
+}
+
 export default function InternJournal() {
   const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
@@ -29,8 +45,11 @@ export default function InternJournal() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm({
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: { date: todayISO(), activities: "", hours_worked: "", challenges: "", learnings: "" },
   });
 
@@ -129,11 +148,39 @@ export default function InternJournal() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Date" maxLength={10} type="date" {...register("date", { required: "Date is required" })} />
-            <Input label="Hours worked" maxLength={6} type="number" step="0.5" {...register("hours_worked", { required: "Required" })} />
+            <Input
+              label="Hours worked"
+              maxLength={6}
+              type="number"
+              step="0.5"
+              min={0}
+              max={24}
+              {...register("hours_worked", {
+                required: "Required",
+                min: { value: 0, message: "Hours worked must be 0 or greater" },
+                max: { value: 24, message: "Hours worked cannot exceed 24" },
+              })}
+            />
+            <p className="col-span-2 text-xs text-slate-400">Maximum of 24 hours per day.</p>
           </div>
-          <Textarea label="Activities" rows={3} error={errors.activities?.message} {...register("activities", { required: "Activities are required" })} />
-          <Textarea label="Challenges" rows={2} {...register("challenges")} />
-          <Textarea label="Learnings" rows={2} {...register("learnings")} />
+          <div>
+            <Textarea
+              label="Activities"
+              rows={3}
+              maxLength={250}
+              error={errors.activities?.message}
+              {...register("activities", { required: "Activities are required" })}
+            />
+            <CharCounter name="activities" control={control} limit={250} />
+          </div>
+          <div>
+            <Textarea label="Challenges" rows={2} maxLength={250} {...register("challenges")} />
+            <CharCounter name="challenges" control={control} limit={250} />
+          </div>
+          <div>
+            <Textarea label="Learnings" rows={2} maxLength={250} {...register("learnings")} />
+            <CharCounter name="learnings" control={control} limit={250} />
+          </div>
           <Button type="submit" loading={saving}>Submit Journal</Button>
         </form>
       </Card>
