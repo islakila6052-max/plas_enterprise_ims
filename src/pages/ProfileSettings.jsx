@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { profileService } from "@/services/profileService";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input, PhoneInput, Textarea, CharCounter } from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
 import Avatar from "@/components/ui/Avatar";
 import Spinner from "@/components/ui/Spinner";
@@ -22,6 +22,7 @@ export default function ProfileSettings() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm();
 
@@ -84,22 +85,36 @@ export default function ProfileSettings() {
           )}
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="Full name" maxLength={100}
+              label="Full name" maxLength={50}
               error={errors.full_name?.message}
-              {...register("full_name", { required: "Name is required" })}
+              {...register("full_name", {
+                required: "Name is required",
+                maxLength: { value: 50, message: "Maximum 50 characters" },
+              })}
             />
-            <Input
-              label="Contact number"
-              placeholder="+63 9xx xxx xxxx" maxLength={15}
-              {...register("contact_number")}
-            />
+            <div>
+              <PhoneInput
+                label="Contact number"
+                value={watch("contact_number")}
+                error={errors.contact_number?.message}
+                {...register("contact_number", {
+                  validate: (v) =>
+                    !v || /^[0-9]{10}$/.test(v) || "Enter a valid 10-digit number",
+                })}
+              />
+              <p className="mt-1 text-xs text-slate-400">10-digit number after +63</p>
+            </div>
           </div>
-          <Textarea
-            label="Bio"
-            rows={3}
-            placeholder="Short introduction…"
-            {...register("bio")}
-          />
+          <div>
+            <Textarea
+              label="Bio"
+              rows={3}
+              maxLength={250}
+              placeholder="Short introduction…"
+              {...register("bio", { maxLength: 250 })}
+            />
+            <CharCounter value={watch("bio")} limit={250} />
+          </div>
           <Button type="submit" loading={saving}>
             Save changes
           </Button>

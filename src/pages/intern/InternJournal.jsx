@@ -1,11 +1,10 @@
 // src/pages/intern/InternJournal.jsx
 import { useEffect, useState, useCallback } from "react";
-import { useWatch } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input, Textarea, CharCounter } from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
@@ -19,21 +18,6 @@ import { supabase } from "@/lib/supabase";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
-/** Live character counter for a textarea field, shown next to the limit. */
-function CharCounter({ name, control, limit }) {
-  const value = useWatch({ control, name }) || "";
-  const remaining = limit - String(value).length;
-  const isOver = remaining < 0;
-  return (
-    <p
-      className={`mt-1 text-xs ${isOver ? "text-red-600" : "text-slate-400"}`}
-      aria-live="polite"
-    >
-      {String(value).length}/{limit} characters
-    </p>
-  );
-}
-
 export default function InternJournal() {
   const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
@@ -45,7 +29,7 @@ export default function InternJournal() {
     register,
     handleSubmit,
     reset,
-    control,
+    watch,
     formState: { errors },
   } = useForm({
     mode: "onChange",
@@ -171,15 +155,15 @@ export default function InternJournal() {
               error={errors.activities?.message}
               {...register("activities", { required: "Activities are required" })}
             />
-            <CharCounter name="activities" control={control} limit={250} />
+            <CharCounter value={watch("activities")} limit={250} />
           </div>
           <div>
             <Textarea label="Challenges" rows={2} maxLength={250} {...register("challenges")} />
-            <CharCounter name="challenges" control={control} limit={250} />
+            <CharCounter value={watch("challenges")} limit={250} />
           </div>
           <div>
             <Textarea label="Learnings" rows={2} maxLength={250} {...register("learnings")} />
-            <CharCounter name="learnings" control={control} limit={250} />
+            <CharCounter value={watch("learnings")} limit={250} />
           </div>
           <Button type="submit" loading={saving}>Submit Journal</Button>
         </form>
