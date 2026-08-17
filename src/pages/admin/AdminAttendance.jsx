@@ -179,6 +179,7 @@ export default function AdminAttendance() {
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             type="date"
+            maxLength={10}
             value={dateFrom}
             onChange={(e) => {
               setDateFrom(e.target.value);
@@ -189,6 +190,7 @@ export default function AdminAttendance() {
           />
           <Input
             type="date"
+            maxLength={10}
             value={dateTo}
             onChange={(e) => {
               setDateTo(e.target.value);

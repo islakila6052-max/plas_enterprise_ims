@@ -185,7 +185,7 @@ export default function Login() {
             )}
             <Input
               label="Email"
-              type="email"
+              type="email" maxLength={100}
               autoComplete="email"
               placeholder="you@company.com"
               error={errors.email?.message}

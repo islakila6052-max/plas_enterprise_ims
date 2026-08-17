@@ -56,7 +56,7 @@ export default function ForgotPassword() {
                 )}
                 <Input
                   label="Email"
-                  type="email"
+                  type="email" maxLength={100}
                   placeholder="you@company.com"
                   error={errors.email?.message}
                   {...register("email", {

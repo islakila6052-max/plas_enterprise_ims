@@ -151,8 +151,8 @@ export default function AdminSettings() {
         </div>
         <form onSubmit={submitSettings(onSettingsSubmit)} className="space-y-4 p-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <Input label="Company name" {...regSettings("company_name", { required: "Required" })} />
-            <Input label="Internship duration" placeholder="e.g. 6 months" {...regSettings("internship_duration")} />
+            <Input label="Company name" maxLength={150} {...regSettings("company_name", { required: "Required" })} />
+            <Input label="Internship duration" maxLength={50} placeholder="e.g. 6 months" {...regSettings("internship_duration")} />
             <Input label="Required hours" type="number" {...regSettings("required_hours", { required: "Required" })} />
           </div>
           <Button type="submit" loading={settingsSaving}>Save Settings</Button>

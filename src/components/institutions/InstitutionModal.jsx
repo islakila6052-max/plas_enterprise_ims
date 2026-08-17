@@ -247,7 +247,7 @@ export default function InstitutionModal({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Institution Name"
+              label="Institution Name" maxLength={150}
               required
               error={errors.institution_name?.message}
               {...register("institution_name", {
@@ -263,7 +263,7 @@ export default function InstitutionModal({
                 },
               })}
             />
-            <Input label="Abbreviation" {...register("abbreviation")} />
+            <Input label="Abbreviation" maxLength={10} {...register("abbreviation")} />
             <Input label="Campus" {...register("campus")} />
             <Input label="Address" {...register("address")} />
             <Input label="Contact Person (optional)" {...register("contact_person")} />
@@ -297,7 +297,7 @@ export default function InstitutionModal({
                     className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-12 sm:items-start">
                     <div className="sm:col-span-4">
                       <Input
-                        label="Program Name"
+                        label="Program Name" maxLength={100}
                         placeholder="e.g. BS Information Technology"
                         value={p.program_name}
                         error={e.program_name}
@@ -306,7 +306,7 @@ export default function InstitutionModal({
                     </div>
                     <div className="sm:col-span-2">
                       <Input
-                        label="Abbreviation"
+                        label="Abbreviation" maxLength={10}
                         placeholder="BSIT"
                         value={p.abbreviation}
                         error={e.abbreviation}

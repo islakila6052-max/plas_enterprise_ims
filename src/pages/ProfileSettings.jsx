@@ -84,13 +84,13 @@ export default function ProfileSettings() {
           )}
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="Full name"
+              label="Full name" maxLength={100}
               error={errors.full_name?.message}
               {...register("full_name", { required: "Name is required" })}
             />
             <Input
               label="Contact number"
-              placeholder="+63 9xx xxx xxxx"
+              placeholder="+63 9xx xxx xxxx" maxLength={15}
               {...register("contact_number")}
             />
           </div>

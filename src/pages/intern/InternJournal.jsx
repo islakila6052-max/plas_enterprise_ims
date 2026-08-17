@@ -128,8 +128,8 @@ export default function InternJournal() {
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Date" type="date" {...register("date", { required: "Date is required" })} />
-            <Input label="Hours worked" type="number" step="0.5" {...register("hours_worked", { required: "Required" })} />
+            <Input label="Date" maxLength={10} type="date" {...register("date", { required: "Date is required" })} />
+            <Input label="Hours worked" maxLength={6} type="number" step="0.5" {...register("hours_worked", { required: "Required" })} />
           </div>
           <Textarea label="Activities" rows={3} error={errors.activities?.message} {...register("activities", { required: "Activities are required" })} />
           <Textarea label="Challenges" rows={2} {...register("challenges")} />

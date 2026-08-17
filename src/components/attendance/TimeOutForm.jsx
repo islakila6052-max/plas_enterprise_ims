@@ -104,6 +104,7 @@ export default function TimeOutForm({
               <input
                 id="timeOut"
                 type="time"
+                maxLength={5}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 value={timeOut}
                 onChange={(e) => setTimeOut(e.target.value)}
@@ -132,7 +133,8 @@ export default function TimeOutForm({
                     ? "Please explain why you forgot to time out..."
                     : "Any remarks about today's attendance..."
                 }
-                value={remarks}
+                maxLength={500}
+              value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 required={isForgotten}
               />

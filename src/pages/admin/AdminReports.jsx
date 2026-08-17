@@ -678,7 +678,7 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.createdFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({
@@ -696,7 +696,7 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.createdTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({
@@ -719,7 +719,7 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -734,7 +734,7 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
@@ -794,7 +794,7 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -809,7 +809,7 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
@@ -943,7 +943,7 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -958,7 +958,7 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date"
+                type="date" maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))

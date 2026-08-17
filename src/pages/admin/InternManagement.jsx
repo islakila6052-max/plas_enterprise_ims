@@ -429,10 +429,10 @@ export default function InternManagement() {
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Full name" error={errors.full_name?.message} {...register("full_name", { required: "Name is required" })} />
-            <Input label="Student number" error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
-            <Input label="Contact number" {...register("contact_number")} />
-            <Input label="Email" type="email" error={errors.email?.message} {...register("email", { required: "Email is required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
+            <Input label="Full name" maxLength={100} error={errors.full_name?.message} {...register("full_name", { required: "Name is required" })} />
+            <Input label="Student number" maxLength={20} error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
+            <Input label="Contact number" maxLength={15} {...register("contact_number")} />
+            <Input label="Email" maxLength={100} type="email" error={errors.email?.message} {...register("email", { required: "Email is required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
             {!editing && (
               <Input
                 label="Temporary password"
@@ -514,7 +514,7 @@ export default function InternManagement() {
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <Detail label="Student No." value={detail.student_number} />
-              <Detail label="Email" value={detail.email} />
+              <Detail label="Email" maxLength={100} value={detail.email} />
               <Detail label="Contact" value={detail.contact_number} />
               <Detail label="Emergency" value={detail.emergency_contact} />
               <Detail label="Department" value={detail.department?.name} />

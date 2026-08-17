@@ -65,7 +65,7 @@ export const Select = forwardRef(function Select(
 
 /** Labeled textarea. */
 export const Textarea = forwardRef(function Textarea(
-  { label, error, className = "", id, rows = 4, ...props },
+  { label, error, className = "", id, rows = 4, maxLength, ...props },
   ref,
 ) {
   const areaId = id || props.name;
@@ -75,13 +75,14 @@ export const Textarea = forwardRef(function Textarea(
         <label
           htmlFor={areaId}
           className="mb-1.5 block text-sm font-medium text-slate-700">
-          {label}
-        </label>
-      )}
+            {label}
+          </label>
+        )}
       <textarea
         ref={ref}
         id={areaId}
         rows={rows}
+        maxLength={maxLength}
         className={cn(
           base,
           "resize-y",

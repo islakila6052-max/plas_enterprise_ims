@@ -203,9 +203,9 @@ export default function SupervisorEvaluations() {
             ))}
           </Select>
           {EVALUATION_CRITERIA.map((c) => (
-            <Input key={c.key} label={`${c.label} (1-5)`} type="number" min={1} max={5} error={errors[c.key]?.message} {...register(c.key, { required: `${c.label} is required`, min: { value: 1, message: `Must be 1-5` }, max: { value: 5, message: `Must be 1-5` } })} />
+            <Input key={c.key} label={`${c.label} (1-5)`} type="number" min={1} max={5} maxLength={1} error={errors[c.key]?.message} {...register(c.key, { required: `${c.label} is required`, min: { value: 1, message: `Must be 1-5` }, max: { value: 5, message: `Must be 1-5` } })} />
           ))}
-          <Input label="Overall rating (1-5)" type="number" min={1} max={5} error={errors.overall_rating?.message} {...register("overall_rating", { required: "Overall rating is required", min: { value: 1, message: "Must be 1-5" }, max: { value: 5, message: "Must be 1-5" } })} />
+          <Input label="Overall rating (1-5)" type="number" min={1} max={5} maxLength={1} error={errors.overall_rating?.message} {...register("overall_rating", { required: "Overall rating is required", min: { value: 1, message: "Must be 1-5" }, max: { value: 5, message: "Must be 1-5" } })} />
           <Select label="Final recommendation" error={errors.final_recommendation?.message} {...register("final_recommendation", { required: "Select a recommendation" })}>
             {EVALUATION_RECOMMENDATIONS.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>

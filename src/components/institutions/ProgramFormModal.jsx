@@ -88,7 +88,7 @@ export default function ProgramFormModal({
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="Abbreviation"
+            label="Abbreviation" maxLength={10}
             error={errors.abbreviation?.message}
             {...register("abbreviation", {
               validate: (v) => {
@@ -100,7 +100,7 @@ export default function ProgramFormModal({
             })}
           />
           <Input
-            label="Program Code"
+            label="Program Code" maxLength={15}
             error={errors.program_code?.message}
             {...register("program_code", {
               validate: (v) => {
@@ -113,7 +113,7 @@ export default function ProgramFormModal({
           />
         </div>
         <Input
-          label="Required Internship Hours"
+          label="Required Internship Hours" maxLength={5}
           type="number"
           min={1}
           required

@@ -307,7 +307,7 @@ export default function AdminSupervisors() {
           />
           <Input
             label="Email"
-            type="email"
+            type="email" maxLength={100}
             error={errors.email?.message}
             {...register("email", {
               required: "Email is required",

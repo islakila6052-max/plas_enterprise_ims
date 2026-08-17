@@ -75,7 +75,7 @@ export default function ReviewClaimModal({
               id="reviewComment"
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              placeholder="Add a comment about this claim..."
+              placeholder="Add a comment about this claim" maxLength={500}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />
