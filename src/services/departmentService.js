@@ -39,7 +39,13 @@ export const departmentService = {
         .select()
         .single();
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Check for duplicate department name constraint
+        if (error.message && error.message.includes("departments_name_key")) {
+          throw new Error("A department with this name already exists.");
+        }
+        throw new Error(error.message);
+      }
       return data;
     } catch (err) {
       throw err;
