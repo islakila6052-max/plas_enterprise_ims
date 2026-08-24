@@ -1,6 +1,7 @@
 // src/pages/admin/AdminJournals.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { ClipboardCheck, CheckCircle, XCircle } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
@@ -12,10 +13,15 @@ import Button from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { journalService } from "@/services/journalService";
 
-import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
+import {
+  JOURNAL_STATUS,
+  JOURNAL_STATUS_LABELS,
+  PAGE_SIZE,
+} from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { useAuth } from "@/contexts/AuthContext";
+import ActionButton from "@/components/ui/ActionButton";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -41,7 +47,9 @@ export default function AdminJournals() {
       if (status) data = data.filter((r) => r.status === status);
       if (search) {
         const q = search.toLowerCase();
-        data = data.filter((r) => (r.intern?.full_name ?? "").toLowerCase().includes(q));
+        data = data.filter((r) =>
+          (r.intern?.full_name ?? "").toLowerCase().includes(q),
+        );
       }
       setRows(data);
       setTotal(res.count);
@@ -66,7 +74,13 @@ export default function AdminJournals() {
     setSaving(true);
     try {
       await journalService.review(reviewing.id, decision, null, comment);
-      await recordAudit({ user_id: user?.id, action: "review", resource_type: "daily_journal", resource_id: reviewing.id, changes: { status: decision } });
+      await recordAudit({
+        user_id: user?.id,
+        action: "review",
+        resource_type: "daily_journal",
+        resource_id: reviewing.id,
+        changes: { status: decision },
+      });
       // Notify the intern who owns this journal that it was reviewed.
       if (reviewing.intern?.profile_id) {
         await notify({
@@ -99,27 +113,47 @@ export default function AdminJournals() {
       ),
     },
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-    { key: "activities", header: "Activities", render: (r) => <p className="max-w-xs truncate text-slate-600">{r.activities}</p> },
-    { key: "hours_worked", header: "Hours", render: (r) => r.hours_worked ?? "—" },
+    {
+      key: "activities",
+      header: "Activities",
+      render: (r) => (
+        <p className="max-w-xs truncate text-slate-600">{r.activities}</p>
+      ),
+    },
+    {
+      key: "hours_worked",
+      header: "Hours",
+      render: (r) => r.hours_worked ?? "—",
+    },
     {
       key: "status",
       header: "Status",
-      render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{JOURNAL_STATUS_LABELS[r.status] ?? r.status}</Badge>,
+      render: (r) => (
+        <Badge tone={TONE[r.status] ?? "gray"}>
+          {JOURNAL_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
+      ),
     },
     {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <button className="text-sm font-medium text-brand-700 hover:text-brand-800" onClick={() => openReview(r)}>
-          Review
-        </button>
+        <ActionButton
+          icon={ClipboardCheck}
+          color="blue"
+          tooltip="Review"
+          onClick={() => openReview(r)}
+        />
       ),
     },
   ];
 
   return (
     <div>
-      <PageHeader title="Daily Journals" description="Review internship daily journals." />
+      <PageHeader
+        title="Daily Journals"
+        description="Review internship daily journals."
+      />
       <Card>
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2">
           <Input
@@ -139,7 +173,9 @@ export default function AdminJournals() {
             className="max-w-xs">
             <option value="">All Statuses</option>
             {Object.values(JOURNAL_STATUS).map((s) => (
-              <option key={s} value={s}>{JOURNAL_STATUS_LABELS[s]}</option>
+              <option key={s} value={s}>
+                {JOURNAL_STATUS_LABELS[s]}
+              </option>
             ))}
           </Select>
         </div>
@@ -150,11 +186,20 @@ export default function AdminJournals() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No journals submitted.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No journals submitted.
+              </div>
+            }
           />
         )}
         {rows.length > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         )}
       </Card>
 
@@ -164,27 +209,50 @@ export default function AdminJournals() {
         title="Review Journal"
         footer={
           <>
-            <Button variant="danger" onClick={() => decide("rejected")} loading={saving}>Reject</Button>
-            <Button onClick={() => decide("approved")} loading={saving}>Approve</Button>
+            <Button
+              variant="danger"
+              onClick={() => decide("rejected")}
+              loading={saving}>
+              Reject
+            </Button>
+            <Button onClick={() => decide("approved")} loading={saving}>
+              Approve
+            </Button>
           </>
         }>
         {reviewing && (
           <div className="space-y-3 text-sm">
-            <p><span className="text-slate-500">Intern: </span>{reviewing.intern?.full_name}</p>
-            <p><span className="text-slate-500">Date: </span>{formatDate(reviewing.date)}</p>
+            <p>
+              <span className="text-slate-500">Intern: </span>
+              {reviewing.intern?.full_name}
+            </p>
+            <p>
+              <span className="text-slate-500">Date: </span>
+              {formatDate(reviewing.date)}
+            </p>
             <div>
               <p className="mb-1 font-medium text-slate-700">Activities</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.activities}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.activities}
+              </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Challenges</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.challenges || "—"}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.challenges || "—"}
+              </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Learnings</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.learnings || "—"}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.learnings || "—"}
+              </p>
             </div>
-            <Textarea label="Supervisor comment" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <Textarea
+              label="Supervisor comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
           </div>
         )}
       </Modal>

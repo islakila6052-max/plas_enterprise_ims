@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
+import { Pencil, Archive, RotateCcw, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -13,6 +14,7 @@ import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Pagination from "@/components/ui/Pagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ActionButton from "@/components/ui/ActionButton";
 import Avatar from "@/components/ui/Avatar";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { internService } from "@/services/internService";
@@ -22,7 +24,11 @@ import { institutionService } from "@/services/institutionService";
 import { programService } from "@/services/programService";
 import { userService } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
-import { INTERN_STATUS, INTERN_STATUS_LABELS, PAGE_SIZE } from "@/lib/constants";
+import {
+  INTERN_STATUS,
+  INTERN_STATUS_LABELS,
+  PAGE_SIZE,
+} from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 
@@ -80,7 +86,12 @@ export default function InternManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await internService.list({ search, departmentId, status, page });
+      const res = await internService.list({
+        search,
+        departmentId,
+        status,
+        page,
+      });
       setRows(res.data);
       setTotal(res.count);
     } catch (err) {
@@ -95,9 +106,18 @@ export default function InternManagement() {
   }, [load]);
 
   useEffect(() => {
-    departmentService.list().then(setDepartments).catch(() => {});
-    supervisorService.list().then(setSupervisors).catch(() => {});
-    institutionService.list({}).then(setInstitutions).catch(() => {});
+    departmentService
+      .list()
+      .then(setDepartments)
+      .catch(() => {});
+    supervisorService
+      .list()
+      .then(setSupervisors)
+      .catch(() => {});
+    institutionService
+      .list({})
+      .then(setInstitutions)
+      .catch(() => {});
   }, []);
 
   // Supervisors filtered by the chosen department. Drives the Supervisor
@@ -135,15 +155,19 @@ export default function InternManagement() {
     });
     setSelectedInstitutionId(row.institution_id ?? "");
     setInstitutionLabel(
-      institutions.find((i) => i.institution_id === row.institution_id)?.institution_name ?? "",
+      institutions.find((i) => i.institution_id === row.institution_id)
+        ?.institution_name ?? "",
     );
     setSelectedProgramId(row.program_id ?? "");
     setProgramLabel("");
     if (row.institution_id) {
-      programService.list({ institutionId: row.institution_id }).then((ps) => {
-        const p = ps.find((x) => x.program_id === row.program_id);
-        setProgramLabel(p?.program_name ?? "");
-      }).catch(() => {});
+      programService
+        .list({ institutionId: row.institution_id })
+        .then((ps) => {
+          const p = ps.find((x) => x.program_id === row.program_id);
+          setProgramLabel(p?.program_name ?? "");
+        })
+        .catch(() => {});
     }
     setModalOpen(true);
   }
@@ -151,7 +175,10 @@ export default function InternManagement() {
   async function onInstitutionSearch(query) {
     try {
       const rows = await institutionService.list({ search: query });
-      return rows.map((i) => ({ value: i.institution_id, label: i.institution_name }));
+      return rows.map((i) => ({
+        value: i.institution_id,
+        label: i.institution_name,
+      }));
     } catch {
       return [];
     }
@@ -160,7 +187,10 @@ export default function InternManagement() {
   async function onProgramSearch(query) {
     if (!selectedInstitutionId) return [];
     try {
-      const rows = await programService.list({ institutionId: selectedInstitutionId, search: query });
+      const rows = await programService.list({
+        institutionId: selectedInstitutionId,
+        search: query,
+      });
       return rows.map((p) => ({ value: p.program_id, label: p.program_name }));
     } catch {
       return [];
@@ -196,8 +226,13 @@ export default function InternManagement() {
       // chosen department. Reject any invalid department-supervisor pairing
       // before we persist the intern (defense in depth beyond the UI filter).
       if (payload.supervisor_id && payload.department_id) {
-        const assignedSup = supervisors.find((s) => s.id === payload.supervisor_id);
-        if (!assignedSup || assignedSup.department_id !== payload.department_id) {
+        const assignedSup = supervisors.find(
+          (s) => s.id === payload.supervisor_id,
+        );
+        if (
+          !assignedSup ||
+          assignedSup.department_id !== payload.department_id
+        ) {
           throw new Error(
             "The selected supervisor does not belong to the selected department. Please choose a supervisor from the same department.",
           );
@@ -206,10 +241,22 @@ export default function InternManagement() {
 
       if (editing) {
         await internService.update(editing.id, payload);
-        await recordAudit({ user_id: user?.id, action: "update", resource_type: "intern", resource_id: editing.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
+        await recordAudit({
+          user_id: user?.id,
+          action: "update",
+          resource_type: "intern",
+          resource_id: editing.id,
+          changes: {
+            full_name: payload.full_name,
+            supervisor_id: payload.supervisor_id,
+          },
+        });
 
         // Notify if supervisor changed.
-        if (payload.supervisor_id && payload.supervisor_id !== editing.supervisor_id) {
+        if (
+          payload.supervisor_id &&
+          payload.supervisor_id !== editing.supervisor_id
+        ) {
           const sup = supervisors.find((x) => x.id === payload.supervisor_id);
           if (sup?.profile_id) {
             await notify({
@@ -236,13 +283,36 @@ export default function InternManagement() {
           ...payload,
           profile_id: newUser.id,
         });
-        await recordAudit({ user_id: user?.id, action: "create", resource_type: "intern", resource_id: created?.id, changes: { full_name: payload.full_name, supervisor_id: payload.supervisor_id } });
+        await recordAudit({
+          user_id: user?.id,
+          action: "create",
+          resource_type: "intern",
+          resource_id: created?.id,
+          changes: {
+            full_name: payload.full_name,
+            supervisor_id: payload.supervisor_id,
+          },
+        });
         if (payload.supervisor_id) {
           const sup = supervisors.find((x) => x.id === payload.supervisor_id);
-          if (sup?.profile_id) await notify({ user_id: sup.profile_id, type: "intern_assigned", title: "New intern assigned", message: (payload.full_name || "An intern") + " was assigned to you.", link: "/supervisor/interns" });
+          if (sup?.profile_id)
+            await notify({
+              user_id: sup.profile_id,
+              type: "intern_assigned",
+              title: "New intern assigned",
+              message:
+                (payload.full_name || "An intern") + " was assigned to you.",
+              link: "/supervisor/interns",
+            });
         }
         if (newUser.id) {
-          await notify({ user_id: newUser.id, type: "account_created", title: "Your account is ready", message: "Your internship account was created. You can now log in.", link: "/intern" });
+          await notify({
+            user_id: newUser.id,
+            type: "account_created",
+            title: "Your account is ready",
+            message: "Your internship account was created. You can now log in.",
+            link: "/intern",
+          });
         }
         toast.success("Intern added.");
       }
@@ -290,7 +360,13 @@ export default function InternManagement() {
         toast.success("Intern restored.");
       } else {
         await internService.remove(confirm.row.id);
-        await recordAudit({ user_id: user?.id, action: "delete", resource_type: "intern", resource_id: confirm.row.id, changes: { full_name: confirm.row.full_name } });
+        await recordAudit({
+          user_id: user?.id,
+          action: "delete",
+          resource_type: "intern",
+          resource_id: confirm.row.id,
+          changes: { full_name: confirm.row.full_name },
+        });
         toast.success("Intern deleted.");
       }
       setConfirm(null);
@@ -315,32 +391,82 @@ export default function InternManagement() {
         </button>
       ),
     },
-    { key: "student_number", header: "Student No.", render: (r) => r.student_number ?? "—" },
-    { key: "institution", header: "Institution", render: (r) => r.institution?.institution_name ?? "—" },
-    { key: "program", header: "Program", render: (r) => r.program?.program_name ?? "—" },
-    { key: "department", header: "Department", render: (r) => r.department?.name ?? "—" },
-    { key: "supervisor", header: "Supervisor", render: (r) => r.supervisor?.full_name ?? "—" },
-    { key: "required_hours", header: "Required Hrs", render: (r) => r.required_hours ?? "—" },
-    { key: "start_date", header: "Start", render: (r) => formatDate(r.start_date) },
+    {
+      key: "student_number",
+      header: "Student No.",
+      render: (r) => r.student_number ?? "—",
+    },
+    {
+      key: "institution",
+      header: "Institution",
+      render: (r) => r.institution?.institution_name ?? "—",
+    },
+    {
+      key: "program",
+      header: "Program",
+      render: (r) => r.program?.program_name ?? "—",
+    },
+    {
+      key: "department",
+      header: "Department",
+      render: (r) => r.department?.name ?? "—",
+    },
+    {
+      key: "supervisor",
+      header: "Supervisor",
+      render: (r) => r.supervisor?.full_name ?? "—",
+    },
+    {
+      key: "required_hours",
+      header: "Required Hrs",
+      render: (r) => r.required_hours ?? "—",
+    },
+    {
+      key: "start_date",
+      header: "Start",
+      render: (r) => formatDate(r.start_date),
+    },
     {
       key: "status",
       header: "Status",
       render: (r) => (
-        <Badge tone={STATUS_TONE[r.status] ?? "gray"}>{INTERN_STATUS_LABELS[r.status] ?? r.status}</Badge>
+        <Badge tone={STATUS_TONE[r.status] ?? "gray"}>
+          {INTERN_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
       ),
     },
     {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>Edit</Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Pencil}
+            color="blue"
+            tooltip="Edit"
+            onClick={() => openEdit(r)}
+          />
           {r.status === "archived" ? (
-            <Button size="sm" variant="ghost" onClick={() => setConfirm({ type: "restore", row: r })}>Restore</Button>
+            <ActionButton
+              icon={RotateCcw}
+              color="green"
+              tooltip="Restore"
+              onClick={() => setConfirm({ type: "restore", row: r })}
+            />
           ) : (
-            <Button size="sm" variant="ghost" onClick={() => setConfirm({ type: "archive", row: r })}>Archive</Button>
+            <ActionButton
+              icon={Archive}
+              color="amber"
+              tooltip="Archive"
+              onClick={() => setConfirm({ type: "archive", row: r })}
+            />
           )}
-          <Button size="sm" variant="danger" onClick={() => setConfirm({ type: "delete", row: r })}>Delete</Button>
+          <ActionButton
+            icon={Trash2}
+            color="red"
+            tooltip="Delete"
+            onClick={() => setConfirm({ type: "delete", row: r })}
+          />
         </div>
       ),
     },
@@ -372,7 +498,9 @@ export default function InternManagement() {
             }}>
             <option value="">All Departments</option>
             {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
             ))}
           </Select>
           <Select
@@ -383,7 +511,9 @@ export default function InternManagement() {
             }}>
             <option value="">All Statuses</option>
             {Object.values(INTERN_STATUS).map((s) => (
-              <option key={s} value={s}>{INTERN_STATUS_LABELS[s]}</option>
+              <option key={s} value={s}>
+                {INTERN_STATUS_LABELS[s]}
+              </option>
             ))}
           </Select>
         </div>
@@ -404,12 +534,21 @@ export default function InternManagement() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No records.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No records.
+              </div>
+            }
           />
         )}
 
         {rows.length > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         )}
       </Card>
 
@@ -421,7 +560,9 @@ export default function InternManagement() {
         title={editing ? "Edit Intern" : "Add Intern"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSubmit(onSubmit)} loading={saving}>
               {editing ? "Save Changes" : "Create Intern"}
             </Button>
@@ -429,19 +570,53 @@ export default function InternManagement() {
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Full name" maxLength={100} error={errors.full_name?.message} {...register("full_name", { required: "Name is required" })} />
-            <Input label="Student number" maxLength={20} error={errors.student_number?.message} {...register("student_number", { required: "Student number is required" })} />
-            <Input label="Contact number" maxLength={15} {...register("contact_number")} />
-            <Input label="Email" maxLength={100} type="email" error={errors.email?.message} {...register("email", { required: "Email is required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" } })} />
+            <Input
+              label="Full name"
+              maxLength={100}
+              error={errors.full_name?.message}
+              {...register("full_name", { required: "Name is required" })}
+            />
+            <Input
+              label="Student number"
+              maxLength={20}
+              error={errors.student_number?.message}
+              {...register("student_number", {
+                required: "Student number is required",
+              })}
+            />
+            <Input
+              label="Contact number"
+              maxLength={15}
+              {...register("contact_number")}
+            />
+            <Input
+              label="Email"
+              maxLength={100}
+              type="email"
+              error={errors.email?.message}
+              {...register("email", {
+                required: "Email is required",
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Enter a valid email",
+                },
+              })}
+            />
             {!editing && (
               <Input
                 label="Temporary password"
                 type="password"
                 error={errors.password?.message}
-                {...register("password", { required: !editing && "Password is required", minLength: { value: 8, message: "At least 8 characters" } })}
+                {...register("password", {
+                  required: !editing && "Password is required",
+                  minLength: { value: 8, message: "At least 8 characters" },
+                })}
               />
             )}
-            <Input label="Emergency contact" {...register("emergency_contact")} />
+            <Input
+              label="Emergency contact"
+              {...register("emergency_contact")}
+            />
             <SearchableSelect
               label="Institution"
               value={selectedInstitutionId}
@@ -461,7 +636,11 @@ export default function InternManagement() {
                 setProgramLabel(opt.label);
                 setValue("program_id", opt.value);
               }}
-              placeholder={selectedInstitutionId ? "Search programs…" : "Select an institution first"}
+              placeholder={
+                selectedInstitutionId
+                  ? "Search programs…"
+                  : "Select an institution first"
+              }
             />
             <input type="hidden" {...register("program_id")} />
             <Select
@@ -471,7 +650,9 @@ export default function InternManagement() {
               })}>
               <option value="">Unassigned</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
               ))}
             </Select>
             <Select
@@ -481,20 +662,30 @@ export default function InternManagement() {
               {!selectedDepartmentId ? (
                 <option value="">Select a department first</option>
               ) : filteredSupervisors.length === 0 ? (
-                <option value="">No supervisors available for this department</option>
+                <option value="">
+                  No supervisors available for this department
+                </option>
               ) : (
                 <option value="">Unassigned</option>
               )}
               {filteredSupervisors.map((s) => (
-                <option key={s.id} value={s.id}>{s.full_name || s.profile?.full_name || "Supervisor"}</option>
+                <option key={s.id} value={s.id}>
+                  {s.full_name || s.profile?.full_name || "Supervisor"}
+                </option>
               ))}
             </Select>
             <Input label="Start date" type="date" {...register("start_date")} />
             <Input label="End date" type="date" {...register("end_date")} />
-            <Input label="Required hours" type="number" {...register("required_hours")} />
+            <Input
+              label="Required hours"
+              type="number"
+              {...register("required_hours")}
+            />
             <Select label="Status" {...register("status")}>
               {Object.values(INTERN_STATUS).map((s) => (
-                <option key={s} value={s}>{INTERN_STATUS_LABELS[s]}</option>
+                <option key={s} value={s}>
+                  {INTERN_STATUS_LABELS[s]}
+                </option>
               ))}
             </Select>
           </div>
@@ -502,14 +693,24 @@ export default function InternManagement() {
       </Modal>
 
       {/* Detail modal */}
-      <Modal open={Boolean(detail)} onClose={() => setDetail(null)} title="Intern Details" size="md">
+      <Modal
+        open={Boolean(detail)}
+        onClose={() => setDetail(null)}
+        title="Intern Details"
+        size="md">
         {detail && (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <Avatar name={detail.full_name} size="lg" />
               <div>
-                <p className="text-lg font-semibold text-slate-800">{detail.full_name}</p>
-                <p className="text-sm text-slate-500">{detail.institution?.institution_name || detail.program?.program_name || "—"}</p>
+                <p className="text-lg font-semibold text-slate-800">
+                  {detail.full_name}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {detail.institution?.institution_name ||
+                    detail.program?.program_name ||
+                    "—"}
+                </p>
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -522,7 +723,10 @@ export default function InternManagement() {
               <Detail label="Start" value={formatDate(detail.start_date)} />
               <Detail label="End" value={formatDate(detail.end_date)} />
               <Detail label="Required Hrs" value={detail.required_hours} />
-              <Detail label="Status" value={INTERN_STATUS_LABELS[detail.status]} />
+              <Detail
+                label="Status"
+                value={INTERN_STATUS_LABELS[detail.status]}
+              />
             </dl>
           </div>
         )}
@@ -532,7 +736,13 @@ export default function InternManagement() {
         open={Boolean(confirm)}
         onClose={() => setConfirm(null)}
         onConfirm={confirmAction}
-        title={confirm?.type === "delete" ? "Delete intern?" : confirm?.type === "archive" ? "Archive intern?" : "Restore intern?"}
+        title={
+          confirm?.type === "delete"
+            ? "Delete intern?"
+            : confirm?.type === "archive"
+              ? "Archive intern?"
+              : "Restore intern?"
+        }
         message={
           confirm?.type === "delete"
             ? `Permanently delete ${confirm?.row.full_name}? This removes the intern and ALL their attendance, journals, documents, and evaluations, and disables their login. This cannot be undone.`
@@ -540,7 +750,13 @@ export default function InternManagement() {
               ? `${confirm?.row.full_name} will be moved to archived.`
               : `${confirm?.row.full_name} will be restored to active.`
         }
-        confirmLabel={confirm?.type === "delete" ? "Delete" : confirm?.type === "archive" ? "Archive" : "Restore"}
+        confirmLabel={
+          confirm?.type === "delete"
+            ? "Delete"
+            : confirm?.type === "archive"
+              ? "Archive"
+              : "Restore"
+        }
         tone={confirm?.type === "delete" ? "danger" : "primary"}
         loading={confirming}
       />

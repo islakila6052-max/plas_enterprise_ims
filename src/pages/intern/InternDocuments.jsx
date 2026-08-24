@@ -1,6 +1,7 @@
 // src/pages/intern/InternDocuments.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { Eye, Download, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Select } from "@/components/ui/Input";
@@ -12,12 +13,15 @@ import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ActionButton from "@/components/ui/ActionButton";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { Icon } from "@/components/ui/icons";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
-const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
+const TYPE_LABEL = Object.fromEntries(
+  DOCUMENT_TYPES.map((t) => [t.value, t.label]),
+);
 
 // Maps each document type to a shared icon name.
 function fileIcon(type) {
@@ -46,7 +50,11 @@ export default function InternDocuments() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await documentService.list({ internId, page: 1, pageSize: 50 });
+      const res = await documentService.list({
+        internId,
+        page: 1,
+        pageSize: 50,
+      });
       setRows(res.data);
     } catch (err) {
       toast.error(err.message);
@@ -77,7 +85,8 @@ export default function InternDocuments() {
   async function download(row) {
     setDownloading(true);
     try {
-      const url = row.file_url || (await documentService.downloadUrl(row.file_path));
+      const url =
+        row.file_url || (await documentService.downloadUrl(row.file_path));
       if (!url) {
         toast.error("Download link unavailable.");
         return;
@@ -112,35 +121,53 @@ export default function InternDocuments() {
       key: "type",
       header: "Type",
       render: (r) => (
-        <button onClick={() => setPreview(r)} className="flex items-center gap-2 text-left hover:text-brand-700">
+        <button
+          onClick={() => setPreview(r)}
+          className="flex items-center gap-2 text-left hover:text-brand-700">
           <Icon name={fileIcon(r.type)} className="h-5 w-5 text-brand-600" />
           <span>{TYPE_LABEL[r.type] ?? r.type}</span>
         </button>
       ),
     },
-    { key: "created", header: "Uploaded", render: (r) => formatDate(r.created_at) },
+    {
+      key: "created",
+      header: "Uploaded",
+      render: (r) => formatDate(r.created_at),
+    },
     {
       key: "status",
       header: "Status",
-      render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{DOCUMENT_STATUS_LABELS[r.status] ?? r.status}</Badge>,
+      render: (r) => (
+        <Badge tone={TONE[r.status] ?? "gray"}>
+          {DOCUMENT_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
+      ),
     },
     {
       key: "actions",
       header: "",
       render: (r) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setPreview(r)}>Preview</Button>
-          <Button size="sm" variant="ghost" onClick={() => download(r)} loading={downloading}>Download</Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Eye}
+            color="green"
+            tooltip="Preview"
+            onClick={() => setPreview(r)}
+          />
+          <ActionButton
+            icon={Download}
+            color="indigo"
+            tooltip="Download"
+            onClick={() => download(r)}
+            loading={downloading}
+          />
           {r.status === "pending" && (
-            <Button
-              size="sm"
-              variant="danger"
+            <ActionButton
+              icon={Trash2}
+              color="red"
+              tooltip="Delete"
               onClick={() => handleDelete(r.id, r.file_path)}
-              title="Delete"
-              className="text-slate-600 hover:bg-slate-100"
-            >
-              Delete
-            </Button>
+            />
           )}
         </div>
       ),
@@ -149,13 +176,22 @@ export default function InternDocuments() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Documents" description="Upload and track your required documents." />
+      <PageHeader
+        title="Documents"
+        description="Upload and track your required documents."
+      />
 
       <Card>
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-end">
-          <Select label="Document type" value={type} onChange={(e) => setType(e.target.value)} className="sm:max-w-xs">
+          <Select
+            label="Document type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="sm:max-w-xs">
             {DOCUMENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
             ))}
           </Select>
           <input
@@ -163,13 +199,17 @@ export default function InternDocuments() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100"
           />
-          <Button onClick={upload} loading={uploading}>Upload</Button>
+          <Button onClick={upload} loading={uploading}>
+            Upload
+          </Button>
         </div>
       </Card>
 
       <Card>
         <div className="border-b border-brand-100 px-5 py-4">
-          <h3 className="text-base font-semibold text-slate-800">My Documents</h3>
+          <h3 className="text-base font-semibold text-slate-800">
+            My Documents
+          </h3>
         </div>
         {loading ? (
           <Spinner label="Loading documents…" />
@@ -178,7 +218,11 @@ export default function InternDocuments() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No documents uploaded yet.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No documents uploaded yet.
+              </div>
+            }
           />
         )}
       </Card>
@@ -193,21 +237,37 @@ export default function InternDocuments() {
         tone="danger"
       />
 
-      <Modal open={Boolean(preview)} onClose={() => setPreview(null)} title="Document Preview" size="md">
+      <Modal
+        open={Boolean(preview)}
+        onClose={() => setPreview(null)}
+        title="Document Preview"
+        size="md">
         {preview && (
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-3">
-              <Icon name={fileIcon(preview.type)} className="h-10 w-10 text-brand-600" />
+              <Icon
+                name={fileIcon(preview.type)}
+                className="h-10 w-10 text-brand-600"
+              />
               <div>
-                <p className="font-medium text-slate-800">{preview.file_name ?? TYPE_LABEL[preview.type]}</p>
-                <Badge tone={TONE[preview.status] ?? "gray"}>{DOCUMENT_STATUS_LABELS[preview.status]}</Badge>
+                <p className="font-medium text-slate-800">
+                  {preview.file_name ?? TYPE_LABEL[preview.type]}
+                </p>
+                <Badge tone={TONE[preview.status] ?? "gray"}>
+                  {DOCUMENT_STATUS_LABELS[preview.status]}
+                </Badge>
               </div>
             </div>
             <div className="rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-6 text-center text-slate-500">
               Document preview is not available in the browser.
             </div>
             <div className="flex justify-end">
-              <Button variant="secondary" onClick={() => download(preview)} loading={downloading}>Download</Button>
+              <Button
+                variant="secondary"
+                onClick={() => download(preview)}
+                loading={downloading}>
+                Download
+              </Button>
             </div>
           </div>
         )}

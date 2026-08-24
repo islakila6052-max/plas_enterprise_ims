@@ -1,18 +1,28 @@
 // src/components/institutions/ProgramTable.jsx
+import { Pencil, Trash2 } from "lucide-react";
 import Table from "@/components/ui/Table";
-import Button from "@/components/ui/Button";
+import ActionButton from "@/components/ui/ActionButton";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 
 /** Table of programs for a given institution (or all), with row actions. */
-export default function ProgramTable({ rows, onEdit, onDelete, loading, institutionName }) {
+export default function ProgramTable({
+  rows,
+  onEdit,
+  onDelete,
+  loading,
+  institutionName,
+}) {
   const columns = [
-    { key: "program_name", header: "Program Name", render: (r) => r.program_name },
+    {
+      key: "program_name",
+      header: "Program Name",
+      render: (r) => r.program_name,
+    },
     {
       key: "institution",
       header: "Institution",
-      render: (r) =>
-        r.institution?.institution_name ?? institutionName ?? "—",
+      render: (r) => r.institution?.institution_name ?? institutionName ?? "—",
     },
     {
       key: "abbreviation",
@@ -38,13 +48,19 @@ export default function ProgramTable({ rows, onEdit, onDelete, loading, institut
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => onEdit(r)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => onDelete(r)}>
-            Delete
-          </Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Pencil}
+            color="blue"
+            tooltip="Edit"
+            onClick={() => onEdit(r)}
+          />
+          <ActionButton
+            icon={Trash2}
+            color="red"
+            tooltip="Delete"
+            onClick={() => onDelete(r)}
+          />
         </div>
       ),
     },

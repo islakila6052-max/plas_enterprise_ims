@@ -1,6 +1,7 @@
 // src/pages/admin/AdminDocuments.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { Eye, Download, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
@@ -11,15 +12,22 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
 
-import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES, PAGE_SIZE } from "@/lib/constants";
+import {
+  DOCUMENT_STATUS_LABELS,
+  DOCUMENT_TYPES,
+  PAGE_SIZE,
+} from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit } from "@/services/activityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ActionButton from "@/components/ui/ActionButton";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
-const TYPE_LABEL = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
+const TYPE_LABEL = Object.fromEntries(
+  DOCUMENT_TYPES.map((t) => [t.value, t.label]),
+);
 
 // Maps each document type to a shared icon name.
 function fileIcon(type) {
@@ -68,7 +76,13 @@ export default function AdminDocuments() {
     try {
       // documentService.review() already sends a notification to the intern.
       await documentService.review(row.id, status);
-      await recordAudit({ user_id: user?.id, action: "review", resource_type: "document", resource_id: row.id, changes: { status } });
+      await recordAudit({
+        user_id: user?.id,
+        action: "review",
+        resource_type: "document",
+        resource_id: row.id,
+        changes: { status },
+      });
       toast.success(`Document ${status}.`);
       load();
     } catch (err) {
@@ -83,7 +97,8 @@ export default function AdminDocuments() {
     try {
       // The bucket is public, so file_url is directly usable. Fall back to a
       // signed URL for private buckets / expired links.
-      const url = row.file_url || (await documentService.downloadUrl(row.file_path));
+      const url =
+        row.file_url || (await documentService.downloadUrl(row.file_path));
       if (!url) {
         toast.error("Download link unavailable.");
         return;
@@ -128,39 +143,69 @@ export default function AdminDocuments() {
       key: "type",
       header: "Type",
       render: (r) => (
-        <button onClick={() => setPreview(r)} className="flex items-center gap-2 text-left hover:text-brand-700">
+        <button
+          onClick={() => setPreview(r)}
+          className="flex items-center gap-2 text-left hover:text-brand-700">
           <Icon name={fileIcon(r.type)} className="h-5 w-5 text-brand-600" />
           <span>{TYPE_LABEL[r.type] ?? r.type}</span>
         </button>
       ),
     },
-    { key: "created", header: "Uploaded", render: (r) => formatDate(r.created_at) },
+    {
+      key: "created",
+      header: "Uploaded",
+      render: (r) => formatDate(r.created_at),
+    },
     {
       key: "status",
       header: "Status",
-      render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{DOCUMENT_STATUS_LABELS[r.status] ?? r.status}</Badge>,
+      render: (r) => (
+        <Badge tone={TONE[r.status] ?? "gray"}>
+          {DOCUMENT_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
+      ),
     },
     {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setPreview(r)}>Preview</Button>
-          <Button size="sm" variant="ghost" onClick={() => download(r)} loading={downloading}>Download</Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Eye}
+            color="green"
+            tooltip="Preview"
+            onClick={() => setPreview(r)}
+          />
+          <ActionButton
+            icon={Download}
+            color="indigo"
+            tooltip="Download"
+            onClick={() => download(r)}
+            loading={downloading}
+          />
           {r.status === "pending" && (
             <>
-              <Button size="sm" onClick={() => review(r, "approved")} loading={reviewing}>Approve</Button>
-              <Button size="sm" variant="danger" onClick={() => review(r, "rejected")} loading={reviewing}>Reject</Button>
+              <ActionButton
+                icon={CheckCircle}
+                color="green"
+                tooltip="Approve"
+                onClick={() => review(r, "approved")}
+                loading={reviewing}
+              />
+              <ActionButton
+                icon={XCircle}
+                color="red"
+                tooltip="Reject"
+                onClick={() => review(r, "rejected")}
+                loading={reviewing}
+              />
               {r.intern_id && (
-                <Button
-                  size="sm"
-                  variant="danger"
+                <ActionButton
+                  icon={Trash2}
+                  color="red"
+                  tooltip="Delete"
                   onClick={() => handleDelete(r.id, r.file_path)}
-                  title="Delete"
-                  className="ml-2 text-slate-600 hover:bg-slate-100"
-                >
-                  Delete
-                </Button>
+                />
               )}
             </>
           )}
@@ -171,7 +216,10 @@ export default function AdminDocuments() {
 
   return (
     <div>
-      <PageHeader title="Documents" description="Review and approve intern documents." />
+      <PageHeader
+        title="Documents"
+        description="Review and approve intern documents."
+      />
       <Card>
         {loading ? (
           <Spinner label="Loading documents…" />
@@ -180,21 +228,39 @@ export default function AdminDocuments() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No documents uploaded.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No documents uploaded.
+              </div>
+            }
           />
         )}
         {rows.length > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         )}
       </Card>
 
-      <Modal open={Boolean(preview)} onClose={() => setPreview(null)} title="Document Preview" size="md">
+      <Modal
+        open={Boolean(preview)}
+        onClose={() => setPreview(null)}
+        title="Document Preview"
+        size="md">
         {preview && (
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-3">
-              <Icon name={fileIcon(preview.type)} className="h-10 w-10 text-brand-600" />
+              <Icon
+                name={fileIcon(preview.type)}
+                className="h-10 w-10 text-brand-600"
+              />
               <div>
-                <p className="font-medium text-slate-800">{preview.file_name ?? TYPE_LABEL[preview.type]}</p>
+                <p className="font-medium text-slate-800">
+                  {preview.file_name ?? TYPE_LABEL[preview.type]}
+                </p>
                 <p className="text-slate-500">{preview.intern?.full_name}</p>
               </div>
             </div>
@@ -202,11 +268,31 @@ export default function AdminDocuments() {
               Document preview is not available in the browser.
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => download(preview)} loading={downloading}>Download</Button>
+              <Button
+                variant="secondary"
+                onClick={() => download(preview)}
+                loading={downloading}>
+                Download
+              </Button>
               {preview.status === "pending" && (
                 <>
-                  <Button onClick={() => { review(preview, "approved"); setPreview(null); }} loading={reviewing}>Approve</Button>
-                  <Button variant="danger" onClick={() => { review(preview, "rejected"); setPreview(null); }} loading={reviewing}>Reject</Button>
+                  <Button
+                    onClick={() => {
+                      review(preview, "approved");
+                      setPreview(null);
+                    }}
+                    loading={reviewing}>
+                    Approve
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      review(preview, "rejected");
+                      setPreview(null);
+                    }}
+                    loading={reviewing}>
+                    Reject
+                  </Button>
                 </>
               )}
             </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
+import { Pin, PinOff, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
@@ -15,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
 import { formatDateTime, timeAgo } from "@/utils/format";
 import { notifyAllWithType } from "@/services/activityService";
+import ActionButton from "@/components/ui/ActionButton";
 
 export default function AdminAnnouncements() {
   const { user } = useAuth();
@@ -32,7 +34,9 @@ export default function AdminAnnouncements() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({ defaultValues: { title: "", body: "", category: "company_news" } });
+  } = useForm({
+    defaultValues: { title: "", body: "", category: "company_news" },
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,7 +79,9 @@ export default function AdminAnnouncements() {
         notifyAllWithType({
           type: "announcement",
           title: `New announcement: ${values.title}`,
-          message: values.body?.substring(0, 120) + (values.body?.length > 120 ? "…" : ""),
+          message:
+            values.body?.substring(0, 120) +
+            (values.body?.length > 120 ? "…" : ""),
           link: "/intern/announcements",
           metadata: { category: values.category },
         }).catch(() => {});
@@ -118,7 +124,9 @@ export default function AdminAnnouncements() {
     }
   }
 
-  const catLabel = Object.fromEntries(ANNOUNCEMENT_CATEGORIES.map((c) => [c.value, c.label]));
+  const catLabel = Object.fromEntries(
+    ANNOUNCEMENT_CATEGORIES.map((c) => [c.value, c.label]),
+  );
 
   return (
     <div>
@@ -138,31 +146,49 @@ export default function AdminAnnouncements() {
                 <div className="min-w-0">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     {a.pinned && <Badge tone="green">Pinned</Badge>}
-                    <Badge tone="brand">{catLabel[a.category] ?? a.category}</Badge>
+                    <Badge tone="brand">
+                      {catLabel[a.category] ?? a.category}
+                    </Badge>
                     <span className="text-xs text-slate-400">
                       {timeAgo(a.created_at)} · {formatDateTime(a.created_at)}
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold text-slate-800">{a.title}</h3>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{a.body}</p>
+                  <h3 className="text-base font-semibold text-slate-800">
+                    {a.title}
+                  </h3>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                    {a.body}
+                  </p>
                 </div>
-                <div className="flex shrink-0 flex-col gap-2">
-                  <button className="text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => togglePin(a)} disabled={pinning}>
-                    {pinning ? "…" : a.pinned ? "Unpin" : "Pin"}
-                  </button>
-                  <button className="text-xs font-medium text-slate-500 hover:text-slate-700" onClick={() => openEdit(a)}>
-                    Edit
-                  </button>
-                  <button className="text-xs font-medium text-red-500 hover:text-red-600" onClick={() => setConfirm(a)}>
-                    Delete
-                  </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <ActionButton
+                    icon={a.pinned ? PinOff : Pin}
+                    color="amber"
+                    tooltip={a.pinned ? "Unpin" : "Pin"}
+                    onClick={() => togglePin(a)}
+                    loading={pinning}
+                  />
+                  <ActionButton
+                    icon={Pencil}
+                    color="blue"
+                    tooltip="Edit"
+                    onClick={() => openEdit(a)}
+                  />
+                  <ActionButton
+                    icon={Trash2}
+                    color="red"
+                    tooltip="Delete"
+                    onClick={() => setConfirm(a)}
+                  />
                 </div>
               </div>
             </Card>
           ))}
           {rows.length === 0 && (
             <Card>
-              <p className="p-5 text-center text-sm text-slate-500">No announcements yet.</p>
+              <p className="p-5 text-center text-sm text-slate-500">
+                No announcements yet.
+              </p>
             </Card>
           )}
         </div>
@@ -174,20 +200,33 @@ export default function AdminAnnouncements() {
         title={editing ? "Edit Announcement" : "New Announcement"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSubmit(onSubmit)} loading={saving}>
               {editing ? "Save" : "Publish"}
             </Button>
           </>
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          <Input label="Title" error={errors.title?.message} {...register("title", { required: "Title is required" })} />
+          <Input
+            label="Title"
+            error={errors.title?.message}
+            {...register("title", { required: "Title is required" })}
+          />
           <Select label="Category" {...register("category")}>
             {ANNOUNCEMENT_CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
             ))}
           </Select>
-          <Textarea label="Message" rows={5} error={errors.body?.message} {...register("body", { required: "Message is required" })} />
+          <Textarea
+            label="Message"
+            rows={5}
+            error={errors.body?.message}
+            {...register("body", { required: "Message is required" })}
+          />
         </form>
       </Modal>
 

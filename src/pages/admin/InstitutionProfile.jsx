@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { Pencil, Trash2 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatCard from "@/components/ui/StatCard";
@@ -10,6 +11,7 @@ import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ActionButton from "@/components/ui/ActionButton";
 import Pagination from "@/components/ui/Pagination";
 import Table from "@/components/ui/Table";
 import { Icon } from "@/components/ui/icons";
@@ -69,9 +71,17 @@ export default function InstitutionProfile() {
     const completed = interns.filter((i) => i.status === "completed").length;
     const byProgram = new Map();
     interns.forEach((i) => {
-      if (i.program_id) byProgram.set(i.program_id, (byProgram.get(i.program_id) || 0) + 1);
+      if (i.program_id)
+        byProgram.set(i.program_id, (byProgram.get(i.program_id) || 0) + 1);
     });
-    return { active, completed, ongoing: interns.filter((i) => i.status === "active" || i.status === "completed").length, byProgram };
+    return {
+      active,
+      completed,
+      ongoing: interns.filter(
+        (i) => i.status === "active" || i.status === "completed",
+      ).length,
+      byProgram,
+    };
   }, [interns]);
 
   const progRows = useMemo(
@@ -80,9 +90,21 @@ export default function InstitutionProfile() {
   );
 
   const programColumns = [
-    { key: "program_name", header: "Program Name", render: (r) => r.program_name },
-    { key: "program_code", header: "Program Code", render: (r) => r.program_code || "—" },
-    { key: "abbreviation", header: "Abbreviation", render: (r) => r.abbreviation || "—" },
+    {
+      key: "program_name",
+      header: "Program Name",
+      render: (r) => r.program_name,
+    },
+    {
+      key: "program_code",
+      header: "Program Code",
+      render: (r) => r.program_code || "—",
+    },
+    {
+      key: "abbreviation",
+      header: "Abbreviation",
+      render: (r) => r.abbreviation || "—",
+    },
     {
       key: "required_hours",
       header: "Required Hours",
@@ -107,13 +129,19 @@ export default function InstitutionProfile() {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => openEditProg(r)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => setProgToDelete(r)}>
-            Delete
-          </Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Pencil}
+            color="blue"
+            tooltip="Edit"
+            onClick={() => openEditProg(r)}
+          />
+          <ActionButton
+            icon={Trash2}
+            color="red"
+            tooltip="Delete"
+            onClick={() => setProgToDelete(r)}
+          />
         </div>
       ),
     },
@@ -154,10 +182,15 @@ export default function InstitutionProfile() {
       await institutionService.update(institutionId, institution);
       if (logoFile) {
         try {
-          logoUrl = await institutionService.uploadLogo(logoFile, institutionId);
+          logoUrl = await institutionService.uploadLogo(
+            logoFile,
+            institutionId,
+          );
           await institutionService.update(institutionId, { logo_url: logoUrl });
         } catch (e) {
-          toast.error("Institution updated, but logo upload failed: " + e.message);
+          toast.error(
+            "Institution updated, but logo upload failed: " + e.message,
+          );
         }
       }
       await programService.reconcile(institutionId, programs);
@@ -193,7 +226,9 @@ export default function InstitutionProfile() {
         title="Institution not found"
         description="This institution may have been deleted."
         action={
-          <Button onClick={() => navigate("/admin/institutions")}>Back to Institutions</Button>
+          <Button onClick={() => navigate("/admin/institutions")}>
+            Back to Institutions
+          </Button>
         }
       />
     );
@@ -204,20 +239,31 @@ export default function InstitutionProfile() {
       <Link
         to="/admin/institutions"
         className="inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-brand-700">
-        <Icon name="chevronDown" className="h-4 w-4 rotate-90" /> Back to Institutions
+        <Icon name="chevronDown" className="h-4 w-4 rotate-90" /> Back to
+        Institutions
       </Link>
 
       {/* Header card */}
       <Card>
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <Avatar src={institution.logo_url} name={institution.institution_name} size="lg" />
+          <Avatar
+            src={institution.logo_url}
+            name={institution.institution_name}
+            size="lg"
+          />
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold text-slate-800">{institution.institution_name}</h2>
+            <h2 className="text-xl font-bold text-slate-800">
+              {institution.institution_name}
+            </h2>
             <p className="text-sm text-slate-500">
-              {[institution.abbreviation, institution.campus].filter(Boolean).join(" · ") || "—"}
+              {[institution.abbreviation, institution.campus]
+                .filter(Boolean)
+                .join(" · ") || "—"}
             </p>
             {institution.address && (
-              <p className="mt-1 text-sm text-slate-500">{institution.address}</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {institution.address}
+              </p>
             )}
           </div>
           <div className="flex gap-2">
@@ -230,34 +276,69 @@ export default function InstitutionProfile() {
           <InfoCell label="Contact Person" value={institution.contact_person} />
           <InfoCell label="Contact Number" value={institution.contact_number} />
           <InfoCell label="Email" value={institution.email} />
-          <InfoCell label="Last Updated" value={formatDate(institution.updated_at)} />
+          <InfoCell
+            label="Last Updated"
+            value={formatDate(institution.updated_at)}
+          />
         </div>
       </Card>
 
       {/* Statistics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Programs" value={programs.length} icon="book" tone="brand" />
-        <StatCard label="Total Active Interns" value={stats.active} icon="users" tone="green" />
-        <StatCard label="Total Completed Interns" value={stats.completed} icon="checkCircle" tone="blue" />
-        <StatCard label="Total Ongoing Internships" value={stats.ongoing} icon="clock" tone="amber" />
+        <StatCard
+          label="Total Programs"
+          value={programs.length}
+          icon="book"
+          tone="brand"
+        />
+        <StatCard
+          label="Total Active Interns"
+          value={stats.active}
+          icon="users"
+          tone="green"
+        />
+        <StatCard
+          label="Total Completed Interns"
+          value={stats.completed}
+          icon="checkCircle"
+          tone="blue"
+        />
+        <StatCard
+          label="Total Ongoing Internships"
+          value={stats.ongoing}
+          icon="clock"
+          tone="amber"
+        />
       </div>
 
       {/* Interns by Program */}
       <Card>
         <div className="border-b border-brand-100 px-5 py-4">
-          <h3 className="text-base font-semibold text-slate-800">Interns by Program</h3>
+          <h3 className="text-base font-semibold text-slate-800">
+            Interns by Program
+          </h3>
         </div>
         {programs.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon="book" title="No programs" description="Add a program to see intern distribution." />
+            <EmptyState
+              icon="book"
+              title="No programs"
+              description="Add a program to see intern distribution."
+            />
           </div>
         ) : (
           <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
             {programs.map((p) => (
-              <div key={p.program_id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+              <div
+                key={p.program_id}
+                className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">{p.program_name}</p>
-                  <p className="text-xs text-slate-500">{p.abbreviation || p.program_code || "—"}</p>
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {p.program_name}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {p.abbreviation || p.program_code || "—"}
+                  </p>
                 </div>
                 <span className="ml-3 shrink-0 rounded-full bg-brand-100 px-3 py-1 text-sm font-semibold text-brand-700">
                   {stats.byProgram.get(p.program_id) || 0}
@@ -276,11 +357,19 @@ export default function InstitutionProfile() {
         </div>
         {programs.length === 0 ? (
           <div className="p-5">
-            <EmptyState icon="book" title="No programs yet" description="Add a program under this institution." />
+            <EmptyState
+              icon="book"
+              title="No programs yet"
+              description="Add a program under this institution."
+            />
           </div>
         ) : (
           <>
-            <Table columns={programColumns} rows={progRows} rowKey={(r) => r.program_id} />
+            <Table
+              columns={programColumns}
+              rows={progRows}
+              rowKey={(r) => r.program_id}
+            />
             {programs.length > PAGE_SIZE && (
               <Pagination
                 page={progPage}
@@ -329,7 +418,9 @@ function InfoCell({ label, value }) {
   return (
     <div className="bg-white px-5 py-3">
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="truncate text-sm font-medium text-slate-700">{value || "—"}</p>
+      <p className="truncate text-sm font-medium text-slate-700">
+        {value || "—"}
+      </p>
     </div>
   );
 }

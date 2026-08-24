@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
+import { Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ActionButton from "@/components/ui/ActionButton";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
 import { userService } from "@/services/userService";
@@ -247,13 +249,19 @@ export default function AdminSupervisors() {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => setConfirm(r)}>
-            Delete
-          </Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Pencil}
+            color="blue"
+            tooltip="Edit"
+            onClick={() => openEdit(r)}
+          />
+          <ActionButton
+            icon={Trash2}
+            color="red"
+            tooltip="Delete"
+            onClick={() => setConfirm(r)}
+          />
         </div>
       ),
     },
@@ -307,7 +315,8 @@ export default function AdminSupervisors() {
           />
           <Input
             label="Email"
-            type="email" maxLength={100}
+            type="email"
+            maxLength={100}
             error={errors.email?.message}
             {...register("email", {
               required: "Email is required",

@@ -1,6 +1,7 @@
 // src/pages/supervisor/SupervisorJournals.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { ClipboardCheck } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
@@ -14,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
+import ActionButton from "@/components/ui/ActionButton";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -31,12 +33,18 @@ export default function SupervisorJournals() {
     setLoading(true);
     try {
       const sid = supervisorId;
-      const res = await journalService.list({ supervisorId: sid, page: 1, pageSize: 100 });
+      const res = await journalService.list({
+        supervisorId: sid,
+        page: 1,
+        pageSize: 100,
+      });
       let data = res.data;
       if (status) data = data.filter((r) => r.status === status);
       if (search) {
         const q = search.toLowerCase();
-        data = data.filter((r) => (r.intern?.full_name ?? "").toLowerCase().includes(q));
+        data = data.filter((r) =>
+          (r.intern?.full_name ?? "").toLowerCase().includes(q),
+        );
       }
       setRows(data);
     } catch (err) {
@@ -61,8 +69,21 @@ export default function SupervisorJournals() {
     try {
       const sid = supervisorId;
       await journalService.review(reviewing.id, status, sid, comment);
-      await recordAudit({ user_id: user?.id, action: "review", resource_type: "daily_journal", resource_id: reviewing.id, changes: { status, supervisor_comment: comment } });
-      if (reviewing.intern?.profile_id) await notify({ user_id: reviewing.intern.profile_id, type: "journal_review", title: `Journal ${status}`, message: `Your journal for ${reviewing.date} was ${status}.`, link: "/intern/journal" });
+      await recordAudit({
+        user_id: user?.id,
+        action: "review",
+        resource_type: "daily_journal",
+        resource_id: reviewing.id,
+        changes: { status, supervisor_comment: comment },
+      });
+      if (reviewing.intern?.profile_id)
+        await notify({
+          user_id: reviewing.intern.profile_id,
+          type: "journal_review",
+          title: `Journal ${status}`,
+          message: `Your journal for ${reviewing.date} was ${status}.`,
+          link: "/intern/journal",
+        });
       toast.success(`Journal ${status}.`);
       setReviewing(null);
       load();
@@ -74,24 +95,48 @@ export default function SupervisorJournals() {
   }
 
   const columns = [
-    { key: "intern", header: "Intern", render: (r) => r.intern?.full_name ?? "—" },
+    {
+      key: "intern",
+      header: "Intern",
+      render: (r) => r.intern?.full_name ?? "—",
+    },
     { key: "date", header: "Date", render: (r) => formatDate(r.date) },
-    { key: "activities", header: "Activities", render: (r) => <p className="max-w-xs truncate text-slate-600">{r.activities}</p> },
-    { key: "status", header: "Status", render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{JOURNAL_STATUS_LABELS[r.status] ?? r.status}</Badge> },
+    {
+      key: "activities",
+      header: "Activities",
+      render: (r) => (
+        <p className="max-w-xs truncate text-slate-600">{r.activities}</p>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (r) => (
+        <Badge tone={TONE[r.status] ?? "gray"}>
+          {JOURNAL_STATUS_LABELS[r.status] ?? r.status}
+        </Badge>
+      ),
+    },
     {
       key: "actions",
       header: "",
       render: (r) => (
-        <button className="text-sm font-medium text-brand-700 hover:text-brand-800" onClick={() => openReview(r)}>
-          Review
-        </button>
+        <ActionButton
+          icon={ClipboardCheck}
+          color="blue"
+          tooltip="Review"
+          onClick={() => openReview(r)}
+        />
       ),
     },
   ];
 
   return (
     <div>
-      <PageHeader title="Daily Journals" description="Review and comment on your interns' journals." />
+      <PageHeader
+        title="Daily Journals"
+        description="Review and comment on your interns' journals."
+      />
       <Card>
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-2">
           <Input
@@ -106,7 +151,9 @@ export default function SupervisorJournals() {
             className="max-w-xs rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-slate-700">
             <option value="">All Statuses</option>
             {Object.values(JOURNAL_STATUS).map((s) => (
-              <option key={s} value={s}>{JOURNAL_STATUS_LABELS[s]}</option>
+              <option key={s} value={s}>
+                {JOURNAL_STATUS_LABELS[s]}
+              </option>
             ))}
           </select>
         </div>
@@ -117,7 +164,11 @@ export default function SupervisorJournals() {
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
-            empty={<div className="p-4 text-center text-sm text-slate-500">No journals to review.</div>}
+            empty={
+              <div className="p-4 text-center text-sm text-slate-500">
+                No journals to review.
+              </div>
+            }
           />
         )}
       </Card>
@@ -128,27 +179,50 @@ export default function SupervisorJournals() {
         title="Review Journal"
         footer={
           <>
-            <Button variant="danger" onClick={() => decide("rejected")} loading={saving}>Reject</Button>
-            <Button onClick={() => decide("approved")} loading={saving}>Approve</Button>
+            <Button
+              variant="danger"
+              onClick={() => decide("rejected")}
+              loading={saving}>
+              Reject
+            </Button>
+            <Button onClick={() => decide("approved")} loading={saving}>
+              Approve
+            </Button>
           </>
         }>
         {reviewing && (
           <div className="space-y-3 text-sm">
-            <p><span className="text-slate-500">Intern: </span>{reviewing.intern?.full_name}</p>
-            <p><span className="text-slate-500">Date: </span>{formatDate(reviewing.date)}</p>
+            <p>
+              <span className="text-slate-500">Intern: </span>
+              {reviewing.intern?.full_name}
+            </p>
+            <p>
+              <span className="text-slate-500">Date: </span>
+              {formatDate(reviewing.date)}
+            </p>
             <div>
               <p className="mb-1 font-medium text-slate-700">Activities</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.activities}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.activities}
+              </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Challenges</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.challenges || "—"}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.challenges || "—"}
+              </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Learnings</p>
-              <p className="whitespace-pre-wrap text-slate-600">{reviewing.learnings || "—"}</p>
+              <p className="whitespace-pre-wrap text-slate-600">
+                {reviewing.learnings || "—"}
+              </p>
             </div>
-            <Textarea label="Comment" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <Textarea
+              label="Comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
           </div>
         )}
       </Modal>

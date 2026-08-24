@@ -1,6 +1,7 @@
 // src/components/institutions/InstitutionTable.jsx
+import { Pencil, Eye, Trash2 } from "lucide-react";
 import Table from "@/components/ui/Table";
-import Button from "@/components/ui/Button";
+import ActionButton from "@/components/ui/ActionButton";
 import Avatar from "@/components/ui/Avatar";
 import EmptyState from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/icons";
@@ -33,7 +34,13 @@ export default function InstitutionTable({
       )}>
       {label}
       <Icon
-        name={sort?.key === k ? (sort.dir === "asc" ? "chevronUp" : "chevronDown") : "chevronDown"}
+        name={
+          sort?.key === k
+            ? sort.dir === "asc"
+              ? "chevronUp"
+              : "chevronDown"
+            : "chevronDown"
+        }
         className="h-3.5 w-3.5 opacity-50"
       />
     </button>
@@ -47,7 +54,9 @@ export default function InstitutionTable({
         <div className="flex items-center gap-3">
           <Avatar src={r.logo_url} name={r.institution_name} size="md" />
           <div className="min-w-0">
-            <p className="truncate font-medium text-slate-800">{r.institution_name}</p>
+            <p className="truncate font-medium text-slate-800">
+              {r.institution_name}
+            </p>
             <p className="truncate text-xs text-slate-500">
               {[r.abbreviation, r.campus].filter(Boolean).join(" · ") || "—"}
             </p>
@@ -63,34 +72,53 @@ export default function InstitutionTable({
     {
       key: "program_count",
       header: <Sortable label="Programs" k="program_count" />,
-      render: (r) => <span className="font-medium text-slate-700">{r.program_count ?? 0}</span>,
+      render: (r) => (
+        <span className="font-medium text-slate-700">
+          {r.program_count ?? 0}
+        </span>
+      ),
     },
     {
       key: "active_intern_count",
       header: <Sortable label="Active Interns" k="active_intern_count" />,
       render: (r) => (
-        <span className="font-medium text-slate-700">{r.active_intern_count ?? 0}</span>
+        <span className="font-medium text-slate-700">
+          {r.active_intern_count ?? 0}
+        </span>
       ),
     },
     {
       key: "updated_at",
       header: <Sortable label="Last Updated" k="updated_at" />,
-      render: (r) => <span className="text-xs text-slate-500">{formatDate(r.updated_at)}</span>,
+      render: (r) => (
+        <span className="text-xs text-slate-500">
+          {formatDate(r.updated_at)}
+        </span>
+      ),
     },
     {
       key: "actions",
       header: "Actions",
       render: (r) => (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => onView(r)}>
-            <Icon name="eye" className="h-4 w-4" /> View
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => onEdit(r)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => onDelete(r)}>
-            Delete
-          </Button>
+        <div className="flex items-center justify-end gap-1">
+          <ActionButton
+            icon={Eye}
+            color="green"
+            tooltip="View"
+            onClick={() => onView(r)}
+          />
+          <ActionButton
+            icon={Pencil}
+            color="blue"
+            tooltip="Edit"
+            onClick={() => onEdit(r)}
+          />
+          <ActionButton
+            icon={Trash2}
+            color="red"
+            tooltip="Delete"
+            onClick={() => onDelete(r)}
+          />
         </div>
       ),
     },
