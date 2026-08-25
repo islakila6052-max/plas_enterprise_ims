@@ -1,7 +1,6 @@
 // src/components/layout/Navbar.jsx
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import Avatar from '@/components/ui/Avatar';
 import NotificationBell from "@/components/layout/NotificationBell";
 import { Icon } from "@/components/ui/icons";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -37,7 +36,6 @@ export default function Navbar({ title, onMenuClick }) {
           </p>
           <p className="text-xs text-slate-400">{ROLE_LABELS[role] ?? ""}</p>
         </div>
-        <Avatar src={profile?.avatar_url} name={profile?.full_name} size="md" />
       </div>
     </header>
   );

@@ -214,14 +214,6 @@ function buildEvaluationsFilters(f) {
   return obj;
 }
 
-// --- Filter Indicator Badge (no number, just dot) ---
-function FilterBadge({ activeCount }) {
-  if (activeCount === 0) return null;
-  return (
-    <span className="ml-1 inline-block h-2 w-2 rounded-full bg-blue-600"></span>
-  );
-}
-
 // --- Helper functions to get values from objects with different property names ---
 const getInstitutionId = (item) => item?.id || item?.institution_id || item?.Id;
 const getInstitutionName = (item) =>
@@ -678,7 +670,8 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.createdFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({
@@ -696,7 +689,8 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.createdTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({
@@ -719,7 +713,8 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -734,7 +729,8 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
@@ -794,7 +790,8 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -809,7 +806,8 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
@@ -943,7 +941,8 @@ export default function AdminReports() {
                 From
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateFrom || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateFrom: e.target.value }))
@@ -958,7 +957,8 @@ export default function AdminReports() {
                 To
               </label>
               <Input
-                type="date" maxLength={10}
+                type="date"
+                maxLength={10}
                 value={currentFilters.dateTo || ""}
                 onChange={(e) =>
                   updateTypeFilters((f) => ({ ...f, dateTo: e.target.value }))
@@ -1041,9 +1041,6 @@ export default function AdminReports() {
                       : "border-brand-100 text-slate-600 hover:bg-brand-50"
                   }`}>
                   {r.label}
-                  <FilterBadge
-                    activeCount={countActiveFilters(filters[r.key])}
-                  />
                 </button>
               ))}
             </div>

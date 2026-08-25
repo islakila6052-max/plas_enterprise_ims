@@ -147,7 +147,7 @@ export default function InternDocuments() {
       key: "actions",
       header: "",
       render: (r) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-center gap-1">
           <ActionButton
             icon={Eye}
             color="green"

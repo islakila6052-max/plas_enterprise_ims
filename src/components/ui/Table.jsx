@@ -30,7 +30,12 @@ export default function Table({ columns, rows, rowKey, empty, loading }) {
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={cn("whitespace-nowrap px-4 py-3 font-semibold", col.className)}>
+                className={cn(
+                  "whitespace-nowrap px-4 py-3 font-semibold",
+                  (col.key === "actions" || col.header === "Actions") &&
+                    "text-center",
+                  col.className,
+                )}>
                 {col.header}
               </th>
             ))}
@@ -42,7 +47,12 @@ export default function Table({ columns, rows, rowKey, empty, loading }) {
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={cn("px-4 py-3 text-slate-700", col.className)}>
+                  className={cn(
+                    "px-4 py-3 text-slate-700",
+                    (col.key === "actions" || col.header === "Actions") &&
+                      "text-center",
+                    col.className,
+                  )}>
                   {col.render ? col.render(row, i) : row[col.key]}
                 </td>
               ))}

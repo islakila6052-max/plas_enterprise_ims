@@ -14,7 +14,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { announcementService } from "@/services/announcementService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
-import { formatDateTime, timeAgo } from "@/utils/format";
+import { formatDate, formatTime } from "@/utils/format";
 import { notifyAllWithType } from "@/services/activityService";
 import ActionButton from "@/components/ui/ActionButton";
 
@@ -142,44 +142,54 @@ export default function AdminAnnouncements() {
         <div className="space-y-4">
           {rows.map((a) => (
             <Card key={a.id}>
-              <div className="flex items-start justify-between gap-4 p-5">
+              <div className="p-5">
                 <div className="min-w-0">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    {a.pinned && <Badge tone="green">Pinned</Badge>}
-                    <Badge tone="brand">
+                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-medium">
+                    <span className="text-brand-600">
                       {catLabel[a.category] ?? a.category}
-                    </Badge>
-                    <span className="text-xs text-slate-400">
-                      {timeAgo(a.created_at)} · {formatDateTime(a.created_at)}
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-slate-400">
+                      {formatTime(a.created_at)}
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold text-slate-800">
+                  <h3 className="text-lg font-semibold text-slate-800">
                     {a.title}
                   </h3>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
                     {a.body}
                   </p>
+                  {a.pinned && (
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <Pin className="h-3 w-3" /> Pinned
+                    </span>
+                  )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <ActionButton
-                    icon={a.pinned ? PinOff : Pin}
-                    color="amber"
-                    tooltip={a.pinned ? "Unpin" : "Pin"}
-                    onClick={() => togglePin(a)}
-                    loading={pinning}
-                  />
-                  <ActionButton
-                    icon={Pencil}
-                    color="blue"
-                    tooltip="Edit"
-                    onClick={() => openEdit(a)}
-                  />
-                  <ActionButton
-                    icon={Trash2}
-                    color="red"
-                    tooltip="Delete"
-                    onClick={() => setConfirm(a)}
-                  />
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                  <p className="text-xs text-slate-400">
+                    {formatDate(a.created_at)}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <ActionButton
+                      icon={a.pinned ? PinOff : Pin}
+                      color="amber"
+                      tooltip={a.pinned ? "Unpin" : "Pin"}
+                      onClick={() => togglePin(a)}
+                      loading={pinning}
+                    />
+                    <ActionButton
+                      icon={Pencil}
+                      color="blue"
+                      tooltip="Edit"
+                      onClick={() => openEdit(a)}
+                    />
+                    <ActionButton
+                      icon={Trash2}
+                      color="red"
+                      tooltip="Delete"
+                      onClick={() => setConfirm(a)}
+                    />
+                  </div>
                 </div>
               </div>
             </Card>
