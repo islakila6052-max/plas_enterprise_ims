@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/constants";
 import Avatar from "@/components/ui/Avatar";
+import { resetTour } from "@/components/layout/OnboardingTour";
 
 /** Role-aware collapsible sidebar with a dark-green theme. */
 export default function Sidebar({ open, onClose }) {
@@ -18,6 +19,15 @@ export default function Sidebar({ open, onClose }) {
   async function handleLogout() {
     await signOut();
     navigate("/login", { replace: true });
+  }
+
+  /** Restart the onboarding tour on the admin dashboard. */
+  function handleRestartTour() {
+    setProfileOpen(false);
+    resetTour();
+    navigate("/admin", { replace: true });
+    // Let the layout remount/re-render before re-triggering the tour.
+    setTimeout(() => window.dispatchEvent(new Event("ims:restart-tour")), 100);
   }
 
   return (
@@ -54,7 +64,11 @@ export default function Sidebar({ open, onClose }) {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/admin" || item.to === "/supervisor" || item.to === "/intern"}
+              end={
+                item.to === "/admin" ||
+                item.to === "/supervisor" ||
+                item.to === "/intern"
+              }
               onClick={onClose}
               className={({ isActive }) =>
                 cn(
@@ -75,7 +89,11 @@ export default function Sidebar({ open, onClose }) {
             type="button"
             onClick={() => setProfileOpen((v) => !v)}
             className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/10">
-            <Avatar src={profile?.avatar_url} name={profile?.full_name} size="sm" />
+            <Avatar
+              src={profile?.avatar_url}
+              name={profile?.full_name}
+              size="sm"
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">
                 {profile?.full_name ?? "User"}
@@ -86,7 +104,10 @@ export default function Sidebar({ open, onClose }) {
             </div>
             <Icon
               name="chevronDown"
-              className={cn("h-4 w-4 text-brand-200 transition", profileOpen && "rotate-180")}
+              className={cn(
+                "h-4 w-4 text-brand-200 transition",
+                profileOpen && "rotate-180",
+              )}
             />
           </button>
 
@@ -101,6 +122,14 @@ export default function Sidebar({ open, onClose }) {
                 className="block px-4 py-2 text-sm text-brand-100 transition hover:bg-white/10 hover:text-white">
                 Profile
               </NavLink>
+              {(role === "admin" || role === "hr_staff") && (
+                <button
+                  type="button"
+                  onClick={handleRestartTour}
+                  className="block w-full px-4 py-2 text-left text-sm text-brand-100 transition hover:bg-white/10 hover:text-white">
+                  Restart Tour
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleLogout}
