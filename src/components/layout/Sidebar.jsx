@@ -11,7 +11,7 @@ import { resetTour } from "@/components/layout/OnboardingTour";
 
 /** Role-aware collapsible sidebar with a dark-green theme. */
 export default function Sidebar({ open, onClose }) {
-  const { role, profile, signOut } = useAuth();
+  const { role, profile, signOut, isAdmin, isSupervisor, isIntern } = useAuth();
   const navigate = useNavigate();
   const items = getNavItems(role);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -21,11 +21,12 @@ export default function Sidebar({ open, onClose }) {
     navigate("/login", { replace: true });
   }
 
-  /** Restart the onboarding tour on the admin dashboard. */
+  /** Restart the onboarding tour on the user's dashboard. */
   function handleRestartTour() {
     setProfileOpen(false);
     resetTour();
-    navigate("/admin", { replace: true });
+    const home = isAdmin ? "/admin" : isSupervisor ? "/supervisor" : "/intern";
+    navigate(home, { replace: true });
     // Let the layout remount/re-render before re-triggering the tour.
     setTimeout(() => window.dispatchEvent(new Event("ims:restart-tour")), 100);
   }
@@ -122,7 +123,7 @@ export default function Sidebar({ open, onClose }) {
                 className="block px-4 py-2 text-sm text-brand-100 transition hover:bg-white/10 hover:text-white">
                 Profile
               </NavLink>
-              {(role === "admin" || role === "hr_staff") && (
+              {(isAdmin || isSupervisor || isIntern) && (
                 <button
                   type="button"
                   onClick={handleRestartTour}

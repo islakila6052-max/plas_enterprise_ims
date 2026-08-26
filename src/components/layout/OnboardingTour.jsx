@@ -109,6 +109,23 @@ function buildSteps(items) {
         "Your personal account. Update your name, photo, contact details, and password anytime.",
       tip: "Use a strong, unique password to keep your admin account secure.",
     },
+    // ---- Supervisor ----
+    "Assigned Interns": {
+      description:
+        "The interns currently under your supervision. Open any intern to review their journals, attendance, and documents in one place.",
+      tip: "You only see interns assigned to you — your view stays focused.",
+    },
+    // ---- Intern ----
+    "Daily Journal": {
+      description:
+        "Record what you accomplished each day. Your supervisor reviews every entry, so write clearly and honestly.",
+      tip: "Submit your journal daily — it counts toward your evaluation.",
+    },
+    Evaluation: {
+      description:
+        "See how you're doing. Your supervisor's ratings and feedback appear here once evaluations are submitted.",
+      tip: "",
+    },
   };
 
   return items.map((item) => ({
@@ -254,10 +271,12 @@ export default function OnboardingTour({ active, onFinish }) {
 
   return (
     <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true">
-      {/* Dimmed backdrop with a cut-out around the highlighted item. */}
-      <div className="absolute inset-0 bg-slate-900/60 transition-all" />
+      {/* Spotlight cut-out around the highlighted item. The huge box-shadow
+          dims everything else in ONE layer — no separate backdrop, so there
+          is no flicker or double-dimming while stepping. Static ring: no
+          pulsing/glow animation. */}
       <div
-        className="absolute animate-pulse rounded-xl ring-4 ring-brand-400 shadow-[0_0_0_9999px_rgba(15,23,42,0.6)]"
+        className="absolute rounded-xl ring-4 ring-brand-400 shadow-[0_0_0_9999px_rgba(15,23,42,0.6)] transition-none"
         style={{
           top: targetRect.top - 4,
           left: targetRect.left - 4,
@@ -277,7 +296,10 @@ export default function OnboardingTour({ active, onFinish }) {
         {/* Branded header strip */}
         <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600">
-            <Icon name={step.icon ?? "dashboard"} className="h-5 w-5 text-white" />
+            <Icon
+              name={step.icon ?? "dashboard"}
+              className="h-5 w-5 text-white"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
@@ -299,7 +321,9 @@ export default function OnboardingTour({ active, onFinish }) {
 
           {step.tip && (
             <div className="mt-3 flex gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-              <span aria-hidden className="text-sm">💡</span>
+              <span aria-hidden className="text-sm">
+                💡
+              </span>
               <p className="text-xs leading-relaxed text-amber-800">
                 <span className="font-semibold">Pro tip:</span> {step.tip}
               </p>

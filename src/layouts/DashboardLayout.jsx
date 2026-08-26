@@ -34,28 +34,34 @@ function usePageTitle() {
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const title = usePageTitle();
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSupervisor, isIntern, loading: authLoading } = useAuth();
   const location = useLocation();
 
-  // Interactive onboarding tour: auto-starts on an admin's FIRST dashboard
-  // visit only. Restartable later via the profile menu (Sidebar).
+  // Interactive onboarding tour: auto-starts on a user's FIRST dashboard
+  // visit (any role). Restartable later via the profile menu (Sidebar).
+  const tourEnabled = isAdmin || isSupervisor || isIntern;
+  const homePath = isAdmin
+    ? "/admin"
+    : isSupervisor
+      ? "/supervisor"
+      : "/intern";
   const [tourActive, setTourActive] = useState(false);
 
   useEffect(() => {
-    if (authLoading || !isAdmin) return;
-    if (!hasCompletedTour() && location.pathname === "/admin") {
+    if (authLoading || !tourEnabled) return;
+    if (!hasCompletedTour() && location.pathname === homePath) {
       setTourActive(true);
     }
-  }, [authLoading, isAdmin, location.pathname]);
+  }, [authLoading, tourEnabled, location.pathname, homePath]);
 
   // Manual restart from the Sidebar profile menu ("Restart Tour").
   useEffect(() => {
     function onRestart() {
-      if (isAdmin) setTourActive(true);
+      if (tourEnabled) setTourActive(true);
     }
     window.addEventListener("ims:restart-tour", onRestart);
     return () => window.removeEventListener("ims:restart-tour", onRestart);
-  }, [isAdmin]);
+  }, [tourEnabled]);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
