@@ -628,7 +628,13 @@ export default function InternManagement() {
             <Input
               label="Contact number"
               maxLength={15}
-              {...register("contact_number")}
+              error={errors.contact_number?.message}
+              {...register("contact_number", {
+                pattern: {
+                  value: /^[0-9+\-\s]*$/,
+                  message: "Numbers only",
+                },
+              })}
             />
             <Input
               label="Email"
@@ -644,19 +650,48 @@ export default function InternManagement() {
               })}
             />
             {!editing && (
-              <Input
-                label="Temporary password"
-                type="password"
-                error={errors.password?.message}
-                {...register("password", {
-                  required: !editing && "Password is required",
-                  minLength: { value: 8, message: "At least 8 characters" },
-                })}
-              />
+              <div>
+                <Input
+                  label="Temporary password"
+                  type="password"
+                  maxLength={72}
+                  error={errors.password?.message}
+                  {...register("password", {
+                    required: !editing && "Password is required",
+                    minLength: { value: 8, message: "At least 8 characters" },
+                    pattern: {
+                      value:
+                        /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
+                      message: "Needs uppercase, lowercase, number & symbol",
+                    },
+                  })}
+                />
+                {/* Inline password requirements, styled to match the form. */}
+                <ul className="mt-1.5 space-y-0.5 text-xs text-slate-500">
+                  {[
+                    "At least 8 characters",
+                    "One uppercase letter (A–Z)",
+                    "One lowercase letter (a–z)",
+                    "One number (0–9)",
+                    "One symbol (!@#$…)",
+                  ].map((req) => (
+                    <li key={req} className="flex items-center gap-1">
+                      <span aria-hidden>•</span> {req}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             <Input
               label="Emergency contact"
-              {...register("emergency_contact")}
+              maxLength={15}
+              error={errors.emergency_contact?.message}
+              {...register("emergency_contact", {
+                pattern: {
+                  value: /^[0-9+\-\s]*$/,
+                  message: "Numbers only",
+                },
+              })}
             />
             <SearchableSelect
               label="Institution"
