@@ -7,6 +7,7 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import Login from "@/pages/auth/Login";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
+import FirstTimeSetup from "@/pages/auth/FirstTimeSetup";
 import ProfileSettings from "@/pages/ProfileSettings";
 
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -43,6 +44,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* One-time first-admin setup; disables itself once an admin exists. */}
+      <Route path="/setup" element={<FirstTimeSetup />} />
 
       {/* Protected app shell */}
       <Route

@@ -1,5 +1,5 @@
 // src/pages/auth/Login.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,6 +134,19 @@ export default function Login() {
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Show the "First-time setup?" link only while no admin account exists.
+  const [setupRequired, setSetupRequired] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/admin/setup-admin")
+      .then((r) => r.json())
+      .then((d) => active && setSetupRequired(Boolean(d.setupRequired)))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const {
     register,
@@ -185,7 +198,8 @@ export default function Login() {
             )}
             <Input
               label="Email"
-              type="email" maxLength={100}
+              type="email"
+              maxLength={100}
               autoComplete="email"
               placeholder="you@company.com"
               error={errors.email?.message}
@@ -230,12 +244,19 @@ export default function Login() {
               )}
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-between">
               <Link
                 to="/forgot-password"
                 className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors">
                 Forgot password?
               </Link>
+              {setupRequired && (
+                <Link
+                  to="/setup"
+                  className="text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors">
+                  First-time setup?
+                </Link>
+              )}
             </div>
             <Button
               type="submit"
