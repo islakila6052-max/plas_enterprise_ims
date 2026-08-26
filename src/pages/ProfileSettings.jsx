@@ -4,7 +4,12 @@ import { useForm } from "react-hook-form";
 import { profileService } from "@/services/profileService";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
-import { Input, PhoneInput, Textarea, CharCounter } from "@/components/ui/Input";
+import {
+  Input,
+  PhoneInput,
+  Textarea,
+  CharCounter,
+} from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
 import Avatar from "@/components/ui/Avatar";
 import Spinner from "@/components/ui/Spinner";
@@ -23,101 +28,197 @@ export default function ProfileSettings() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      full_name: "",
+      contact_number: "",
+      bio: "",
+    },
+  });
+
+  // Watch the contact_number field for real-time validation
+  const contactNumber = watch("contact_number");
 
   useEffect(() => {
     if (profile) {
       reset({
-        full_name: profile.full_name ?? "",
-        contact_number: profile.contact_number ?? "",
-        bio: profile.bio ?? "",
+        full_name: profile.full_name || "",
+        contact_number: profile.contact_number || "", // This will be just digits (e.g., "9123456789")
+        bio: profile.bio || "",
+      });
+    } else {
+      reset({
+        full_name: user?.full_name || "",
+        contact_number: "",
+        bio: "",
       });
     }
     setLoading(false);
-  }, [profile, reset]);
+  }, [profile, reset, user]);
+
+  // Handle phone number change - works with PhoneInput component
+  const handlePhoneChange = (value) => {
+    // PhoneInput returns just the local digits (e.g., "9123456789")
+    setValue("contact_number", value, { shouldValidate: true });
+  };
+
+  // Validate phone number
+  const validatePhoneNumber = (value) => {
+    if (!value) return true; // Phone is optional
+
+    // Remove all non-digits just in case
+    const digits = String(value).replace(/\D/g, "");
+
+    // Check if empty after cleaning
+    if (!digits) return true;
+
+    // Must be exactly 10 digits (local number)
+    if (digits.length !== 10) {
+      return "Must be exactly 10 digits";
+    }
+
+    // Check if it starts with valid Philippine mobile prefixes
+    const validPrefixes = ["9"];
+    const firstDigit = digits[0];
+    if (!validPrefixes.includes(firstDigit)) {
+      return "Must start with 9 (Philippine mobile)";
+    }
+
+    return true;
+  };
 
   async function onSubmit(values) {
     setServerError("");
     setSaved(false);
     setSaving(true);
+
     try {
+      // Clean the contact number (remove all non-digits)
+      const cleanContactNumber = values.contact_number
+        ? values.contact_number.replace(/\D/g, "")
+        : null;
+
       await profileService.update(user.id, {
-        full_name: values.full_name,
-        contact_number: values.contact_number,
-        bio: values.bio,
+        full_name: values.full_name.trim(),
+        contact_number: cleanContactNumber, // Send as null if empty, else 10 digits
+        bio: values.bio.trim(),
       });
+
       await refreshProfile();
       setSaved(true);
+
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setSaved(false), 5000);
     } catch (err) {
-      setServerError(err.message);
+      setServerError(
+        err.message || "Failed to update profile. Please try again.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <Spinner label="Loading profile…" />;
+  if (loading) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center">
+        <Spinner label="Loading profile…" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <Card>
         <div className="flex items-center gap-4 border-b border-slate-100 px-5 py-4">
-          <Avatar src={profile?.avatar_url} name={profile?.full_name} size="lg" />
+          <Avatar
+            src={profile?.avatar_url}
+            name={profile?.full_name || user?.full_name || "User"}
+            size="lg"
+          />
           <div>
             <h3 className="text-base font-semibold text-slate-800">
-              {profile?.full_name ?? "Your Profile"}
+              {profile?.full_name || user?.full_name || "Your Profile"}
             </h3>
             <p className="text-sm text-slate-500">
-              {ROLE_LABELS[profile?.role] ?? "User"} · {user?.email}
+              {ROLE_LABELS[profile?.role] || "User"} · {user?.email}
             </p>
           </div>
         </div>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-5">
+          {/* Success Message */}
           {saved && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Profile updated.
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              ✓ Profile updated successfully!
             </div>
           )}
+
+          {/* Error Message */}
           {serverError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {serverError}
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              ⚠️ {serverError}
             </div>
           )}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="Full name" maxLength={50}
+              label="Full Name"
+              maxLength={50}
+              placeholder="Enter your full name"
               error={errors.full_name?.message}
               {...register("full_name", {
-                required: "Name is required",
+                required: "Full name is required",
                 maxLength: { value: 50, message: "Maximum 50 characters" },
+                minLength: { value: 2, message: "Minimum 2 characters" },
               })}
             />
+
             <div>
               <PhoneInput
-                label="Contact number"
-                value={watch("contact_number")}
+                label="Contact Number"
+                value={contactNumber || ""}
+                onChange={handlePhoneChange}
+                placeholder="9xx xxx xxxx"
                 error={errors.contact_number?.message}
-                {...register("contact_number", {
-                  validate: (v) =>
-                    !v || /^[0-9]{10}$/.test(v) || "Enter a valid 10-digit number",
-                })}
               />
-              <p className="mt-1 text-xs text-slate-400">10-digit number after +63</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Enter 10-digit mobile number (e.g., 9123456789)
+              </p>
+              {contactNumber && !errors.contact_number && (
+                <p className="mt-1 text-xs text-emerald-600">
+                  ✓ Valid Philippine mobile number
+                </p>
+              )}
             </div>
           </div>
+
           <div>
             <Textarea
               label="Bio"
               rows={3}
               maxLength={250}
-              placeholder="Short introduction…"
-              {...register("bio", { maxLength: 250 })}
+              placeholder="Tell us about yourself..."
+              error={errors.bio?.message}
+              {...register("bio", {
+                maxLength: {
+                  value: 250,
+                  message: "Maximum 250 characters",
+                },
+              })}
             />
-            <CharCounter value={watch("bio")} limit={250} />
+            <CharCounter value={watch("bio") || ""} limit={250} />
           </div>
-          <Button type="submit" loading={saving}>
-            Save changes
-          </Button>
+
+          <div className="flex items-center gap-3 pt-2">
+            <Button type="submit" loading={saving} disabled={saving}>
+              Save Changes
+            </Button>
+            {saving && (
+              <span className="text-sm text-slate-500">Saving...</span>
+            )}
+          </div>
         </form>
       </Card>
 
