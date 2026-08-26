@@ -246,6 +246,8 @@ export default function InternManagement() {
 
       if (editing) {
         await internService.update(editing.id, payload);
+        // Full before/after diff across every editable intern field so the
+        // audit log shows Previous Value / Updated Value for any change.
         await recordAudit({
           user_id: user?.id,
           action: "update",
@@ -254,11 +256,33 @@ export default function InternManagement() {
           changes: auditDiff(
             {
               full_name: editing.full_name ?? null,
+              student_number: editing.student_number ?? null,
+              contact_number: editing.contact_number ?? null,
+              email: editing.email ?? null,
+              emergency_contact: editing.emergency_contact ?? null,
+              department_id: editing.department_id ?? null,
               supervisor_id: editing.supervisor_id ?? null,
+              institution_id: editing.institution_id ?? null,
+              program_id: editing.program_id ?? null,
+              start_date: editing.start_date ?? null,
+              end_date: editing.end_date ?? null,
+              required_hours: editing.required_hours ?? null,
+              status: editing.status ?? null,
             },
             {
               full_name: payload.full_name ?? null,
-              supervisor_id: payload.supervisor_id ?? null,
+              student_number: payload.student_number || null,
+              contact_number: payload.contact_number || null,
+              email: payload.email || null,
+              emergency_contact: payload.emergency_contact || null,
+              department_id: payload.department_id,
+              supervisor_id: payload.supervisor_id,
+              institution_id: payload.institution_id,
+              program_id: payload.program_id,
+              start_date: payload.start_date || null,
+              end_date: payload.end_date || null,
+              required_hours: payload.required_hours,
+              status: payload.status || null,
             },
           ),
         });
