@@ -652,10 +652,6 @@ export default function InternManagement() {
                   {errors.contact_number.message}
                 </p>
               )}
-              <p className="mt-1 text-xs text-slate-400">
-                +63 is fixed — enter the 10-digit mobile number without the
-                leading 0.
-              </p>
             </div>
             <Input
               label="Email"
