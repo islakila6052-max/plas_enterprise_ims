@@ -129,11 +129,30 @@ export default function OnboardingTour({ active, onFinish }) {
     stepIndex === steps.length - 1 ? finish() : setStepIndex((i) => i + 1);
   const back = () => setStepIndex((i) => Math.max(0, i - 1));
 
-  // Tooltip placement: prefer right of the sidebar item; flip if near bottom.
-  const tooltipTop = Math.min(
-    Math.max(targetRect.top, 16),
-    window.innerHeight - 220,
-  );
+  // Tooltip placement: prefer to the RIGHT of the sidebar item. Only fall
+  // back to below/above when the viewport is too narrow — never overlap the
+  // highlighted item itself.
+  const TOOLTIP_W = 320;
+  const spaceRight = window.innerWidth - targetRect.right;
+  let tooltipStyle;
+  if (spaceRight >= TOOLTIP_W + 24) {
+    tooltipStyle = {
+      top: Math.min(Math.max(targetRect.top - 8, 16), window.innerHeight - 240),
+      left: targetRect.right + 16,
+    };
+  } else {
+    // Not enough room on the right: place under (or above) the item.
+    const below = targetRect.bottom + 12;
+    const fitsBelow = below + 220 < window.innerHeight;
+    tooltipStyle = {
+      top: fitsBelow ? below : Math.max(targetRect.top - 232, 16),
+      left: Math.min(
+        Math.max(targetRect.left, 16),
+        window.innerWidth - TOOLTIP_W - 16,
+      ),
+    };
+  }
+
   const isLast = stepIndex === steps.length - 1;
 
   return (
@@ -152,11 +171,8 @@ export default function OnboardingTour({ active, onFinish }) {
 
       {/* Step tooltip */}
       <div
-        className="absolute w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl"
-        style={{
-          top: tooltipTop,
-          left: Math.min(targetRect.right + 16, window.innerWidth - 340),
-        }}>
+        className="absolute rounded-xl border border-slate-200 bg-white p-4 shadow-2xl"
+        style={{ ...tooltipStyle, width: TOOLTIP_W }}>
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
           Step {stepIndex + 1} of {steps.length}
         </p>
