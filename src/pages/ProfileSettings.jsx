@@ -43,9 +43,22 @@ export default function ProfileSettings() {
 
   useEffect(() => {
     if (profile) {
+      // Extract only the local number (last 10 digits)
+      let localNumber = profile.contact_number || "";
+
+      // Remove any non-digit characters
+      const digits = localNumber.replace(/\D/g, "");
+
+      // If it starts with 63, remove the country code
+      if (digits.startsWith("63")) {
+        localNumber = digits.slice(2); // Remove "63"
+      } else {
+        localNumber = digits;
+      }
+
       reset({
         full_name: profile.full_name || "",
-        contact_number: profile.contact_number || "", // This will be just digits (e.g., "9123456789")
+        contact_number: localNumber, // Store only the local digits
         bio: profile.bio || "",
       });
     } else {
@@ -58,9 +71,8 @@ export default function ProfileSettings() {
     setLoading(false);
   }, [profile, reset, user]);
 
-  // Handle phone number change - works with PhoneInput component
+  // Handle phone number change - PhoneInput returns just the local digits
   const handlePhoneChange = (value) => {
-    // PhoneInput returns just the local digits (e.g., "9123456789")
     setValue("contact_number", value, { shouldValidate: true });
   };
 
@@ -68,18 +80,14 @@ export default function ProfileSettings() {
   const validatePhoneNumber = (value) => {
     if (!value) return true; // Phone is optional
 
-    // Remove all non-digits just in case
     const digits = String(value).replace(/\D/g, "");
 
-    // Check if empty after cleaning
     if (!digits) return true;
 
-    // Must be exactly 10 digits (local number)
     if (digits.length !== 10) {
       return "Must be exactly 10 digits";
     }
 
-    // Check if it starts with valid Philippine mobile prefixes
     const validPrefixes = ["9"];
     const firstDigit = digits[0];
     if (!validPrefixes.includes(firstDigit)) {
@@ -95,21 +103,26 @@ export default function ProfileSettings() {
     setSaving(true);
 
     try {
-      // Clean the contact number (remove all non-digits)
-      const cleanContactNumber = values.contact_number
-        ? values.contact_number.replace(/\D/g, "")
-        : null;
+      let cleanContactNumber = null;
+
+      if (values.contact_number) {
+        const digits = values.contact_number.replace(/\D/g, "");
+        if (digits.length === 10) {
+          cleanContactNumber = `63${digits}`; // Store with country code
+        } else if (digits.length > 0) {
+          cleanContactNumber = digits;
+        }
+      }
 
       await profileService.update(user.id, {
         full_name: values.full_name.trim(),
-        contact_number: cleanContactNumber, // Send as null if empty, else 10 digits
+        contact_number: cleanContactNumber,
         bio: values.bio.trim(),
       });
 
       await refreshProfile();
       setSaved(true);
 
-      // Auto-hide success message after 5 seconds
       setTimeout(() => setSaved(false), 5000);
     } catch (err) {
       setServerError(
@@ -177,7 +190,21 @@ export default function ProfileSettings() {
 
             <div>
               <PhoneInput
-                label="Contact Number"
+                label={
+                  <div className="flex items-center gap-2">
+                    <span>Contact Number</span>
+                    {contactNumber && !errors.contact_number && (
+                      <span className="text-xs font-normal text-emerald-600">
+                        ✓ Valid
+                      </span>
+                    )}
+                    {contactNumber && errors.contact_number && (
+                      <span className="text-xs font-normal text-red-600">
+                        ✗ Invalid
+                      </span>
+                    )}
+                  </div>
+                }
                 value={contactNumber || ""}
                 onChange={handlePhoneChange}
                 placeholder="9xx xxx xxxx"
@@ -186,11 +213,14 @@ export default function ProfileSettings() {
               <p className="mt-1 text-xs text-slate-400">
                 Enter 10-digit mobile number (e.g., 9123456789)
               </p>
-              {contactNumber && !errors.contact_number && (
-                <p className="mt-1 text-xs text-emerald-600">
-                  ✓ Valid Philippine mobile number
-                </p>
-              )}
+              {contactNumber &&
+                contactNumber.length > 0 &&
+                contactNumber.length < 10 &&
+                !errors.contact_number && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    {10 - contactNumber.length} more digit(s) needed
+                  </p>
+                )}
             </div>
           </div>
 
