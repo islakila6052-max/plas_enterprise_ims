@@ -30,7 +30,12 @@ import {
   PAGE_SIZE,
 } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
-import { recordAudit, notify } from "@/services/activityService";
+import {
+  recordAudit,
+  notify,
+  auditDiff,
+  auditDeleted,
+} from "@/services/activityService";
 
 const STATUS_TONE = { active: "green", completed: "blue", archived: "gray" };
 
@@ -246,10 +251,16 @@ export default function InternManagement() {
           action: "update",
           resource_type: "intern",
           resource_id: editing.id,
-          changes: {
-            full_name: payload.full_name,
-            supervisor_id: payload.supervisor_id,
-          },
+          changes: auditDiff(
+            {
+              full_name: editing.full_name ?? null,
+              supervisor_id: editing.supervisor_id ?? null,
+            },
+            {
+              full_name: payload.full_name ?? null,
+              supervisor_id: payload.supervisor_id ?? null,
+            },
+          ),
         });
 
         // Notify if supervisor changed.
@@ -365,7 +376,13 @@ export default function InternManagement() {
           action: "delete",
           resource_type: "intern",
           resource_id: confirm.row.id,
-          changes: { full_name: confirm.row.full_name },
+          // Snapshot of the values that existed before deletion.
+          changes: auditDeleted({
+            full_name: confirm.row.full_name,
+            email: confirm.row.email,
+            department_id: confirm.row.department_id,
+            supervisor_id: confirm.row.supervisor_id,
+          }),
         });
         toast.success("Intern deleted.");
       }

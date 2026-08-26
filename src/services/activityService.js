@@ -6,6 +6,73 @@ import { supabase } from "@/lib/supabase";
  * never break the primary CRUD operation.
  */
 
+/**
+ * Build a field-level diff between the previous and next state of a record.
+ * Only fields that actually changed are included. Every entry is stored as
+ * an explicit { from, to } pair so both the previous value and the updated
+ * value remain available in the audit log even after the original record is
+ * modified or deleted.
+ *
+ *   auditDiff({ name: "A" }, { name: "B", role: "x" })
+ *   // => { name: { from: "A", to: "B" }, role: { from: null, to: "x" } }
+ */
+export function auditDiff(previous = {}, next = {}) {
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  const changes = {};
+  for (const key of keys) {
+    const from = previous[key] ?? null;
+    const to = next[key] ?? null;
+    if (String(from) !== String(to)) changes[key] = { from, to };
+  }
+  return changes;
+}
+
+/**
+ * Snapshot of values for CREATE actions — no previous value exists, so every
+ * entry records `from: null` plus the created value.
+ */
+export function auditCreated(values = {}) {
+  const changes = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined) changes[key] = { from: null, to: value ?? null };
+  }
+  return changes;
+}
+
+/**
+ * Snapshot of values for DELETE actions — captures what existed immediately
+ * before deletion as `from`, with no updated value (`to: null`).
+ */
+export function auditDeleted(values = {}) {
+  const changes = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined) changes[key] = { from: value ?? null, to: null };
+  }
+  return changes;
+}
+
+/**
+ * Normalize any legacy changes shape into { from, to } pairs so old flat
+ * entries ({ field: value }) still render correctly.
+ */
+function normalizeChanges(changes) {
+  if (!changes || typeof changes !== "object") return {};
+  const out = {};
+  for (const [key, value] of Object.entries(changes)) {
+    if (
+      value !== null &&
+      typeof value === "object" &&
+      !(value instanceof Date) &&
+      ("from" in value || "to" in value)
+    ) {
+      out[key] = { from: value.from ?? null, to: value.to ?? null };
+    } else {
+      out[key] = { from: null, to: value ?? null };
+    }
+  }
+  return out;
+}
+
 export async function recordAudit(entry) {
   try {
     const { error } = await supabase.from("audit_logs").insert({
@@ -13,7 +80,7 @@ export async function recordAudit(entry) {
       action: entry.action, // create | update | delete | review | login
       resource_type: entry.resource_type,
       resource_id: entry.resource_id ?? null,
-      changes: entry.changes ?? {},
+      changes: normalizeChanges(entry.changes),
       ip_address: entry.ip_address ?? null,
       user_agent: entry.user_agent ?? null,
     });

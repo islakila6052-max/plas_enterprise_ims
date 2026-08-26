@@ -22,6 +22,9 @@ import {
   recordAudit,
   notify,
   notifyAllWithType,
+  auditDiff,
+  auditCreated,
+  auditDeleted,
 } from "@/services/activityService"; // ✅ Fixed import
 
 export default function AdminSupervisors() {
@@ -111,7 +114,18 @@ export default function AdminSupervisors() {
           action: "update",
           resource_type: "supervisor",
           resource_id: editing.id,
-          changes: { full_name: values.full_name },
+          changes: auditDiff(
+            {
+              full_name: editing.full_name ?? null,
+              email: editing.email ?? null,
+              department_id: editing.department_id ?? null,
+            },
+            {
+              full_name: values.full_name ?? null,
+              email: values.email ?? null,
+              department_id: values.department_id || null,
+            },
+          ),
         });
 
         // Notify the supervisor their account was updated.
@@ -161,10 +175,11 @@ export default function AdminSupervisors() {
           action: "create",
           resource_type: "supervisor",
           resource_id: newUser?.id,
-          changes: {
+          changes: auditCreated({
             full_name: values.full_name,
+            email: values.email,
             department_id: values.department_id,
-          },
+          }),
         });
 
         // ✅ Add notifications
@@ -209,9 +224,12 @@ export default function AdminSupervisors() {
         action: "delete",
         resource_type: "supervisor",
         resource_id: confirm.id,
-        changes: {
+        // Snapshot of the values that existed before deletion.
+        changes: auditDeleted({
           full_name: confirm?.full_name || confirm?.profile?.full_name,
-        },
+          email: confirm?.email,
+          department_id: confirm?.department_id,
+        }),
       });
       toast.success("Supervisor removed.");
       setConfirm(null);

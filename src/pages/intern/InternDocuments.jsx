@@ -19,6 +19,10 @@ import { formatDate } from "@/utils/format";
 import { Icon } from "@/components/ui/icons";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
+
+// Maximum allowed upload size (5 MB).
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 const TYPE_LABEL = Object.fromEntries(
   DOCUMENT_TYPES.map((t) => [t.value, t.label]),
 );
@@ -69,6 +73,11 @@ export default function InternDocuments() {
 
   async function upload() {
     if (!file) return toast.error("Choose a file first.");
+    if (file.size > MAX_FILE_SIZE) {
+      return toast.error(
+        `File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`,
+      );
+    }
     setUploading(true);
     try {
       await documentService.upload({ internId, type, file });
@@ -196,12 +205,26 @@ export default function InternDocuments() {
           </Select>
           <input
             type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const selected = e.target.files?.[0] ?? null;
+              if (selected && selected.size > MAX_FILE_SIZE) {
+                toast.error(
+                  `"${selected.name}" exceeds the ${MAX_FILE_SIZE_MB} MB limit.`,
+                );
+                e.target.value = ""; // reset so the same file can be re-picked
+                setFile(null);
+                return;
+              }
+              setFile(selected);
+            }}
             className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100"
           />
           <Button onClick={upload} loading={uploading}>
             Upload
           </Button>
+          <p className="text-xs text-slate-400 sm:max-w-xs">
+            Maximum file size: {MAX_FILE_SIZE_MB} MB.
+          </p>
         </div>
       </Card>
 
