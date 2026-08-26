@@ -613,7 +613,7 @@ export default function InternManagement() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label="Full name"
-              maxLength={100}
+              maxLength={35}
               error={errors.full_name?.message}
               {...register("full_name", { required: "Name is required" })}
             />
@@ -625,17 +625,38 @@ export default function InternManagement() {
                 required: "Student number is required",
               })}
             />
-            <Input
-              label="Contact number"
-              maxLength={15}
-              error={errors.contact_number?.message}
-              {...register("contact_number", {
-                pattern: {
-                  value: /^[0-9+\-\s]*$/,
-                  message: "Numbers only",
-                },
-              })}
-            />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Contact number
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                  +63
+                </span>
+                <input
+                  type="tel"
+                  maxLength={10}
+                  inputMode="numeric"
+                  placeholder="9627070945"
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-11 pr-3 text-sm text-slate-800 placeholder:text-slate-400 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  {...register("contact_number", {
+                    pattern: {
+                      value: /^[0-9]{0,10}$/,
+                      message: "10 digits only (no leading 0)",
+                    },
+                  })}
+                />
+              </div>
+              {errors.contact_number?.message && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.contact_number.message}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-slate-400">
+                +63 is fixed — enter the 10-digit mobile number without the
+                leading 0.
+              </p>
+            </div>
             <Input
               label="Email"
               maxLength={100}
