@@ -207,20 +207,12 @@ export default function ProfileSettings() {
                 }
                 value={contactNumber || ""}
                 onChange={handlePhoneChange}
-                placeholder="9xx xxx xxxx"
+                placeholder="912 345 6789"
                 error={errors.contact_number?.message}
               />
               <p className="mt-1 text-xs text-slate-400">
                 Enter 10-digit mobile number (e.g., 9123456789)
               </p>
-              {contactNumber &&
-                contactNumber.length > 0 &&
-                contactNumber.length < 10 &&
-                !errors.contact_number && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {10 - contactNumber.length} more digit(s) needed
-                  </p>
-                )}
             </div>
           </div>
 
