@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -38,6 +38,7 @@ export default function AdminSupervisors() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -399,10 +400,24 @@ export default function AdminSupervisors() {
             <div>
               <Input
                 label="Temporary Password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 maxLength={72}
                 placeholder="Example#123"
                 error={passwordIssue || errors.password?.message}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="rounded p-1 text-slate-400 transition hover:text-slate-600">
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                }
                 {...register("password", {
                   required: "Password is required",
                   minLength: {

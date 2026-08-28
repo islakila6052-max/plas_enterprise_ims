@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { Pencil, Archive, RotateCcw, Trash2 } from "lucide-react";
+import { Pencil, Archive, RotateCcw, Trash2, Eye, EyeOff } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -77,6 +77,7 @@ export default function InternManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [detail, setDetail] = useState(null);
   const [confirm, setConfirm] = useState(null); // { type, row }
@@ -699,10 +700,24 @@ export default function InternManagement() {
               <div>
                 <Input
                   label="Temporary password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   maxLength={72}
                   placeholder="Example#123"
                   error={passwordIssue || errors.password?.message}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
+                      className="rounded p-1 text-slate-400 transition hover:text-slate-600">
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  }
                   {...register("password", {
                     required: !editing && "Password is required",
                     minLength: { value: 8, message: "At least 8 characters" },
