@@ -13,6 +13,7 @@ export default function StatCard({ label, value, hint, icon, tone = "brand" }) {
     amber: "bg-amber-50 text-amber-600",
     blue: "bg-blue-50 text-blue-600",
     red: "bg-red-50 text-red-600",
+    slate: "bg-slate-100 text-slate-600",
   };
   return (
     <div className="surface flex items-center gap-4 p-5">

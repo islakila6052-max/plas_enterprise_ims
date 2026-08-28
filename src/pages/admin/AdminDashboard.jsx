@@ -16,6 +16,7 @@ const ICONS = {
   completed: "completed",
   eval: "eval",
   attendance: "attendance",
+  archived: "archived",
 };
 
 export default function AdminDashboard() {
@@ -67,6 +68,7 @@ export default function AdminDashboard() {
     { label: "Total Interns", value: formatNumber(stats.totalInterns), icon: ICONS.interns, tone: "brand" },
     { label: "Active Interns", value: formatNumber(stats.activeInterns), icon: ICONS.active, tone: "green" },
     { label: "Completed Internships", value: formatNumber(stats.completedInternships), icon: ICONS.completed, tone: "blue" },
+    { label: "Archived Interns", value: formatNumber(stats.archivedInterns), icon: ICONS.archived, tone: "slate" },
     { label: "Pending Evaluations", value: formatNumber(stats.pendingEvaluations), icon: ICONS.eval, tone: "amber" },
     { label: "Attendance Today", value: formatNumber(stats.attendanceToday), icon: ICONS.attendance, tone: "red" },
   ];
@@ -75,6 +77,7 @@ export default function AdminDashboard() {
     { label: "Active", value: stats.activeInterns },
     { label: "Completed", value: stats.completedInternships },
     { label: "Pending Evals", value: stats.pendingEvaluations },
+    { label: "Archived", value: stats.archivedInterns, color: "#94a3b8" },
   ];
 
   const attendanceData = [
@@ -93,7 +96,7 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {cards.map((c) => (
           <StatCard key={c.label} {...c} />
         ))}
@@ -164,6 +167,10 @@ export default function AdminDashboard() {
               <dd className="font-medium text-slate-700">
                 {stats.activeInterns} / {stats.completedInternships}
               </dd>
+            </div>
+            <div className="flex justify-between py-2">
+              <dt className="text-slate-500">Archived interns</dt>
+              <dd className="font-medium text-slate-700">{stats.archivedInterns}</dd>
             </div>
             <div className="flex justify-between py-2">
               <dt className="text-slate-500">Evaluations awaiting review</dt>

@@ -67,7 +67,7 @@ export function DonutChart({ data, size = 160, thickness = 22, centerLabel, cent
               cy={size / 2}
               r={radius}
               fill="none"
-              stroke={PALETTE[i % PALETTE.length]}
+              stroke={d.color ?? PALETTE[i % PALETTE.length]}
               strokeWidth={thickness}
               strokeDasharray={`${len} ${circumference - len}`}
               strokeDashoffset={-offset}
@@ -88,7 +88,7 @@ export function DonutChart({ data, size = 160, thickness = 22, centerLabel, cent
             <div key={d.label} className="flex items-center gap-2 text-sm">
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
+                style={{ backgroundColor: d.color ?? PALETTE[i % PALETTE.length] }}
               />
               <span className="text-slate-600">{d.label}</span>
               <span className="ml-auto font-medium text-slate-800">{d.value}</span>

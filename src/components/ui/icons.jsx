@@ -89,6 +89,8 @@ const PATHS = {
     "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   pieChart:
     "M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10z",
+  archive:
+    "M21 8v13H3V8M1 3h22v5H1zM10 12h4",
 };
 
 // Friendly aliases used by callers.
@@ -113,6 +115,7 @@ const ALIASES = {
   completed: "checkCircle",
   eval: "star",
   pending: "inbox",
+  archived: "archive",
 };
 
 function resolve(name) {

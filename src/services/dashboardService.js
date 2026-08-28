@@ -35,17 +35,25 @@ async function safeQuery(fn) {
 
 export const dashboardService = {
   async adminStats() {
-    const [totalInterns, activeInterns, completed, pendingEvals, attendanceToday] = await Promise.all([
+    const [totalInterns, activeInterns, completed, archived, pendingEvals, attendanceToday] = await Promise.all([
       count("interns"),
       count("interns", (q) => q.eq("status", "active")),
       count("interns", (q) => q.eq("status", "completed")),
+      count("interns", (q) => q.eq("status", "archived")),
       // NOTE: `neq` on an enum column can be rejected by the gateway in some
       // configurations. Compute "pending" (the only other live status) and
       // treat that as the pending-evaluation count instead of `neq.completed`.
       count("evaluations", (q) => q.eq("status", "pending")),
       count("attendance", (q) => q.eq("date", todayDateInAttendanceTZ())),
     ]);
-    return { totalInterns, activeInterns, completedInternships: completed, pendingEvaluations: pendingEvals, attendanceToday };
+    return {
+      totalInterns,
+      activeInterns,
+      completedInternships: completed,
+      archivedInterns: archived,
+      pendingEvaluations: pendingEvals,
+      attendanceToday,
+    };
   },
 
   async supervisorStats(supervisorId) {
