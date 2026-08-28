@@ -112,7 +112,9 @@ src/
 | `id` | UUID | PK | Primary key |
 | `profile_id` | UUID | FK → `profiles(id)` | Links to auth profile |
 | `department_id` | UUID | FK → `departments(id)` | Department affiliation |
-| `full_name` | TEXT | — | Supervisor name |
+| `first_name` | TEXT | NOT NULL DEFAULT '' | Supervisor first name |
+| `last_name` | TEXT | — | Supervisor last name |
+| `full_name` | TEXT | GENERATED, STORED | `first_name \|\| ' ' \|\| last_name` (read convenience) |
 | `email` | TEXT | — | Email address |
 | `created_by` | UUID | FK → `profiles(id)` | Admin who created |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | Creation timestamp |

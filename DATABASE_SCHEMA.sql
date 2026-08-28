@@ -106,15 +106,23 @@ create table if not exists public.supervisors (
   id uuid primary key default gen_random_uuid (),
   profile_id uuid references public.profiles (id) on delete cascade,
   department_id uuid references public.departments (id) on delete set null,
-  -- Denormalized display fields (mirrors the joined profiles row; kept in sync on write).
-  full_name text,
+  -- Supervisor name is stored as first_name + last_name. `full_name` is a
+  -- generated convenience column (first_name || ' ' || last_name) kept for
+  -- read paths that display a single combined name.
+  first_name text not null default '',
+  last_name text,
+  full_name text generated always as (
+    btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))
+  ) stored,
   email text,
   created_at timestamptz not null default now ()
 );
 
 -- Reconcile denormalized supervisor display columns (safe if already present).
 alter table public.supervisors
-  add column if not exists full_name text;
+  add column if not exists first_name text;
+alter table public.supervisors
+  add column if not exists last_name text;
 alter table public.supervisors
   add column if not exists email text;
 

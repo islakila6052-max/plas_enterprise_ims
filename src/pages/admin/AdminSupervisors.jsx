@@ -45,7 +45,8 @@ export default function AdminSupervisors() {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      full_name: "",
+      first_name: "",
+      last_name: "",
       email: "",
       password: "",
       department_id: "",
@@ -85,14 +86,21 @@ export default function AdminSupervisors() {
 
   function openCreate() {
     setEditing(null);
-    reset({ full_name: "", email: "", password: "", department_id: "" });
+    reset({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      department_id: "",
+    });
     setModalOpen(true);
   }
 
   function openEdit(sup) {
     setEditing(sup);
     reset({
-      full_name: sup.full_name || sup.profile?.full_name || "",
+      first_name: sup.first_name || "",
+      last_name: sup.last_name || "",
       email: sup.email || sup.profile?.email || "",
       password: "",
       department_id: sup.department_id || "",
@@ -103,9 +111,15 @@ export default function AdminSupervisors() {
   async function onSubmit(values) {
     setSaving(true);
     try {
+      // profiles/auth keep a single combined full_name; the supervisors table
+      // stores first_name / last_name separately.
+      const fullName =
+        [values.first_name, values.last_name].filter(Boolean).join(" ").trim() ||
+        "New supervisor";
       if (editing) {
         await supervisorService.update(editing.id, {
-          full_name: values.full_name,
+          first_name: values.first_name,
+          last_name: values.last_name,
           email: values.email,
           department_id: values.department_id,
         });
@@ -116,12 +130,14 @@ export default function AdminSupervisors() {
           resource_id: editing.id,
           changes: auditDiff(
             {
-              full_name: editing.full_name ?? null,
+              first_name: editing.first_name ?? null,
+              last_name: editing.last_name ?? null,
               email: editing.email ?? null,
               department_id: editing.department_id ?? null,
             },
             {
-              full_name: values.full_name ?? null,
+              first_name: values.first_name ?? null,
+              last_name: values.last_name ?? null,
               email: values.email ?? null,
               department_id: values.department_id || null,
             },
@@ -134,7 +150,7 @@ export default function AdminSupervisors() {
             user_id: editing.profile_id,
             type: "account_created",
             title: "Your account was updated",
-            message: `${values.full_name}, your supervisor account details were updated by an admin.`,
+            message: `${fullName}, your supervisor account details were updated by an admin.`,
             link: "/supervisor",
           }).catch(() => {});
         }
@@ -144,7 +160,7 @@ export default function AdminSupervisors() {
         const newUser = await userService.createAuthUser({
           email: values.email,
           password: values.password,
-          full_name: values.full_name,
+          full_name: fullName,
           role: "supervisor",
         });
 
@@ -153,7 +169,7 @@ export default function AdminSupervisors() {
             .from("profiles")
             .update({
               role: "supervisor",
-              full_name: values.full_name,
+              full_name: fullName,
             })
             .eq("id", newUser.id);
         } else if (!newUser?.id) {
@@ -165,7 +181,8 @@ export default function AdminSupervisors() {
         await supervisorService.create({
           profile_id: newUser.id,
           department_id: values.department_id,
-          full_name: values.full_name,
+          first_name: values.first_name,
+          last_name: values.last_name,
           email: values.email,
           created_by: user?.id,
         });
@@ -176,7 +193,8 @@ export default function AdminSupervisors() {
           resource_type: "supervisor",
           resource_id: newUser?.id,
           changes: auditCreated({
-            full_name: values.full_name,
+            first_name: values.first_name,
+            last_name: values.last_name,
             email: values.email,
             department_id: values.department_id,
           }),
@@ -188,7 +206,7 @@ export default function AdminSupervisors() {
             user_id: newUser.id,
             type: "account_created",
             title: "Your supervisor account is ready",
-            message: `Welcome ${values.full_name}! You have been created as a supervisor. You can now log in and manage interns.`,
+            message: `Welcome ${fullName}! You have been created as a supervisor. You can now log in and manage interns.`,
             link: "/supervisor",
           });
         }
@@ -196,20 +214,32 @@ export default function AdminSupervisors() {
         await notifyAllWithType({
           type: "announcement",
           title: "New supervisor created",
-          message: `${values.full_name} has been created as a new supervisor.`,
+          message: `${fullName} has been created as a new supervisor.`,
           link: "/admin/supervisors",
           metadata: {
             supervisor_id: newUser?.id,
-            supervisor_name: values.full_name,
+            supervisor_name: fullName,
           },
         });
 
-        toast.success(`Supervisor ${values.full_name} created successfully!`);
+        toast.success(`Supervisor ${fullName} created successfully!`);
       }
       setModalOpen(false);
       load();
     } catch (err) {
-      toast.error(err.message);
+      const message = String(err?.message || "");
+      const lower = message.toLowerCase();
+      if (
+        lower.includes("already registered") ||
+        lower.includes("already exists") ||
+        lower.includes("duplicate")
+      ) {
+        toast.error(
+          "This email is already registered to an existing account. Please use a different (unique) email for this supervisor.",
+        );
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSaving(false);
     }
@@ -327,9 +357,20 @@ export default function AdminSupervisors() {
         }>
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <Input
-            label="Full Name"
-            error={errors.full_name?.message}
-            {...register("full_name", { required: "Name is required" })}
+            label="First name"
+            maxLength={35}
+            error={errors.first_name?.message}
+            {...register("first_name", {
+              required: "First name is required",
+            })}
+          />
+          <Input
+            label="Last name"
+            maxLength={35}
+            error={errors.last_name?.message}
+            {...register("last_name", {
+              required: "Last name is required",
+            })}
           />
           <Input
             label="Email"

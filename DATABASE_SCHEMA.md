@@ -145,7 +145,9 @@ Linked 1:1 to `auth.users`. Holds role + identity.
 | `id` | UUID | PK DEFAULT gen_random_uuid() |
 | `profile_id` | UUID | FK → `profiles(id)` ON DELETE CASCADE |
 | `department_id` | UUID | FK → `departments(id)` ON DELETE SET NULL |
-| `full_name` | TEXT | — |
+| `first_name` | TEXT | NOT NULL DEFAULT '' |
+| `last_name` | TEXT | — |
+| `full_name` | TEXT | GENERATED ALWAYS (`first_name \|\| ' ' \|\| last_name`) STORED |
 | `email` | TEXT | — |
 | `created_by` | UUID | FK → `profiles(id)` ON DELETE SET NULL |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
@@ -596,7 +598,11 @@ CREATE TABLE IF NOT EXISTS public.supervisors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   department_id UUID REFERENCES public.departments(id) ON DELETE SET NULL,
-  full_name TEXT,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT,
+  full_name TEXT GENERATED ALWAYS AS (
+    btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))
+  ) STORED,
   email TEXT,
   created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

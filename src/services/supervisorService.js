@@ -87,7 +87,8 @@ export const supervisorService = {
         {
           profile_id: payload.profile_id,
           department_id: payload.department_id,
-          full_name: payload.full_name,
+          first_name: payload.first_name,
+          last_name: payload.last_name,
           email: payload.email,
           created_by: payload.created_by,
         },
@@ -125,7 +126,8 @@ export const supervisorService = {
   async update(id, payload) {
     const updateData = {
       department_id: payload.department_id,
-      full_name: payload.full_name,
+      first_name: payload.first_name,
+      last_name: payload.last_name,
       email: payload.email,
     };
 
@@ -151,10 +153,15 @@ export const supervisorService = {
       throw new Error(error.message);
     }
 
-    // Also update profile if full_name or email changed
-    if (payload.full_name || payload.email) {
+    // Also update profile if name or email changed. profiles keeps a single
+    // combined full_name; the supervisors row stores first_name / last_name.
+    const fullName = [payload.first_name, payload.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    if (fullName || payload.email) {
       const profileUpdate = {};
-      if (payload.full_name) profileUpdate.full_name = payload.full_name;
+      if (fullName) profileUpdate.full_name = fullName;
       if (payload.email) profileUpdate.email = payload.email;
 
       if (data?.profile_id && Object.keys(profileUpdate).length > 0) {

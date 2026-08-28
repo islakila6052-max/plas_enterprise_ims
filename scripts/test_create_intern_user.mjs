@@ -1,8 +1,8 @@
 // scripts/test_create_intern_user.mjs
 // End-to-end check of the failing path: auth.admin.createUser fires
 // on_auth_user_created -> handle_new_user -> ensure_role_rows, which previously
-// broke on the renamed interns columns. Creates a temp user, verifies the
-// auto-created intern row, then deletes the user.
+// broke on the renamed interns columns. Creates temp users, verifies the
+// auto-created intern/supervisor rows, then deletes the users.
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 
@@ -14,28 +14,42 @@ const env = Object.fromEntries(
 );
 
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-const email = `__e2etest_${Date.now()}@example.com`;
+const stamp = Date.now();
 
-console.log("Creating test intern user:", email);
-const { data, error } = await supabase.auth.admin.createUser({
-  email,
-  password: "TestPass!2026",
-  email_confirm: true,
-  user_metadata: { full_name: "E2E Test One", role: "intern" },
-});
-if (error) {
-  console.error("CREATE FAILED:", error.message, error.code ?? "");
-  process.exit(1);
+async function testRole(role, fullName) {
+  const email = `__e2etest_${role}_${stamp}@example.com`;
+  console.log(`\nCreating test ${role} user:`, email);
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password: "TestPass!2026",
+    email_confirm: true,
+    user_metadata: { full_name: fullName, role },
+  });
+  if (error) {
+    console.error(`${role.toUpperCase()} CREATE FAILED:`, error.message, error.code ?? "");
+    return false;
+  }
+  console.log("Auth user created:", data.user.id);
+
+  const table = role === "supervisor" ? "supervisors" : "interns";
+  const cols =
+    role === "supervisor"
+      ? "id, first_name, last_name, full_name, email"
+      : "id, first_name, last_name, full_name, email, status";
+  const { data: row, error: qErr } = await supabase
+    .from(table)
+    .select(cols)
+    .eq("profile_id", data.user.id)
+    .maybeSingle();
+  if (qErr) console.error(`Query ${table} failed:`, qErr.message);
+  console.log(`Auto-created ${table} row:`, row ?? "(none)");
+
+  const del = await supabase.auth.admin.deleteUser(data.user.id);
+  console.log(del.error ? "CLEANUP FAILED: " + del.error.message : "Test user deleted.");
+  return !del.error;
 }
-console.log("Auth user created:", data.user.id);
 
-const { data: intern, error: qErr } = await supabase
-  .from("interns")
-  .select("id, first_name, last_name, full_name, email, status")
-  .eq("profile_id", data.user.id)
-  .maybeSingle();
-if (qErr) console.error("Query intern failed:", qErr.message);
-console.log("Auto-created intern row:", intern ?? "(none)");
-
-const del = await supabase.auth.admin.deleteUser(data.user.id);
-console.log(del.error ? "CLEANUP FAILED: " + del.error.message : "Test user deleted.");
+const okIntern = await testRole("intern", "E2E Test One");
+const okSup = await testRole("supervisor", "E2E Sup Two");
+console.log(okIntern && okSup ? "\nALL CHECKS PASSED" : "\nCHECKS FAILED");
+process.exit(okIntern && okSup ? 0 : 1);
