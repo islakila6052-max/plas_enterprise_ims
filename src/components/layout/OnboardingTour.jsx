@@ -1,6 +1,5 @@
 // src/components/layout/OnboardingTour.jsx
-import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getNavItems } from "@/components/layout/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
@@ -56,8 +55,8 @@ function buildSteps(items) {
     },
     "Assigned Interns": {
       description:
-        "A focused list of the interns currently under your supervision, with quick access to their journals, attendance, and documents.",
-      tip: "",
+        "The interns currently under your supervision. Open any intern to review their journals, attendance, and documents in one place.",
+      tip: "You only see interns assigned to you — your view stays focused.",
     },
     Attendance: {
       description:
@@ -109,12 +108,6 @@ function buildSteps(items) {
         "Your personal account. Update your name, photo, contact details, and password anytime.",
       tip: "Use a strong, unique password to keep your admin account secure.",
     },
-    // ---- Supervisor ----
-    "Assigned Interns": {
-      description:
-        "The interns currently under your supervision. Open any intern to review their journals, attendance, and documents in one place.",
-      tip: "You only see interns assigned to you — your view stays focused.",
-    },
     // ---- Intern ----
     "Daily Journal": {
       description:
@@ -139,6 +132,13 @@ function buildSteps(items) {
   }));
 }
 
+const CARD_WIDTH_DESKTOP = 380;
+const CARD_WIDTH_TABLET = 340;
+const CARD_MARGIN = 16;
+const CARD_GAP = 20;
+const EST_CARD_HEIGHT = 340;
+const TRANSITION_MS = 200;
+
 /**
  * Interactive first-time onboarding tour. Highlights each sidebar feature
  * in order with Next / Back / Skip / Finish controls. Runs automatically on
@@ -146,25 +146,58 @@ function buildSteps(items) {
  */
 export default function OnboardingTour({ active, onFinish }) {
   const { role, profile } = useAuth();
-  const [stepIndex, setStepIndex] = useState(0);
-  const [targetRect, setTargetRect] = useState(null);
 
   const items = useMemo(() => getNavItems(role), [role]);
   const steps = useMemo(() => buildSteps(items), [items]);
 
   // -1 = welcome screen, 0..n-1 = feature steps, steps.length = finish screen
   const [phase, setPhase] = useState(-1);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState(null);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== "undefined" ? window.innerWidth : 1280,
+    height: typeof window !== "undefined" ? window.innerHeight : 800,
+  }));
+
+  // Entrance animation flag for the welcome/finish full-screen cards.
+  const [entered, setEntered] = useState(false);
+  // Cross-fade flag for step-to-step content swaps.
+  const [cardVisible, setCardVisible] = useState(true);
+  const transitionTimer = useRef(null);
+  const missCount = useRef(0);
+
   const step = steps[stepIndex];
   const showWelcome = phase === -1;
   const showFinish = phase === steps.length;
   const touring = phase >= 0 && phase < steps.length;
+  const isMobile = viewport.width < 640;
+  const isTablet = viewport.width >= 640 && viewport.width < 1024;
 
   // Reset to the welcome screen whenever the tour is activated.
   useEffect(() => {
     if (!active) return;
     setPhase(-1);
     setStepIndex(0);
+    setTargetRect(null);
+    missCount.current = 0;
   }, [active]);
+
+  // Trigger the entrance animation whenever we land on a full-screen phase.
+  useEffect(() => {
+    if (!active || !(showWelcome || showFinish)) return;
+    setEntered(false);
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, [active, showWelcome, showFinish]);
+
+  // Track viewport size for responsive positioning.
+  useEffect(() => {
+    function onResize() {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Track the highlighted element's position while touring.
   useEffect(() => {
@@ -174,6 +207,7 @@ export default function OnboardingTour({ active, onFinish }) {
     function measure() {
       const el = document.querySelector(step.target);
       if (el) {
+        missCount.current = 0;
         const r = el.getBoundingClientRect();
         setTargetRect({
           top: r.top,
@@ -181,6 +215,12 @@ export default function OnboardingTour({ active, onFinish }) {
           width: r.width,
           height: r.height,
         });
+      } else {
+        // Element not in the DOM/visible yet (e.g. collapsed mobile nav).
+        // Give it a short grace period, then fall back to a centered card
+        // rather than getting stuck with no visible tour at all.
+        missCount.current += 1;
+        if (missCount.current > 20) setTargetRect(null);
       }
       raf = requestAnimationFrame(measure);
     }
@@ -188,6 +228,23 @@ export default function OnboardingTour({ active, onFinish }) {
 
     return () => cancelAnimationFrame(raf);
   }, [touring, step]);
+
+  // Keyboard navigation: Esc to skip, arrow keys to move between steps.
+  useEffect(() => {
+    if (!active) return;
+    function onKey(e) {
+      if (e.key === "Escape") finishTour();
+      else if (e.key === "ArrowRight") nextStep();
+      else if (e.key === "ArrowLeft") prevStep();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, phase, stepIndex]);
+
+  useEffect(() => {
+    return () => clearTimeout(transitionTimer.current);
+  }, []);
 
   if (!active) return null;
 
@@ -197,46 +254,122 @@ export default function OnboardingTour({ active, onFinish }) {
     markTourCompleted();
     onFinish?.();
   }
+
+  /** Cross-fades the step card out, applies the change, then fades it in. */
+  function transitionTo({ nextPhase, nextIndex }) {
+    setCardVisible(false);
+    clearTimeout(transitionTimer.current);
+    transitionTimer.current = setTimeout(() => {
+      if (nextPhase !== undefined) setPhase(nextPhase);
+      if (nextIndex !== undefined) setStepIndex(nextIndex);
+      setCardVisible(true);
+    }, TRANSITION_MS);
+  }
+
   function nextStep() {
     if (showWelcome) return setPhase(0);
-    if (stepIndex >= steps.length - 1) return setPhase(steps.length);
-    setStepIndex((i) => i + 1);
+    if (!touring) return;
+    if (stepIndex >= steps.length - 1) {
+      transitionTo({ nextPhase: steps.length });
+      return;
+    }
+    transitionTo({ nextIndex: stepIndex + 1 });
   }
+
   function prevStep() {
-    if (showWelcome) return;
-    if (stepIndex === 0) return setPhase(-1);
-    setStepIndex((i) => i - 1);
+    if (showWelcome || !touring) return;
+    if (stepIndex === 0) {
+      transitionTo({ nextPhase: -1 });
+      return;
+    }
+    transitionTo({ nextIndex: stepIndex - 1 });
+  }
+
+  /** Computes an in-viewport position for the step card next to the target. */
+  function getCardStyle() {
+    if (isMobile) {
+      return {
+        position: "fixed",
+        left: 12,
+        right: 12,
+        bottom: 12,
+        width: "auto",
+        maxWidth: "none",
+      };
+    }
+
+    const width = isTablet ? CARD_WIDTH_TABLET : CARD_WIDTH_DESKTOP;
+
+    if (!targetRect) {
+      return {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        width,
+        transform: "translate(-50%, -50%)",
+      };
+    }
+
+    let left = targetRect.left + targetRect.width + CARD_GAP;
+    if (left + width + CARD_MARGIN > viewport.width) {
+      // Not enough room on the right — flip to the left of the target.
+      left = targetRect.left - width - CARD_GAP;
+    }
+    left = Math.min(
+      Math.max(left, CARD_MARGIN),
+      viewport.width - width - CARD_MARGIN,
+    );
+
+    let top = targetRect.top + targetRect.height / 2 - EST_CARD_HEIGHT / 2;
+    top = Math.min(
+      Math.max(top, CARD_MARGIN),
+      viewport.height - EST_CARD_HEIGHT - CARD_MARGIN,
+    );
+
+    return { position: "fixed", top, left, width };
   }
 
   /* ---------------- Welcome screen ---------------- */
   if (showWelcome) {
     return (
       <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true">
-        <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
-        <div className="absolute left-1/2 top-1/2 w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-2xl">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
-            <Icon name="dashboard" className="h-7 w-7 text-brand-600" />
+        <div
+          className={`absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 ${
+            entered ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <div
+          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl transition-all duration-300 ease-out ${
+            entered ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          }`}>
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 ring-1 ring-brand-100">
+            <Icon name="dashboard" className="h-8 w-8 text-brand-600" />
           </div>
-          <h2 className="text-xl font-bold text-slate-800">
-            Welcome, {firstName}! 👋
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            You have full control of the Internship Management System. Let us
-            walk you through each section — it only takes a minute.
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-500">
+            Quick Tour
           </p>
-          <div className="mt-6 flex flex-col gap-2">
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-800">
+            Welcome, {firstName} 👋
+          </h2>
+          <p className="mx-auto mt-3 max-w-[320px] text-sm leading-relaxed text-slate-500">
+            Let's walk through the key areas of your Internship Management
+            System — it only takes about a minute.
+          </p>
+
+          <div className="mt-7 flex flex-col gap-2.5">
             <Button onClick={() => setPhase(0)} className="w-full">
-              Start the Tour
+              Start Tour
             </Button>
             <button
               type="button"
               onClick={finishTour}
-              className="text-xs font-medium text-slate-400 hover:text-slate-600">
-              Skip — I'll explore on my own
+              className="rounded-lg py-2 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
+              Skip for now
             </button>
           </div>
-          <p className="mt-4 text-[11px] text-slate-300">
-            Tip: use ← → keys to navigate, Esc to exit
+
+          <p className="mt-5 text-[11px] text-slate-300">
+            Tip: use ← → to navigate, Esc to exit anytime
           </p>
         </div>
       </div>
@@ -247,17 +380,30 @@ export default function OnboardingTour({ active, onFinish }) {
   if (showFinish) {
     return (
       <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true">
-        <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
-        <div className="absolute left-1/2 top-1/2 w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-2xl">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-2xl">
+        <div
+          className={`absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 ${
+            entered ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <div
+          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl transition-all duration-300 ease-out ${
+            entered ? "opacity-100 scale-100" : "opacity-0 scale-95"
+          }`}>
+          <div
+            className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-3xl ring-1 ring-green-100 transition-all delay-100 duration-300 ease-out ${
+              entered ? "opacity-100 scale-100" : "opacity-0 scale-75"
+            }`}>
             🎉
           </div>
-          <h2 className="text-xl font-bold text-slate-800">You're all set!</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            You now know your way around the system. If you ever need a
-            refresher, restart this tour anytime from your profile menu.
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800">
+            You're all set!
+          </h2>
+          <p className="mx-auto mt-3 max-w-[320px] text-sm leading-relaxed text-slate-500">
+            You now know the key areas of the Internship Management System.
+            Explore on your own, and restart this tour anytime from your profile
+            menu.
           </p>
-          <Button onClick={finishTour} className="mt-6 w-full">
+          <Button onClick={finishTour} className="mt-7 w-full">
             Go to Dashboard
           </Button>
         </div>
@@ -265,37 +411,43 @@ export default function OnboardingTour({ active, onFinish }) {
     );
   }
 
-  if (!step || !targetRect) return null;
+  if (!step) return null;
 
   const isLast = stepIndex === steps.length - 1;
+  const pct = Math.round(((stepIndex + 1) / steps.length) * 100);
+  const cardStyle = getCardStyle();
 
   return (
     <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true">
       {/* Spotlight cut-out around the highlighted item. The huge box-shadow
           dims everything else in ONE layer — no separate backdrop, so there
-          is no flicker or double-dimming while stepping. Static ring: no
-          pulsing/glow animation. */}
-      <div
-        className="absolute rounded-xl ring-4 ring-brand-400 shadow-[0_0_0_9999px_rgba(15,23,42,0.6)] transition-none"
-        style={{
-          top: targetRect.top - 4,
-          left: targetRect.left - 4,
-          width: targetRect.width + 8,
-          height: targetRect.height + 8,
-        }}
-      />
+          is no flicker or double-dimming while stepping. Position/size
+          transition smoothly between steps; no pulsing or flashing. */}
+      {targetRect && (
+        <div
+          className="absolute rounded-xl ring-2 ring-brand-400/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.6)] transition-all duration-300 ease-out"
+          style={{
+            top: targetRect.top - 4,
+            left: targetRect.left - 4,
+            width: targetRect.width + 8,
+            height: targetRect.height + 8,
+          }}
+        />
+      )}
+      {!targetRect && (
+        <div className="absolute inset-0 bg-slate-900/60 transition-opacity duration-300" />
+      )}
 
-      {/* Step tooltip — centered */}
+      {/* Step card */}
       <div
-        className="absolute w-[380px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-        style={{
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        }}>
+        className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all duration-200 ease-out ${
+          cardVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+        }`}
+        style={cardStyle}
+        aria-live="polite">
         {/* Branded header strip */}
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm shadow-brand-600/30">
             <Icon
               name={step.icon ?? "dashboard"}
               className="h-5 w-5 text-white"
@@ -309,9 +461,6 @@ export default function OnboardingTour({ active, onFinish }) {
               {step.label}
             </h3>
           </div>
-          <span className="text-xs font-medium text-slate-400">
-            {Math.round(((stepIndex + 1) / steps.length) * 100)}%
-          </span>
         </div>
 
         <div className="px-5 py-4">
@@ -321,7 +470,7 @@ export default function OnboardingTour({ active, onFinish }) {
 
           {step.tip && (
             <div className="mt-3 flex gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-              <span aria-hidden className="text-sm">
+              <span aria-hidden className="text-sm leading-none">
                 💡
               </span>
               <p className="text-xs leading-relaxed text-amber-800">
@@ -330,31 +479,41 @@ export default function OnboardingTour({ active, onFinish }) {
             </div>
           )}
 
-          {/* Progress bar */}
-          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-brand-500 transition-all duration-300"
-              style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
-            />
+          {/* Progress */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums text-slate-400">
+              <span>
+                {String(stepIndex + 1).padStart(2, "0")} /{" "}
+                {String(steps.length).padStart(2, "0")}
+              </span>
+              <span>{pct}%</span>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-600 transition-all duration-500 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={finishTour}
-              className="text-xs font-medium text-slate-400 hover:text-slate-600">
+              className="rounded-lg px-1 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
               Skip Tour
             </button>
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onClick={prevStep}
-                disabled={stepIndex === 0}
-                className="!px-3 !py-1.5 !text-xs">
-                Back
+                className="!px-3 !py-1.5 !text-xs transition-transform active:scale-[0.97]">
+                ← Back
               </Button>
-              <Button onClick={nextStep} className="!px-3 !py-1.5 !text-xs">
-                {isLast ? "Finish 🎉" : "Next →"}
+              <Button
+                onClick={nextStep}
+                className="!px-3 !py-1.5 !text-xs transition-transform active:scale-[0.97]">
+                {isLast ? "Finish ✓" : "Next →"}
               </Button>
             </div>
           </div>
