@@ -31,28 +31,56 @@ const STRENGTH_STYLES = [
   "bg-green-600", // 5 — strong (all requirements met)
 ];
 
+/**
+ * Return the first unmet password requirement as a human-readable message,
+ * or null when the password satisfies all of them (or is empty). Used to show
+ * the failing requirement live while the user types — not only after submit.
+ */
+export function getPasswordIssue(pw = "") {
+  if (!pw) return null;
+  if (pw.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(pw))
+    return "Password must contain an uppercase letter (A–Z)";
+  if (!/[a-z]/.test(pw))
+    return "Password must contain a lowercase letter (a–z)";
+  if (!/\d/.test(pw)) return "Password must contain a number (0–9)";
+  if (!/[^A-Za-z0-9]/.test(pw))
+    return "Password must contain a symbol (!@#$…)";
+  return null;
+}
+
 export default function PasswordStrengthMeter({ password = "", className = "" }) {
   const met = CHECKS.reduce((n, check) => n + (check(password) ? 1 : 0), 0);
   const pct = (met / CHECKS.length) * 100;
+  const complete = password.length > 0 && met === CHECKS.length;
 
   return (
-    <div
-      className={cn(
-        "mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200",
-        className,
-      )}
-      role="progressbar"
-      aria-label="Password strength"
-      aria-valuemin={0}
-      aria-valuemax={CHECKS.length}
-      aria-valuenow={met}>
+    <div>
       <div
         className={cn(
-          "h-full rounded-full transition-all duration-300",
-          STRENGTH_STYLES[met],
+          "mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200",
+          className,
         )}
-        style={{ width: `${pct}%` }}
-      />
+        role="progressbar"
+        aria-label="Password strength"
+        aria-valuemin={0}
+        aria-valuemax={CHECKS.length}
+        aria-valuenow={met}>
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-300",
+            STRENGTH_STYLES[met],
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {/* Green confirmation once every requirement is satisfied. Unmet
+          requirements are surfaced live as red text under the input itself. */}
+      {complete && (
+        <p className="mt-1 text-xs font-medium text-green-600">
+          Password meets all requirements
+        </p>
+      )}
     </div>
   );
 }

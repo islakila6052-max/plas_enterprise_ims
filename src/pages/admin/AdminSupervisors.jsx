@@ -13,7 +13,9 @@ import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ActionButton from "@/components/ui/ActionButton";
-import PasswordStrengthMeter from "@/components/ui/PasswordStrengthMeter";
+import PasswordStrengthMeter, {
+  getPasswordIssue,
+} from "@/components/ui/PasswordStrengthMeter";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
 import { userService } from "@/services/userService";
@@ -317,6 +319,12 @@ export default function AdminSupervisors() {
     },
   ];
 
+  // Live password requirement feedback — recomputed on every keystroke via
+  // watch(), so the failing requirement shows while typing (not only after
+  // the Create button is pressed).
+  const watchedPassword = watch("password");
+  const passwordIssue = getPasswordIssue(watchedPassword);
+
   return (
     <div>
       <PageHeader
@@ -394,7 +402,7 @@ export default function AdminSupervisors() {
                 type="password"
                 maxLength={72}
                 placeholder="Example#123"
-                error={errors.password?.message}
+                error={passwordIssue || errors.password?.message}
                 {...register("password", {
                   required: "Password is required",
                   minLength: {
@@ -411,7 +419,7 @@ export default function AdminSupervisors() {
               {/* Live strength line: fills and changes color as the password
                   meets each requirement (8+ chars, upper, lower, number,
                   symbol) — matches the Add Intern password field. */}
-              <PasswordStrengthMeter password={watch("password")} />
+              <PasswordStrengthMeter password={watchedPassword} />
             </div>
           )}
           <Select

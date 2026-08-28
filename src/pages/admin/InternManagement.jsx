@@ -15,7 +15,9 @@ import EmptyState from "@/components/ui/EmptyState";
 import Pagination from "@/components/ui/Pagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ActionButton from "@/components/ui/ActionButton";
-import PasswordStrengthMeter from "@/components/ui/PasswordStrengthMeter";
+import PasswordStrengthMeter, {
+  getPasswordIssue,
+} from "@/components/ui/PasswordStrengthMeter";
 import Avatar from "@/components/ui/Avatar";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { internService } from "@/services/internService";
@@ -532,6 +534,12 @@ export default function InternManagement() {
     },
   ];
 
+  // Live password requirement feedback — recomputed on every keystroke via
+  // watch(), so the failing requirement shows while typing (not only after
+  // the Create button is pressed).
+  const watchedPassword = watch("password");
+  const passwordIssue = getPasswordIssue(watchedPassword);
+
   return (
     <div>
       <PageHeader
@@ -694,7 +702,7 @@ export default function InternManagement() {
                   type="password"
                   maxLength={72}
                   placeholder="Example#123"
-                  error={errors.password?.message}
+                  error={passwordIssue || errors.password?.message}
                   {...register("password", {
                     required: !editing && "Password is required",
                     minLength: { value: 8, message: "At least 8 characters" },
@@ -708,7 +716,7 @@ export default function InternManagement() {
                 {/* Live strength line: fills and changes color as the password
                     meets each requirement (8+ chars, upper, lower, number,
                     symbol). Replaces the old bulleted requirements list. */}
-                <PasswordStrengthMeter password={watch("password")} />
+                <PasswordStrengthMeter password={watchedPassword} />
               </div>
             )}
             <Input
