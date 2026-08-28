@@ -692,6 +692,7 @@ export default function InternManagement() {
                   label="Temporary password"
                   type="password"
                   maxLength={72}
+                  placeholder="Example#123"
                   error={errors.password?.message}
                   {...register("password", {
                     required: !editing && "Password is required",
@@ -703,20 +704,10 @@ export default function InternManagement() {
                     },
                   })}
                 />
-                {/* Inline password requirements, styled to match the form. */}
-                <ul className="mt-1.5 space-y-0.5 text-xs text-slate-500">
-                  {[
-                    "At least 8 characters",
-                    "One uppercase letter (A–Z)",
-                    "One lowercase letter (a–z)",
-                    "One number (0–9)",
-                    "One symbol (!@#$…)",
-                  ].map((req) => (
-                    <li key={req} className="flex items-center gap-1">
-                      <span aria-hidden>•</span> {req}
-                    </li>
-                  ))}
-                </ul>
+                {/* Live strength line: fills and changes color as the password
+                    meets each requirement (8+ chars, upper, lower, number,
+                    symbol). Replaces the old bulleted requirements list. */}
+                <PasswordStrengthMeter password={watch("password")} />
               </div>
             )}
             <Input

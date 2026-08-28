@@ -13,6 +13,7 @@ import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ActionButton from "@/components/ui/ActionButton";
+import PasswordStrengthMeter from "@/components/ui/PasswordStrengthMeter";
 import { departmentService } from "@/services/departmentService";
 import { supervisorService } from "@/services/supervisorService";
 import { userService } from "@/services/userService";
@@ -42,6 +43,7 @@ export default function AdminSupervisors() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -386,18 +388,31 @@ export default function AdminSupervisors() {
             })}
           />
           {!editing && (
-            <Input
-              label="Temporary Password"
-              type="password"
-              error={errors.password?.message}
-              {...register("password", {
-                required: "Password is required",
-                minLength: {
-                  value: 8,
-                  message: "Password must be at least 8 characters",
-                },
-              })}
-            />
+            <div>
+              <Input
+                label="Temporary Password"
+                type="password"
+                maxLength={72}
+                placeholder="Example#123"
+                error={errors.password?.message}
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
+                  pattern: {
+                    value:
+                      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
+                    message: "Needs uppercase, lowercase, number & symbol",
+                  },
+                })}
+              />
+              {/* Live strength line: fills and changes color as the password
+                  meets each requirement (8+ chars, upper, lower, number,
+                  symbol) — matches the Add Intern password field. */}
+              <PasswordStrengthMeter password={watch("password")} />
+            </div>
           )}
           <Select
             label="Department"
