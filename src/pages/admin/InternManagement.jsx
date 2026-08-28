@@ -363,8 +363,23 @@ export default function InternManagement() {
     } catch (err) {
       // Surface the full Supabase error (code + details) for easier debugging.
       console.error("Intern create/update failed:", err);
-      const detail = err?.details || err?.hint || err?.code || "";
-      toast.error(detail ? `${err.message} (${detail})` : err.message);
+      const message = String(err?.message || "");
+      const lower = message.toLowerCase();
+      // The most common real-world cause: the typed email is already registered
+      // to an existing auth account (e.g. the admin's or a supervisor's email).
+      // Turn that into a clear, actionable message instead of a raw error.
+      if (
+        lower.includes("already registered") ||
+        lower.includes("already exists") ||
+        lower.includes("duplicate")
+      ) {
+        toast.error(
+          "This email is already registered to an existing account. Please use a different (unique) email for this intern.",
+        );
+      } else {
+        const detail = err?.details || err?.hint || err?.code || "";
+        toast.error(detail ? `${message} (${detail})` : message);
+      }
     } finally {
       setSaving(false);
     }
