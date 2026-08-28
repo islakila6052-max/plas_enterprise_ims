@@ -135,7 +135,7 @@ export default function AdminDocuments() {
       render: (r) => (
         <div>
           <p className="font-medium text-slate-800">{r.intern?.full_name}</p>
-          <p className="text-xs text-slate-400">{r.intern?.student_number}</p>
+          <p className="text-xs text-slate-400">{r.intern?.last_name}</p>
         </div>
       ),
     },

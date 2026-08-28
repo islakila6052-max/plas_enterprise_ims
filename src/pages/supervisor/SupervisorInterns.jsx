@@ -108,7 +108,8 @@ export default function SupervisorInterns() {
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <Detail label="Student No." value={detail.student_number} />
+              <Detail label="First Name" value={detail.first_name} />
+              <Detail label="Last Name" value={detail.last_name} />
               <Detail label="Email" value={detail.email} />
               <Detail label="Contact" value={detail.contact_number} />
               <Detail label="Emergency" value={detail.emergency_contact} />

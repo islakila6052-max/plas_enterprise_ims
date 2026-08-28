@@ -21,7 +21,7 @@ export const documentService = {
   async list({ internId, status, page = 1, pageSize = 15 } = {}) {
     let query = supabase
       .from("documents")
-      .select("*, intern:interns(full_name, student_number, profile_id)", {
+      .select("*, intern:interns(first_name, last_name, full_name, profile_id)", {
         count: "exact",
       })
       .order("created_at", { ascending: false })

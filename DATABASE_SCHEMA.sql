@@ -125,8 +125,14 @@ alter table public.supervisors
 create table if not exists public.interns (
   id uuid primary key default gen_random_uuid (),
   profile_id uuid references public.profiles (id) on delete cascade,
-  full_name text not null,
-  student_number text,
+  -- Intern name is stored as first_name + last_name. `full_name` is a
+  -- generated convenience column (first_name || ' ' || last_name) kept for
+  -- read paths that display a single combined name.
+  first_name text not null default '',
+  last_name text,
+  full_name text generated always as (
+    btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))
+  ) stored,
   school text,
   course text,
   contact_number text,

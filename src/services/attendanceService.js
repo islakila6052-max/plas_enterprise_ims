@@ -251,7 +251,7 @@ export const attendanceService = {
   } = {}) {
     let query = supabase
       .from("attendance")
-      .select("*, intern:interns(full_name, student_number, supervisor_id)", {
+      .select("*, intern:interns(first_name, last_name, full_name, supervisor_id)", {
         count: "exact",
       })
       .order("date", { ascending: false })

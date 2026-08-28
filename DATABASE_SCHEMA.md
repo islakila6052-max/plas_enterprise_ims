@@ -160,8 +160,9 @@ also writes `profiles.supervisor_id` (mirrors the trigger).
 |--------|------|-------------|
 | `id` | UUID | PK DEFAULT gen_random_uuid() |
 | `profile_id` | UUID | FK → `profiles(id)` ON DELETE CASCADE |
-| `full_name` | TEXT | NOT NULL |
-| `student_number` | TEXT | — |
+| `first_name` | TEXT | NOT NULL DEFAULT '' |
+| `last_name` | TEXT | — |
+| `full_name` | TEXT | GENERATED ALWAYS (`first_name || ' ' || last_name`) STORED |
 | `contact_number` | TEXT | — |
 | `email` | TEXT | — |
 | `emergency_contact` | TEXT | — |
@@ -604,8 +605,11 @@ CREATE TABLE IF NOT EXISTS public.supervisors (
 CREATE TABLE IF NOT EXISTS public.interns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  full_name TEXT NOT NULL,
-  student_number TEXT,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT,
+  full_name TEXT GENERATED ALWAYS AS (
+    btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))
+  ) STORED,
   contact_number TEXT,
   email TEXT,
   emergency_contact TEXT,

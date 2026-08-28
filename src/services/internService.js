@@ -40,7 +40,7 @@ export const internService = {
 
       if (search) {
         query = query.or(
-          `full_name.ilike.%${search}%,student_number.ilike.%${search}%`,
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,full_name.ilike.%${search}%`,
         );
       }
       if (departmentId) query = query.eq("department_id", departmentId);

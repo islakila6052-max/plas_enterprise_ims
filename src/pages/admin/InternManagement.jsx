@@ -40,8 +40,8 @@ import {
 const STATUS_TONE = { active: "green", completed: "blue", archived: "gray" };
 
 const EMPTY = {
-  full_name: "",
-  student_number: "",
+  first_name: "",
+  last_name: "",
   contact_number: "",
   email: "",
   emergency_contact: "",
@@ -146,8 +146,8 @@ export default function InternManagement() {
   function openEdit(row) {
     setEditing(row);
     reset({
-      full_name: row.full_name ?? "",
-      student_number: row.student_number ?? "",
+      first_name: row.first_name ?? "",
+      last_name: row.last_name ?? "",
       contact_number: row.contact_number ?? "",
       email: row.email ?? "",
       emergency_contact: row.emergency_contact ?? "",
@@ -216,6 +216,13 @@ export default function InternManagement() {
       // `password` belongs to the auth user, not the interns table. Strip it
       // (and any confirm field) so we never send a non-existent column to Supabase.
       const { password, confirmPassword, ...internValues } = values;
+      // The auth/profile layer keeps a single `full_name`; the interns table
+      // stores first_name / last_name separately.
+      const fullName =
+        [internValues.first_name, internValues.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "An intern";
       const payload = {
         ...internValues,
         required_hours: Number(internValues.required_hours) || 0,
@@ -255,8 +262,8 @@ export default function InternManagement() {
           resource_id: editing.id,
           changes: auditDiff(
             {
-              full_name: editing.full_name ?? null,
-              student_number: editing.student_number ?? null,
+              first_name: editing.first_name ?? null,
+              last_name: editing.last_name ?? null,
               contact_number: editing.contact_number ?? null,
               email: editing.email ?? null,
               emergency_contact: editing.emergency_contact ?? null,
@@ -270,8 +277,8 @@ export default function InternManagement() {
               status: editing.status ?? null,
             },
             {
-              full_name: payload.full_name ?? null,
-              student_number: payload.student_number || null,
+              first_name: payload.first_name ?? null,
+              last_name: payload.last_name ?? null,
               contact_number: payload.contact_number || null,
               email: payload.email || null,
               emergency_contact: payload.emergency_contact || null,
@@ -298,7 +305,7 @@ export default function InternManagement() {
               user_id: sup.profile_id,
               type: "intern_assigned",
               title: "Intern reassigned",
-              message: `${payload.full_name || "An intern"} was reassigned to you.`,
+              message: `${fullName} was reassigned to you.`,
               link: "/supervisor/interns",
             }).catch(() => {});
           }
@@ -310,7 +317,7 @@ export default function InternManagement() {
         const newUser = await userService.createAuthUser({
           email: values.email,
           password: password,
-          full_name: values.full_name,
+          full_name: fullName,
           role: "intern",
         });
 
@@ -324,7 +331,8 @@ export default function InternManagement() {
           resource_type: "intern",
           resource_id: created?.id,
           changes: {
-            full_name: payload.full_name,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
             supervisor_id: payload.supervisor_id,
           },
         });
@@ -335,8 +343,7 @@ export default function InternManagement() {
               user_id: sup.profile_id,
               type: "intern_assigned",
               title: "New intern assigned",
-              message:
-                (payload.full_name || "An intern") + " was assigned to you.",
+              message: fullName + " was assigned to you.",
               link: "/supervisor/interns",
             });
         }
@@ -402,7 +409,8 @@ export default function InternManagement() {
           resource_id: confirm.row.id,
           // Snapshot of the values that existed before deletion.
           changes: auditDeleted({
-            full_name: confirm.row.full_name,
+            first_name: confirm.row.first_name,
+            last_name: confirm.row.last_name,
             email: confirm.row.email,
             department_id: confirm.row.department_id,
             supervisor_id: confirm.row.supervisor_id,
@@ -431,11 +439,6 @@ export default function InternManagement() {
           {r.full_name}
         </button>
       ),
-    },
-    {
-      key: "student_number",
-      header: "Student No.",
-      render: (r) => r.student_number ?? "—",
     },
     {
       key: "institution",
@@ -524,7 +527,7 @@ export default function InternManagement() {
       <Card>
         <div className="grid gap-3 border-b border-brand-100 p-4 sm:grid-cols-3">
           <Input
-            placeholder="Search name, number, institution…"
+            placeholder="Search name, institution…"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -612,17 +615,19 @@ export default function InternManagement() {
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Full name"
+              label="First name"
               maxLength={35}
-              error={errors.full_name?.message}
-              {...register("full_name", { required: "Name is required" })}
+              error={errors.first_name?.message}
+              {...register("first_name", {
+                required: "First name is required",
+              })}
             />
             <Input
-              label="Student number"
-              maxLength={20}
-              error={errors.student_number?.message}
-              {...register("student_number", {
-                required: "Student number is required",
+              label="Last name"
+              maxLength={35}
+              error={errors.last_name?.message}
+              {...register("last_name", {
+                required: "Last name is required",
               })}
             />
             <div>
@@ -807,7 +812,8 @@ export default function InternManagement() {
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <Detail label="Student No." value={detail.student_number} />
+              <Detail label="First Name" value={detail.first_name} />
+              <Detail label="Last Name" value={detail.last_name} />
               <Detail label="Email" maxLength={100} value={detail.email} />
               <Detail label="Contact" value={detail.contact_number} />
               <Detail label="Emergency" value={detail.emergency_contact} />

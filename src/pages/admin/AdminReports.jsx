@@ -332,7 +332,7 @@ export default function AdminReports() {
         });
         return (res.data ?? []).map((r) => ({
           Name: r.full_name ?? "—",
-          "Student No.": r.student_number ?? "",
+          "Last Name": r.last_name ?? "",
           Department: r.department?.name ?? "",
           Institution: r.institution?.institution_name ?? "",
           Program: r.program?.program_name ?? "",
@@ -348,7 +348,7 @@ export default function AdminReports() {
         });
         return (res.data ?? []).map((a) => ({
           Intern: a.intern?.full_name ?? "—",
-          "Student No.": a.intern?.student_number ?? "",
+          "Last Name": a.intern?.last_name ?? "",
           Date: formatDate(a.date),
           "Time In": a.time_in ? formatTime(a.time_in) : "—",
           "Time Out": a.time_out ? formatTime(a.time_out) : "—",
@@ -364,7 +364,7 @@ export default function AdminReports() {
         });
         return (res.data ?? []).map((j) => ({
           Intern: j.intern?.full_name ?? "—",
-          "Student No.": j.intern?.student_number ?? "",
+          "Last Name": j.intern?.last_name ?? "",
           Date: formatDate(j.date),
           "Hours Worked": j.hours_worked ?? 0,
           Status: j.status ?? "",

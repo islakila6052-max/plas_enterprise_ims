@@ -48,8 +48,9 @@ create unique index if not exists attendance_unique_per_day
 #### interns table
 - id uuid primary key default gen_random_uuid()
 - profile_id uuid references public.profiles (id) on delete set null
-- full_name text not null
-- student_number text
+- first_name text not null default ''
+- last_name text
+- full_name text generated always as (btrim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) stored
 - department_id uuid references public.departments (id) on delete set null
 - supervisor_id uuid references public.supervisors (id) on delete set null
 - start_date date

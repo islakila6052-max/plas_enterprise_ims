@@ -84,8 +84,9 @@ src/
 |--------|------|-------------|-------------|
 | `id` | UUID | PK | Primary key |
 | `profile_id` | UUID | FK → `profiles(id)` | Links to auth profile |
-| `full_name` | TEXT | NOT NULL | Intern's full name |
-| `student_number` | TEXT | — | School student ID |
+| `first_name` | TEXT | NOT NULL DEFAULT '' | Intern's first name |
+| `last_name` | TEXT | — | Intern's last name |
+| `full_name` | TEXT | GENERATED, STORED | `first_name || ' ' || last_name` (read convenience) |
 | `contact_number` | TEXT | — | Contact phone |
 | `email` | TEXT | — | Email address |
 | `emergency_contact` | TEXT | — | Emergency contact info |
