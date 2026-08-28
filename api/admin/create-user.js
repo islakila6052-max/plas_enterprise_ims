@@ -144,9 +144,29 @@ try {
       },
     });
   } catch (error) {
+    // The underlying failure is usually a Supabase auth/postgrest error object.
+    // Normalise to a readable string so the client never sees "Error: {}".
     console.error("Error creating user:", error);
+    const message =
+      error?.message ||
+      error?.error_description ||
+      error?.invalid_email ||
+      error?.details ||
+      (typeof error === "string" ? error : "") ||
+      "Failed to create user";
+
+    // Distinguish the most common cause to give the user an actionable hint.
+    const lower = String(message).toLowerCase();
+    let hint = "";
+    if (lower.includes("already registered") || lower.includes("already exists") || lower.includes("duplicate")) {
+      hint = "An account with this email already exists. Use a different email, or delete the existing account first.";
+    } else if (lower.includes("valid email") || lower.includes("email")) {
+      hint = "The email address appears to be invalid.";
+    }
+
     return res.status(400).json({
-      error: error.message || "Failed to create user",
+      error: String(message),
+      ...(hint ? { hint } : {}),
     });
   }
 }

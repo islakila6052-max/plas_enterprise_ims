@@ -39,11 +39,42 @@ export const userService = {
       }),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Failed to create user");
+      const message = await this._extractErrorMessage(response);
+      throw new Error(message);
     }
     const { user } = await response.json();
     return { id: user.id, email: user.email };
+  },
+
+  /**
+   * Parse a failed fetch response into a readable, human message. Supabase /
+   * Vercel serverless errors don't always come back as { error: "..." } — the
+   * body may be empty, plain text, or a nested object — so we dig out the real
+   * reason instead of surfacing an unhelpful "Error: {}".
+   * @param {Response} response
+   * @returns {string}
+   */
+  async _extractErrorMessage(response) {
+    const text = await response.text().catch(() => "");
+    let body;
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      const trimmed = text.trim();
+      return (
+        trimmed ||
+        `Request failed (HTTP ${response.status} ${response.statusText.trim()})`.trim()
+      );
+    }
+    const errorField = body?.error;
+    const message =
+      typeof errorField === "string"
+        ? errorField
+        : errorField?.message || body?.message || body?.details || "";
+    return (
+      message ||
+      `Request failed (HTTP ${response.status} ${response.statusText || ""})`.trim()
+    );
   },
 
   /**
@@ -70,8 +101,8 @@ export const userService = {
       body: JSON.stringify({ userId }),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Failed to delete user");
+      const message = await this._extractErrorMessage(response);
+      throw new Error(message);
     }
     return true;
   },
