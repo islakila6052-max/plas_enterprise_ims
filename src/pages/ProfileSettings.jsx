@@ -139,6 +139,12 @@ export default function ProfileSettings() {
         bio: (values.bio ?? "").trim(),
       });
 
+      // NOTE: the audit trail for profile changes (name/bio/contact/role) is
+      // written automatically by the database trigger created in
+      // supabase/migrations/0044_audit_profile_changes.sql. It captures the
+      // true previous value server-side, so no client-side recordAudit here —
+      // adding one would create duplicate audit rows.
+
       await refreshProfile();
       setSaved(true);
 

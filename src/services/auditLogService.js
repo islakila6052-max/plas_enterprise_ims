@@ -15,7 +15,10 @@ export const auditLogService = {
   async list({ resourceType = "", resourceId = "", limit = 100 } = {}) {
     let query = supabase
       .from("audit_logs")
-      .select("*")
+      // Embed the acting user's profile so the admin view can show WHO made
+      // each change instead of a raw UUID. Falls back gracefully when the
+      // user row was hard-deleted (user_id becomes null via ON DELETE SET NULL).
+      .select("*, user:user_id (full_name, email)")
       .order("created_at", { ascending: false })
       .limit(limit);
     if (resourceType) query = query.eq("resource_type", resourceType);

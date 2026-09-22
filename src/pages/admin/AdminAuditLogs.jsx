@@ -16,11 +16,83 @@ const ACTION_TONES = {
   review: "amber",
 };
 
+/** Human-readable labels for the fields that commonly appear in audit logs. */
+const FIELD_LABELS = {
+  full_name: "Full Name",
+  first_name: "First Name",
+  last_name: "Last Name",
+  email: "Email",
+  contact_number: "Contact Number",
+  bio: "Bio",
+  role: "Role",
+  status: "Status",
+  department_id: "Department",
+  supervisor_id: "Supervisor",
+  program_id: "Program",
+  institution_id: "Institution",
+  required_hours: "Required Hours",
+  start_date: "Start Date",
+  end_date: "End Date",
+  student_number: "Student No.",
+  title: "Title",
+  body: "Message",
+  category: "Category",
+  pinned: "Pinned",
+  activities: "Activities",
+  hours_worked: "Hours Worked",
+  date: "Date",
+  time_in: "Time In",
+  time_out: "Time Out",
+  total_hours: "Total Hours",
+  claimed_time_out: "Claimed Time Out",
+};
+
+/** "full_name" -> "Full name" for any field without an explicit label. */
+function fieldLabel(field) {
+  if (FIELD_LABELS[field]) return FIELD_LABELS[field];
+  return String(field)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** Format a single change value for display. */
 function formatValue(v) {
   if (v === null || v === undefined || v === "") return "—";
-  return String(v);
+  // Map raw enum values (roles, statuses) to readable labels.
+  return VALUE_LABELS[String(v)] ?? String(v);
 }
+
+/** Friendly labels for enum-ish values that appear in change diffs. */
+const VALUE_LABELS = {
+  admin: "Admin",
+  hr_staff: "HR Staff",
+  supervisor: "Supervisor",
+  intern: "Intern",
+  active: "Active",
+  completed: "Completed",
+  archived: "Archived",
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  present: "Present",
+  late: "Late",
+  absent: "Absent",
+};
+
+/** Friendly labels for the resource types that appear in the audit trail. */
+const RESOURCE_LABELS = {
+  profile: "Profile",
+  intern: "Intern",
+  attendance: "Attendance",
+  attendance_claim: "Attendance Claim",
+  daily_journal: "Daily Journal",
+  document: "Document",
+  evaluation: "Evaluation",
+  announcement: "Announcement",
+  supervisor: "Supervisor",
+  department: "Department",
+  auth_user: "Auth User",
+};
 
 /**
  * Render a changes entry. Entries are stored as { from, to } pairs so both
@@ -39,7 +111,7 @@ function ChangeEntry({ field, value }) {
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-      <span className="font-medium text-slate-600">{field}:</span>
+      <span className="font-medium text-slate-600">{fieldLabel(field)}:</span>
       <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {/* Previous Value — omitted for CREATE (nothing existed before). */}
         {from !== null && (
@@ -135,7 +207,7 @@ export default function AdminAuditLogs() {
       header: "Resource",
       render: (r) => (
         <span className="font-mono text-xs text-slate-600">
-          {r.resource_type}
+          {RESOURCE_LABELS[r.resource_type] ?? r.resource_type}
         </span>
       ),
     },
@@ -151,11 +223,33 @@ export default function AdminAuditLogs() {
     {
       key: "user_id",
       header: "User",
-      render: (r) => (
-        <span className="font-mono text-xs text-slate-500">
-          {r.user_id ?? "system"}
-        </span>
-      ),
+      render: (r) => {
+        // Prefer the acting user's name (embedded profile); fall back to
+        // their email, then "Unknown user" for deleted accounts, then
+        // "system" for entries with no user at all.
+        if (r.user?.full_name) {
+          return (
+            <div className="min-w-0">
+              <p className="truncate font-medium text-slate-700">
+                {r.user.full_name}
+              </p>
+              <p className="truncate text-[11px] text-slate-400">
+                {r.user.email}
+              </p>
+            </div>
+          );
+        }
+        if (r.user?.email) {
+          return (
+            <span className="text-slate-600">{r.user.email}</span>
+          );
+        }
+        return (
+          <span className="font-mono text-xs text-slate-500">
+            {r.user_id ? "Unknown user" : "system"}
+          </span>
+        );
+      },
     },
     {
       key: "changes",
