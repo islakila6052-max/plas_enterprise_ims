@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { Pin, PinOff, Pencil, Trash2, Heart } from "lucide-react";
+import { Pin, PinOff, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
@@ -12,6 +12,7 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ErrorAlert from "@/components/ui/ErrorAlert";
 import EmptyState from "@/components/ui/EmptyState";
+import LikersPopover from "@/components/announcements/LikersPopover";
 import { announcementService } from "@/services/announcementService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
@@ -198,12 +199,10 @@ export default function AdminAnnouncements() {
                     <p className="text-xs text-slate-400">
                       {formatDate(a.created_at)}
                     </p>
-                    <span
-                      title="Likes from interns"
-                      className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
-                      <Heart aria-hidden="true" className="h-3 w-3" />
-                      {a.like_count ?? 0}
-                    </span>
+                    <LikersPopover
+                      announcementId={a.id}
+                      count={a.like_count ?? 0}
+                    />
                   </div>
                   <div className="flex items-center gap-1">
                     <ActionButton

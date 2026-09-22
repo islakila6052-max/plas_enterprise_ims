@@ -192,6 +192,29 @@ export const announcementService = {
   },
 
   /**
+   * Paginated list of the users who liked one announcement (newest first).
+   * Used by the admin view to show WHO liked an announcement on hover.
+   *
+   * @param {string} announcementId
+   * @param {{page?: number, pageSize?: number}} [options]
+   * @returns {Promise<{data: Array, count: number}>}
+   */
+  async listLikes(announcementId, { page = 1, pageSize = 10 } = {}) {
+    if (!announcementId) return { data: [], count: 0 };
+    const from = (page - 1) * pageSize;
+    const { data, error, count } = await supabase
+      .from("announcement_likes")
+      .select("id, created_at, user:user_id (full_name, email)", {
+        count: "exact",
+      })
+      .eq("announcement_id", announcementId)
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    return { data: data ?? [], count: count ?? 0 };
+  },
+
+  /**
    * Fetch announcement count with graceful degradation.
    * Returns safe defaults on network failure.
    */
