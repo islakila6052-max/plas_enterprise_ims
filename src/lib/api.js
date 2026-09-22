@@ -27,20 +27,60 @@ export function classifyError(error) {
     return { message: "Something went wrong. Please try again.", isNetworkError: false };
   }
 
-  const message = error.message || error.error_description || "Something went wrong. Please try again.";
+  const raw = error.message || error.error_description || "Something went wrong. Please try again.";
 
   // Supabase network errors typically have no code or a generic code
   const isNetworkError =
     error.name === "TypeError" ||
-    message.toLowerCase().includes("failed to fetch") ||
-    message.toLowerCase().includes("network") ||
-    message.toLowerCase().includes("offline") ||
+    raw.toLowerCase().includes("failed to fetch") ||
+    raw.toLowerCase().includes("network") ||
+    raw.toLowerCase().includes("offline") ||
     error.code === "ETIMEDOUT" ||
     error.code === "ECONNREFUSED" ||
     error.code === "ECONNRESET" ||
     error.code === "ENOTFOUND";
 
-  return { message, isNetworkError };
+  if (isNetworkError) {
+    return {
+      message: "No internet connection. Please check your network and try again.",
+      isNetworkError: true,
+    };
+  }
+
+  return { message: friendlyMessage(raw), isNetworkError: false };
+}
+
+/**
+ * Map raw Supabase / PostgREST / Auth errors to plain-language messages.
+ * Falls back to the raw message when no mapping applies.
+ */
+function friendlyMessage(raw) {
+  const lower = String(raw).toLowerCase();
+  if (lower.includes("invalid login credentials") || lower.includes("invalid email or password")) {
+    return "Incorrect email or password. Please try again.";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "Your email is not confirmed yet. Please check your inbox for a confirmation link.";
+  }
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (lower.includes("jwt") || lower.includes("token") || lower.includes("session")) {
+    if (lower.includes("expired")) return "Your session has expired. Please sign in again.";
+  }
+  if (lower.includes("duplicate") || lower.includes("already exists") || lower.includes("already registered") || lower.includes("unique")) {
+    return raw; // callers refine duplicate-email copy per context
+  }
+  if (lower.includes("row-level security") || lower.includes("rls") || lower.includes("not allowed") || lower.includes("permission denied")) {
+    return "You don't have permission to perform this action.";
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "The request timed out. Please check your connection and try again.";
+  }
+  if (lower.includes("500") || lower.includes("internal server error")) {
+    return "The server had a problem. Please try again in a moment.";
+  }
+  return raw;
 }
 
 /**

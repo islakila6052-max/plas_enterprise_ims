@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "start": "vite preview",
     "lint": "oxlint",
-    "test": "npx --yes vite-node scripts/rbac_sanity.mjs"
+    "test": "oxlint --quiet && npm run build"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",

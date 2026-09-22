@@ -67,21 +67,32 @@ export default function AdminAnnouncements() {
   }
 
   async function onSubmit(values) {
+    if (saving) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
+    const title = String(values.title ?? "").trim();
+    const body = String(values.body ?? "").trim();
+    if (!title || !body) {
+      toast.error("Title and message are required.");
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
-        await announcementService.update(editing.id, values);
+        await announcementService.update(editing.id, { ...values, title, body });
         toast.success("Announcement updated.");
       } else {
-        await announcementService.create({ ...values, published_by: user?.id });
+        await announcementService.create({ ...values, title, body, published_by: user?.id });
 
         // Notify all users about the new announcement.
         notifyAllWithType({
           type: "announcement",
-          title: `New announcement: ${values.title}`,
+          title: `New announcement: ${title}`,
           message:
-            values.body?.substring(0, 120) +
-            (values.body?.length > 120 ? "…" : ""),
+            body.substring(0, 120) +
+            (body.length > 120 ? "…" : ""),
           link: "/intern/announcements",
           metadata: { category: values.category },
         }).catch(() => {});
@@ -98,6 +109,11 @@ export default function AdminAnnouncements() {
   }
 
   async function togglePin(a) {
+    if (pinning) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setPinning(true);
     try {
       await announcementService.update(a.id, { pinned: !a.pinned });
@@ -110,6 +126,12 @@ export default function AdminAnnouncements() {
   }
 
   async function remove() {
+    if (deleting) return;
+    if (!confirm?.id) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setDeleting(true);
     try {
       await announcementService.remove(confirm.id);
@@ -206,11 +228,11 @@ export default function AdminAnnouncements() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => !saving && setModalOpen(false)}
         title={editing ? "Edit Announcement" : "New Announcement"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button variant="secondary" onClick={() => !saving && setModalOpen(false)} disabled={saving}>
               Cancel
             </Button>
             <Button onClick={handleSubmit(onSubmit)} loading={saving}>
@@ -221,8 +243,12 @@ export default function AdminAnnouncements() {
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <Input
             label="Title"
+            maxLength={120}
             error={errors.title?.message}
-            {...register("title", { required: "Title is required" })}
+            {...register("title", {
+              required: "Title is required",
+              validate: (v) => (v ?? "").trim().length > 0 || "Title is required",
+            })}
           />
           <Select label="Category" {...register("category")}>
             {ANNOUNCEMENT_CATEGORIES.map((c) => (
@@ -234,15 +260,19 @@ export default function AdminAnnouncements() {
           <Textarea
             label="Message"
             rows={5}
+            maxLength={2000}
             error={errors.body?.message}
-            {...register("body", { required: "Message is required" })}
+            {...register("body", {
+              required: "Message is required",
+              validate: (v) => (v ?? "").trim().length > 0 || "Message is required",
+            })}
           />
         </form>
       </Modal>
 
       <ConfirmDialog
         open={Boolean(confirm)}
-        onClose={() => setConfirm(null)}
+        onClose={() => !deleting && setConfirm(null)}
         onConfirm={remove}
         title="Delete announcement?"
         message={`Delete "${confirm?.title}"? This cannot be undone.`}

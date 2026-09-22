@@ -18,10 +18,12 @@ export default function TimeOutForm({
 }) {
   const [remarks, setRemarks] = useState("");
   const [timeOut, setTimeOut] = useState("");
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (open) {
       setRemarks("");
+      setFormError("");
       // Set default time out to current time in HH:mm format
       const now = new Date();
       const hours = String(now.getHours()).padStart(2, "0");
@@ -34,9 +36,10 @@ export default function TimeOutForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setFormError("");
     // Require remarks for forgotten timeouts
     if (isForgotten && !remarks.trim()) {
-      alert("Please provide a reason for forgetting to time out.");
+      setFormError("Please provide a reason for forgetting to time out.");
       return;
     }
 
@@ -47,7 +50,12 @@ export default function TimeOutForm({
     const timeOutDateTime = manilaWallTimeToISO(dateStr, timeOut);
 
     if (!timeOutDateTime) {
-      alert("Please enter a valid time.");
+      setFormError("Please enter a valid time.");
+      return;
+    }
+
+    if (attendanceRecord?.time_in && new Date(timeOutDateTime) <= new Date(attendanceRecord.time_in)) {
+      setFormError("Time out must be after time in.");
       return;
     }
 
@@ -113,6 +121,11 @@ export default function TimeOutForm({
               <p className="mt-0.5 text-xs text-slate-500">
                 Enter the time you want to record as time out.
               </p>
+              {formError && (
+                <p className="mt-1 text-xs font-medium text-red-600" role="alert">
+                  {formError}
+                </p>
+              )}
             </div>
 
             <div>

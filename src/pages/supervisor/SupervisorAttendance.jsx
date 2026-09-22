@@ -6,11 +6,13 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import ReviewClaimModal from "@/components/attendance/ReviewClaimModal";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatTime, formatHours } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
@@ -27,21 +29,30 @@ export default function SupervisorAttendance() {
   const { profile, supervisorId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [claimFilter, setClaimFilter] = useState("");
   const [reviewRecord, setReviewRecord] = useState(null);
   const [reviewing, setReviewing] = useState(false);
+  const debouncedSearch = useDebouncedValue(search, 400);
 
   const load = useCallback(async () => {
+    if (!supervisorId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await attendanceService.adminList({
         supervisorId,
         page: 1,
         pageSize: 100,
       });
-      let filtered = res.data;
+      let filtered = res.data ?? [];
       if (status) filtered = filtered.filter((r) => r.status === status);
       if (claimFilter) {
         if (claimFilter === "pending") {
@@ -53,19 +64,19 @@ export default function SupervisorAttendance() {
           );
         }
       }
-      if (search) {
-        const q = search.toLowerCase();
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
         filtered = filtered.filter((r) =>
           (r.intern?.full_name ?? "").toLowerCase().includes(q),
         );
       }
       setRows(filtered);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [supervisorId, status, claimFilter, search]);
+  }, [supervisorId, status, claimFilter, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -73,6 +84,11 @@ export default function SupervisorAttendance() {
 
   async function handleReview(decision, comment) {
     if (!reviewRecord) return;
+    if (reviewing) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setReviewing(true);
     try {
       await attendanceService.reviewClaim(
@@ -229,6 +245,10 @@ export default function SupervisorAttendance() {
         </div>
         {loading ? (
           <Spinner label="Loading attendance…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}
@@ -236,7 +256,9 @@ export default function SupervisorAttendance() {
             rowKey={(r) => r.id}
             empty={
               <div className="p-4 text-center text-sm text-slate-500">
-                No attendance records.
+                {debouncedSearch || status || claimFilter
+                  ? "No attendance records match these filters."
+                  : "No attendance records."}
               </div>
             }
           />
@@ -245,7 +267,7 @@ export default function SupervisorAttendance() {
 
       <ReviewClaimModal
         open={Boolean(reviewRecord)}
-        onClose={() => setReviewRecord(null)}
+        onClose={() => !reviewing && setReviewRecord(null)}
         onReview={handleReview}
         attendanceRecord={reviewRecord}
         loading={reviewing}

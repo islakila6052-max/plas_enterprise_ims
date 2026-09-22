@@ -9,6 +9,7 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { journalService } from "@/services/journalService";
 import { useAuth } from "@/contexts/AuthContext";
 import { JOURNAL_STATUS_LABELS } from "@/lib/constants";
@@ -22,6 +23,7 @@ export default function InternJournal() {
   const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -38,17 +40,24 @@ export default function InternJournal() {
   });
 
   const load = useCallback(async () => {
+    if (!internId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await journalService.list({ internId, page: 1, pageSize: 30 });
-      let data = res.data;
+      let data = res.data ?? [];
       if (search) {
         const q = search.toLowerCase();
         data = data.filter((r) => (r.activities ?? "").toLowerCase().includes(q));
       }
       setRows(data);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -59,6 +68,19 @@ export default function InternJournal() {
   }, [load]);
 
   async function onSubmit(values) {
+    if (saving) return;
+    if (!internId) {
+      toast.error("Your intern profile isn't linked yet. Please contact an administrator.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
+    if (values.date && values.date > todayISO()) {
+      toast.error("Journal date cannot be in the future.");
+      return;
+    }
     setSaving(true);
     try {
       const created = await journalService.create({
@@ -131,7 +153,7 @@ export default function InternJournal() {
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Date" maxLength={10} type="date" {...register("date", { required: "Date is required" })} />
+            <Input label="Date" maxLength={10} type="date" max={todayISO()} error={errors.date?.message} {...register("date", { required: "Date is required", validate: (v) => !v || v <= todayISO() || "Date cannot be in the future" })} />
             <Input
               label="Hours worked"
               maxLength={6}
@@ -153,7 +175,10 @@ export default function InternJournal() {
               rows={3}
               maxLength={250}
               error={errors.activities?.message}
-              {...register("activities", { required: "Activities are required" })}
+              {...register("activities", {
+                required: "Activities are required",
+                validate: (v) => (v ?? "").trim().length > 0 || "Activities are required",
+              })}
             />
             <CharCounter value={watch("activities")} limit={250} />
           </div>
@@ -181,6 +206,10 @@ export default function InternJournal() {
         </div>
         {loading ? (
           <Spinner label="Loading journals…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}

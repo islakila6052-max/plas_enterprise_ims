@@ -10,6 +10,7 @@ import Spinner from "@/components/ui/Spinner";
 import Pagination from "@/components/ui/Pagination";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { documentService } from "@/services/documentService";
 
 import {
@@ -48,20 +49,23 @@ export default function AdminDocuments() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [preview, setPreview] = useState(null);
   const [reviewing, setReviewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await documentService.list({ page });
       setRows(res.data);
       setTotal(res.count);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -72,6 +76,11 @@ export default function AdminDocuments() {
   }, [load]);
 
   async function review(row, status) {
+    if (reviewing) return; // block double-clicks
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setReviewing(true);
     try {
       // documentService.review() already sends a notification to the intern.
@@ -112,19 +121,32 @@ export default function AdminDocuments() {
   }
 
   async function handleDelete(id, filePath) {
-    setDeletingId(id);
+    setDeletingId({ id, filePath });
     setDeleteDialog(true);
   }
 
-  async function confirmedDelete(id, filePath) {
-    setDeleteDialog(false);
-    setDeletingId(null);
+  async function confirmedDelete() {
+    if (!deletingId?.id) return;
+    if (deleting) return; // block double-clicks
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      setDeleteDialog(false);
+      setDeletingId(null);
+      return;
+    }
+    setDeleting(true);
     try {
-      await documentService.remove(id, filePath);
+      await documentService.remove(deletingId.id, deletingId.filePath);
       toast.success("Document deleted.");
+      setDeleteDialog(false);
+      setDeletingId(null);
       load();
     } catch (err) {
       toast.error(err.message);
+      setDeleteDialog(false);
+      setDeletingId(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -223,6 +245,10 @@ export default function AdminDocuments() {
       <Card>
         {loading ? (
           <Spinner label="Loading documents…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}
@@ -302,12 +328,13 @@ export default function AdminDocuments() {
 
       <ConfirmDialog
         open={deleteDialog}
-        onClose={() => setDeleteDialog(false)}
-        onConfirm={() => confirmedDelete(deletingId)}
+        onClose={() => !deleting && setDeleteDialog(false)}
+        onConfirm={confirmedDelete}
         title="Delete Document"
         message="Are you sure you want to delete this document? This action cannot be undone."
         confirmLabel="Delete"
         tone="danger"
+        loading={deleting}
       />
     </div>
   );

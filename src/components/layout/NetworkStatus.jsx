@@ -10,14 +10,21 @@ import toast from "react-hot-toast";
  */
 export default function NetworkStatus() {
   const isOnline = useOnlineStatus();
-  const [showBanner, setShowBanner] = useState(false);
-  const toastId = useRef(null);
-
-  // We need a ref for the toast ID that persists across renders.
-  // useRef is initialized here but we'll set it in useEffect.
+  const [showBanner, setShowBanner] = useState(() =>
+    typeof navigator !== "undefined" ? !navigator.onLine : false,
+  );
+  const prevOnline = useRef(isOnline);
   const toastIdRef = useRef(null);
 
   useEffect(() => {
+    const wasOnline = prevOnline.current;
+    prevOnline.current = isOnline;
+    // Skip the initial mount — only react to transitions so we don't
+    // toast "Connection restored" on every page load.
+    if (wasOnline === isOnline) {
+      setShowBanner(!isOnline);
+      return;
+    }
     if (!isOnline) {
       setShowBanner(true);
       // Dismiss any reconnect toast
@@ -27,7 +34,7 @@ export default function NetworkStatus() {
       }
     } else {
       setShowBanner(false);
-      // Show a "reconnected" toast
+      // Show a "reconnected" toast only on offline -> online transitions.
       toastIdRef.current = toast.success("Connection restored.", {
         duration: 3000,
         position: "top-center",

@@ -1,5 +1,5 @@
 // src/pages/ProfileSettings.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { profileService } from "@/services/profileService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,13 @@ export default function ProfileSettings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [serverError, setServerError] = useState("");
+  const savedTimer = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    };
+  }, []);
 
   const {
     register,
@@ -100,6 +107,17 @@ export default function ProfileSettings() {
   async function onSubmit(values) {
     setServerError("");
     setSaved(false);
+    if (saving) return;
+    if (!user?.id) {
+      setServerError("Your session isn't ready yet. Please reload and try again.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setServerError("No internet connection. Please check your network and try again.");
+      return;
+    }
+    // Defer clearing timers across renders.
+    if (savedTimer.current) clearTimeout(savedTimer.current);
     setSaving(true);
 
     try {
@@ -110,20 +128,21 @@ export default function ProfileSettings() {
         if (digits.length === 10) {
           cleanContactNumber = `63${digits}`; // Store with country code
         } else if (digits.length > 0) {
-          cleanContactNumber = digits;
+          setServerError("Contact number must be exactly 10 digits starting with 9.");
+          return;
         }
       }
 
       await profileService.update(user.id, {
         full_name: values.full_name.trim(),
         contact_number: cleanContactNumber,
-        bio: values.bio.trim(),
+        bio: (values.bio ?? "").trim(),
       });
 
       await refreshProfile();
       setSaved(true);
 
-      setTimeout(() => setSaved(false), 5000);
+      savedTimer.current = setTimeout(() => setSaved(false), 5000);
     } catch (err) {
       setServerError(
         err.message || "Failed to update profile. Please try again.",

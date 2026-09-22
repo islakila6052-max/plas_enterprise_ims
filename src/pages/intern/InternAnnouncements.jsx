@@ -1,10 +1,10 @@
 // src/pages/intern/InternAnnouncements.jsx
 import { useEffect, useState, useCallback } from "react";
-import { toast } from "react-hot-toast";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { announcementService } from "@/services/announcementService";
 
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
@@ -16,14 +16,16 @@ export default function InternAnnouncements() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await announcementService.list({});
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -41,6 +43,8 @@ export default function InternAnnouncements() {
       <PageHeader title="Announcements" description="Company news and important reminders." />
       {loading ? (
         <Spinner label="Loading announcements…" />
+      ) : loadError ? (
+        <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
       ) : (
         <div className="space-y-6">
           {pinned.length > 0 && (

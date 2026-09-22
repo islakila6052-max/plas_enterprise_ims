@@ -21,6 +21,8 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [busyId, setBusyId] = useState(null);
   const wrapRef = useRef(null);
   const channelRef = useRef(null);
 
@@ -28,6 +30,7 @@ export default function NotificationBell() {
 
   async function refresh() {
     if (!userId) return;
+    setLoading(true);
     try {
       const [list, count] = await Promise.all([
         notificationService.list({ userId, limit: 10 }),
@@ -37,6 +40,8 @@ export default function NotificationBell() {
       setUnread(count);
     } catch {
       // Silently fail — the bell still works with stale data.
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -87,12 +92,18 @@ export default function NotificationBell() {
 
   // Track online/offline state for the bell UI.
   useEffect(() => {
-    const unsub = window.addEventListener("online", () => setOffline(false));
-    const unsub2 = window.addEventListener("offline", () => setOffline(true));
+    function handleOnline() {
+      setOffline(false);
+    }
+    function handleOffline() {
+      setOffline(true);
+    }
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     setOffline(!navigator.onLine);
     return () => {
-      window.removeEventListener("online", unsub);
-      window.removeEventListener("offline", unsub2);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -113,8 +124,15 @@ export default function NotificationBell() {
     function onClick(e) {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
     }
+    function onKey(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   async function handleOpen() {
@@ -123,17 +141,33 @@ export default function NotificationBell() {
   }
 
   async function handleItemClick(n) {
+    if (busyId) return;
     if (!n.is_read) {
-      await notificationService.markRead(n.id);
-      await refresh();
+      setBusyId(n.id);
+      try {
+        await notificationService.markRead(n.id);
+        await refresh();
+      } catch {
+        /* keep stale state; bell retries on next open */
+      } finally {
+        setBusyId(null);
+      }
     }
     setOpen(false);
     if (n.link) navigate(n.link);
   }
 
   async function handleMarkAll() {
-    await notificationService.markAllRead(userId);
-    await refresh();
+    if (markingAll) return;
+    setMarkingAll(true);
+    try {
+      await notificationService.markAllRead(userId);
+      await refresh();
+    } catch {
+      /* non-fatal */
+    } finally {
+      setMarkingAll(false);
+    }
   }
 
   return (
@@ -162,8 +196,9 @@ export default function NotificationBell() {
               <button
                 type="button"
                 onClick={handleMarkAll}
-                className="text-xs font-medium text-brand-600 hover:text-brand-800">
-                Mark all read
+                disabled={markingAll}
+                className="text-xs font-medium text-brand-600 hover:text-brand-800 disabled:opacity-50">
+                {markingAll ? "Marking…" : "Mark all read"}
               </button>
             )}
           </div>

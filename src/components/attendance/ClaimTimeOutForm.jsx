@@ -18,11 +18,13 @@ export default function ClaimTimeOutForm({
 }) {
   const [remarks, setRemarks] = useState("");
   const [claimedTimeOut, setClaimedTimeOut] = useState("");
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (!open) return;
 
     setRemarks("");
+    setFormError("");
     // Default to current time in HH:mm format
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, "0");
@@ -32,9 +34,10 @@ export default function ClaimTimeOutForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setFormError("");
 
     if (!remarks.trim()) {
-      alert("Please provide a reason for the missed clock-out.");
+      setFormError("Please provide a reason for the missed clock-out.");
       return;
     }
 
@@ -42,7 +45,12 @@ export default function ClaimTimeOutForm({
     const claimedDateTime = manilaWallTimeToISO(dateStr, claimedTimeOut);
 
     if (!claimedDateTime) {
-      alert("Please enter a valid time.");
+      setFormError("Please enter a valid time.");
+      return;
+    }
+
+    if (attendanceRecord?.time_in && new Date(claimedDateTime) <= new Date(attendanceRecord.time_in)) {
+      setFormError("Claimed time out must be after time in.");
       return;
     }
 
@@ -135,6 +143,11 @@ export default function ClaimTimeOutForm({
             <p className="mt-1 text-xs text-amber-600">
               * Required: Please explain why you missed the clock-out.
             </p>
+            {formError && (
+              <p className="mt-1 text-xs font-medium text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
           </div>
         </div>
       </form>

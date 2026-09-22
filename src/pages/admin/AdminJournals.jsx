@@ -10,6 +10,7 @@ import Spinner from "@/components/ui/Spinner";
 import Pagination from "@/components/ui/Pagination";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { journalService } from "@/services/journalService";
 
@@ -38,12 +39,14 @@ export default function AdminJournals() {
   const [reviewing, setReviewing] = useState(null);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await journalService.list({ page });
-      let data = res.data;
+      let data = res.data ?? [];
       if (status) data = data.filter((r) => r.status === status);
       if (search) {
         const q = search.toLowerCase();
@@ -52,9 +55,9 @@ export default function AdminJournals() {
         );
       }
       setRows(data);
-      setTotal(res.count);
+      setTotal(res.count ?? data.length);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -64,6 +67,12 @@ export default function AdminJournals() {
     load();
   }, [load]);
 
+  // Clamp to a valid page when filters shrink the result set.
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil((Number(total) || 0) / PAGE_SIZE));
+    if (page > totalPages) setPage(totalPages);
+  }, [total, page]);
+
   function openReview(row) {
     setReviewing(row);
     setComment(row.supervisor_comment ?? "");
@@ -71,6 +80,11 @@ export default function AdminJournals() {
 
   async function decide(decision) {
     if (!reviewing) return;
+    if (saving) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSaving(true);
     try {
       await journalService.review(reviewing.id, decision, null, comment);
@@ -181,6 +195,10 @@ export default function AdminJournals() {
         </div>
         {loading ? (
           <Spinner label="Loading journals…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}
@@ -188,7 +206,9 @@ export default function AdminJournals() {
             rowKey={(r) => r.id}
             empty={
               <div className="p-4 text-center text-sm text-slate-500">
-                No journals submitted.
+                {search || status
+                  ? "No journals match these filters."
+                  : "No journals submitted."}
               </div>
             }
           />
@@ -205,7 +225,7 @@ export default function AdminJournals() {
 
       <Modal
         open={Boolean(reviewing)}
-        onClose={() => setReviewing(null)}
+        onClose={() => !saving && setReviewing(null)}
         title="Review Journal"
         footer={
           <>

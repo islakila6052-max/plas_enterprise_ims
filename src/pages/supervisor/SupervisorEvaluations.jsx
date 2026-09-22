@@ -93,6 +93,15 @@ export default function SupervisorEvaluations() {
   }
 
   async function onSubmit(values) {
+    if (saving) return;
+    if (!resolvedSid) {
+      toast.error("Your supervisor profile isn't linked yet. Please contact an administrator.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSaving(true);
     try {
       const sid = resolvedSid;
@@ -105,7 +114,7 @@ export default function SupervisorEvaluations() {
         supervisor_id: sid,
         ...criteria,
         overall_rating: Number(values.overall_rating) || 0,
-        comments: values.comments,
+        comments: (values.comments ?? "").trim() || null,
         final_recommendation: values.final_recommendation,
         status: "pending",
       });
@@ -186,12 +195,12 @@ export default function SupervisorEvaluations() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => !saving && setModalOpen(false)}
         size="lg"
         title="New Evaluation"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => !saving && setModalOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={handleSubmit(onSubmit)} loading={saving}>Submit</Button>
           </>
         }>

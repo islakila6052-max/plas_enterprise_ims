@@ -158,10 +158,26 @@ export default function Login() {
 
   async function onSubmit(values) {
     setServerError("");
+    if (submitting) return;
+    const email = String(values.email ?? "").trim();
+    if (!email) {
+      setServerError("Email is required.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setServerError("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await authService.signIn(values.email, values.password);
+      await authService.signIn(email, values.password);
       const loaded = await refreshProfile();
+      if (!loaded?.role) {
+        setServerError(
+          "Your account exists but no profile/role is assigned yet. Please contact an administrator to activate your account.",
+        );
+        return;
+      }
       const target = from || ROLE_HOME[loaded?.role] || "/";
       navigate(target, { replace: true });
     } catch (err) {
@@ -192,7 +208,10 @@ export default function Login() {
             onSubmit={handleSubmit(onSubmit)}
             className="surface animate-fade-up space-y-4 p-4 sm:p-6 rounded-xl shadow-lg border border-emerald-100/50 bg-white/80 backdrop-blur-sm mt-4 sm:mt-6">
             {serverError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs sm:text-sm text-red-700">
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs sm:text-sm text-red-700"
+                role="alert"
+                aria-live="assertive">
                 {serverError}
               </div>
             )}

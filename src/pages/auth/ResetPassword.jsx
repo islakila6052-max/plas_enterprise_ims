@@ -1,5 +1,5 @@
 // src/pages/auth/ResetPassword.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { authService } from "@/services/authService";
@@ -13,6 +13,12 @@ export default function ResetPassword() {
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => navigate("/login", { replace: true }), 1500);
+    return () => clearTimeout(t);
+  }, [done, navigate]);
+
   const {
     register,
     handleSubmit,
@@ -22,11 +28,15 @@ export default function ResetPassword() {
 
   async function onSubmit({ password }) {
     setServerError("");
+    if (submitting) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setServerError("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSubmitting(true);
     try {
       await authService.updatePassword(password);
       setDone(true);
-      setTimeout(() => navigate("/login", { replace: true }), 1500);
     } catch (err) {
       setServerError(err.message);
     } finally {

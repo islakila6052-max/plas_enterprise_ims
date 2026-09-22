@@ -423,6 +423,21 @@ export default function AdminReports() {
   }
 
   async function generatePreview() {
+    if (busy) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
+    // Validate date ranges before hitting the database.
+    const tf = filters[type] || {};
+    if (tf.dateFrom && tf.dateTo && tf.dateFrom > tf.dateTo) {
+      toast.error("The From date cannot be after the To date.");
+      return;
+    }
+    if (tf.createdFrom && tf.createdTo && tf.createdFrom > tf.createdTo) {
+      toast.error("The From date cannot be after the To date.");
+      return;
+    }
     setBusy(true);
     try {
       const data = await fetchData();
@@ -436,6 +451,11 @@ export default function AdminReports() {
   }
 
   async function exportPDF() {
+    if (busy) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setBusy(true);
     try {
       const data = await fetchData();
@@ -534,20 +554,36 @@ export default function AdminReports() {
   }
 
   function printPreview() {
+    if (busy) return;
     if (!preview || !preview.length)
       return toast.error("Generate a preview first.");
-    const headers = Object.keys(preview[0]);
-    const rows = preview.map((d) => Object.values(d));
-    const html = `
-      <h2>IMS Report — ${type}</h2>
+    try {
+      const escapeHtml = (v) =>
+        String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      const headers = Object.keys(preview[0]);
+      const rows = preview.map((d) => Object.values(d));
+      const html = `
+      <h2>IMS Report — ${escapeHtml(type)}</h2>
       <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;font-size:12px">
-        <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-        <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>
+        <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>`;
-    const w = window.open("", "_blank");
-    w.document.write(`<html><body>${html}</body></html>`);
-    w.document.close();
-    w.print();
+      const w = window.open("", "_blank");
+      if (!w) {
+        toast.error("Pop-up blocked. Please allow pop-ups to print this report.");
+        return;
+      }
+      w.document.write(`<html><body>${html}</body></html>`);
+      w.document.close();
+      w.focus();
+      w.print();
+    } catch (err) {
+      toast.error(err.message);
+    }
   }
 
   const previewColumns = REPORTS.find((r) => r.key === type)?.columns ?? [];

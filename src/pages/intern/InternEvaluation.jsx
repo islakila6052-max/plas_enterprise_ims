@@ -1,27 +1,41 @@
 // src/pages/intern/InternEvaluation.jsx
 import { useEffect, useState, useCallback } from "react";
-import { toast } from "react-hot-toast";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import { evaluationService } from "@/services/evaluationService";
 import { useAuth } from "@/contexts/AuthContext";
-import { EVALUATION_CRITERIA } from "@/lib/constants";
+import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+
+const REC_LABEL = Object.fromEntries(
+  EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]),
+);
 
 export default function InternEvaluation() {
   const { profile, internId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
+    // Without an intern record we cannot safely scope the query — never list
+    // all evaluations in that case.
+    if (!internId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await evaluationService.list({ internId, page: 1, pageSize: 20 });
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -39,6 +53,8 @@ export default function InternEvaluation() {
       />
       {loading ? (
         <Spinner label="Loading evaluations…" />
+      ) : loadError ? (
+        <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
       ) : rows.length === 0 ? (
         <Card>
           <p className="p-5 text-center text-sm text-slate-500">
@@ -52,7 +68,9 @@ export default function InternEvaluation() {
               <div className="space-y-4 p-5">
                 <div className="flex items-center justify-between">
                   <Badge tone="brand">
-                    {e.final_recommendation ?? "—"}
+                    {REC_LABEL[e.final_recommendation] ??
+                      e.final_recommendation ??
+                      "—"}
                   </Badge>
                   <span className="text-xs text-slate-400">
                     {formatDate(e.created_at)}

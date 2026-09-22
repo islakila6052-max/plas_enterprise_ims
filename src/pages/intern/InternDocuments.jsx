@@ -9,6 +9,7 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import Modal from "@/components/ui/Modal";
 import { documentService } from "@/services/documentService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,18 +51,26 @@ export default function InternDocuments() {
   const [preview, setPreview] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
+    if (!internId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await documentService.list({
         internId,
         page: 1,
         pageSize: 50,
       });
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
@@ -72,11 +81,26 @@ export default function InternDocuments() {
   }, [load]);
 
   async function upload() {
+    if (uploading) return;
+    if (!internId) {
+      toast.error("Your intern profile isn't linked yet. Please contact an administrator.");
+      return;
+    }
     if (!file) return toast.error("Choose a file first.");
     if (file.size > MAX_FILE_SIZE) {
       return toast.error(
         `File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`,
       );
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return toast.error("No internet connection. Please check your network and try again.");
+    }
+    // Prevent uploading the exact same file twice in a row (double-click guard).
+    const existing = rows.some(
+      (r) => r.file_name === file.name && r.type === type,
+    );
+    if (existing) {
+      return toast.error("This file was already uploaded for this document type.");
     }
     setUploading(true);
     try {
@@ -92,6 +116,11 @@ export default function InternDocuments() {
   }
 
   async function download(row) {
+    if (downloading) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setDownloading(true);
     try {
       const url =
@@ -100,7 +129,10 @@ export default function InternDocuments() {
         toast.error("Download link unavailable.");
         return;
       }
-      window.open(url, "_blank", "noopener,noreferrer");
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        toast.error("Pop-up blocked. Please allow pop-ups to download this file.");
+      }
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -108,20 +140,33 @@ export default function InternDocuments() {
     }
   }
 
+  const [deleting, setDeleting] = useState(false);
+
   async function handleDelete(id, filePath) {
     setDeletingId(id);
     setDeleteDialog(true);
   }
 
   async function confirmedDelete(id, filePath) {
-    setDeleteDialog(false);
-    setDeletingId(null);
+    if (!id) return;
+    if (deleting) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
+    setDeleting(true);
     try {
       await documentService.remove(id, filePath);
       toast.success("Document deleted.");
+      // Optimistically drop it so a stale list can't resurrect it.
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      setDeleteDialog(false);
+      setDeletingId(null);
       load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -218,6 +263,7 @@ export default function InternDocuments() {
               setFile(selected);
             }}
             className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
           />
           <Button onClick={upload} loading={uploading}>
             Upload
@@ -236,6 +282,10 @@ export default function InternDocuments() {
         </div>
         {loading ? (
           <Spinner label="Loading documents…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}
@@ -252,12 +302,13 @@ export default function InternDocuments() {
 
       <ConfirmDialog
         open={deleteDialog}
-        onClose={() => setDeleteDialog(false)}
+        onClose={() => !deleting && setDeleteDialog(false)}
         onConfirm={() => confirmedDelete(deletingId)}
         title="Delete Document"
         message="Are you sure you want to delete this document? This action cannot be undone."
         confirmLabel="Delete"
         tone="danger"
+        loading={deleting}
       />
 
       <Modal

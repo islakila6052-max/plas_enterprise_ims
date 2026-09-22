@@ -8,6 +8,7 @@ import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import TimeOutForm from "@/components/attendance/TimeOutForm";
 import ClaimTimeOutForm from "@/components/attendance/ClaimTimeOutForm";
 import { attendanceService } from "@/services/attendanceService";
@@ -36,6 +37,7 @@ export default function InternAttendance() {
   const [todayRec, setTodayRec] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [showTimeOutForm, setShowTimeOutForm] = useState(false);
   const [timeOutRecord, setTimeOutRecord] = useState(null);
@@ -45,7 +47,16 @@ export default function InternAttendance() {
   const [remarksModal, setRemarksModal] = useState({ open: false, text: "" });
 
   const load = useCallback(async () => {
+    if (!internId) {
+      setRows([]);
+      setTodayRec(null);
+      setOpen(null);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const [todayRecord, res] = await Promise.all([
         attendanceService.getToday(internId),
@@ -53,21 +64,38 @@ export default function InternAttendance() {
       ]);
       setTodayRec(todayRecord);
       setOpen(todayRecord && !todayRecord.time_out ? todayRecord : null);
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
   }, [internId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    (async () => {
+      await load();
+      if (!active) return;
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internId]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function confirmTimeIn() {
+    if (busy) return;
+    if (!internId) {
+      toast.error("Your intern profile isn't linked yet. Please contact an administrator.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setConfirmOpen(false);
     setBusy(true);
     try {
@@ -121,6 +149,15 @@ export default function InternAttendance() {
   // Update the handleTimeOut function:
 
   async function handleTimeOut({ timeOut, remarks }) {
+    if (busy) return;
+    if (!open?.id) {
+      toast.error("No open attendance record found.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setBusy(true);
     try {
       await attendanceService.timeOut(open.id, timeOut, remarks);
@@ -182,6 +219,15 @@ export default function InternAttendance() {
   };
 
   async function handleClaimSubmit({ claimedTimeOut, remarks }) {
+    if (busy) return;
+    if (!claimRecord?.id) {
+      toast.error("No attendance record selected for this claim.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setBusy(true);
     try {
       await attendanceService.submitClaim(
@@ -410,6 +456,14 @@ export default function InternAttendance() {
         </div>
         {loading ? (
           <Spinner label="Loading history…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert
+              message={loadError.message}
+              onRetry={load}
+              loading={loading}
+            />
+          </div>
         ) : (
           <Table
             columns={columns}

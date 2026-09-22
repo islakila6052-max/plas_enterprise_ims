@@ -7,11 +7,13 @@ import Card from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
+import ErrorAlert from "@/components/ui/ErrorAlert";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { Textarea, Input } from "@/components/ui/Input";
 import { journalService } from "@/services/journalService";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { JOURNAL_STATUS, JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
@@ -28,9 +30,18 @@ export default function SupervisorJournals() {
   const [reviewing, setReviewing] = useState(null);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const debouncedSearch = useDebouncedValue(search, 400);
 
   const load = useCallback(async () => {
+    if (!supervisorId) {
+      setRows([]);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const sid = supervisorId;
       const res = await journalService.list({
@@ -38,21 +49,21 @@ export default function SupervisorJournals() {
         page: 1,
         pageSize: 100,
       });
-      let data = res.data;
+      let data = res.data ?? [];
       if (status) data = data.filter((r) => r.status === status);
-      if (search) {
-        const q = search.toLowerCase();
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
         data = data.filter((r) =>
           (r.intern?.full_name ?? "").toLowerCase().includes(q),
         );
       }
       setRows(data);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [supervisorId, status, search]);
+  }, [supervisorId, status, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -63,28 +74,33 @@ export default function SupervisorJournals() {
     setComment(r.supervisor_comment ?? "");
   }
 
-  async function decide(status) {
+  async function decide(decision) {
     if (!reviewing) return;
+    if (saving) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSaving(true);
     try {
       const sid = supervisorId;
-      await journalService.review(reviewing.id, status, sid, comment);
+      await journalService.review(reviewing.id, decision, sid, comment);
       await recordAudit({
         user_id: user?.id,
         action: "review",
         resource_type: "daily_journal",
         resource_id: reviewing.id,
-        changes: { status, supervisor_comment: comment },
+        changes: { status: decision, supervisor_comment: comment },
       });
       if (reviewing.intern?.profile_id)
         await notify({
           user_id: reviewing.intern.profile_id,
           type: "journal_review",
-          title: `Journal ${status}`,
-          message: `Your journal for ${reviewing.date} was ${status}.`,
+          title: `Journal ${decision}`,
+          message: `Your journal for ${reviewing.date} was ${decision}.`,
           link: "/intern/journal",
         });
-      toast.success(`Journal ${status}.`);
+      toast.success(`Journal ${decision}.`);
       setReviewing(null);
       load();
     } catch (err) {
@@ -159,6 +175,10 @@ export default function SupervisorJournals() {
         </div>
         {loading ? (
           <Spinner label="Loading journals…" />
+        ) : loadError ? (
+          <div className="p-5">
+            <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
+          </div>
         ) : (
           <Table
             columns={columns}
@@ -166,7 +186,9 @@ export default function SupervisorJournals() {
             rowKey={(r) => r.id}
             empty={
               <div className="p-4 text-center text-sm text-slate-500">
-                No journals to review.
+                {debouncedSearch || status
+                  ? "No journals match these filters."
+                  : "No journals to review."}
               </div>
             }
           />
@@ -175,7 +197,7 @@ export default function SupervisorJournals() {
 
       <Modal
         open={Boolean(reviewing)}
-        onClose={() => setReviewing(null)}
+        onClose={() => !saving && setReviewing(null)}
         title="Review Journal"
         footer={
           <>

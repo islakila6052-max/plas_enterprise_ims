@@ -42,6 +42,9 @@ export default function AdminAttendance() {
     setLoading(true);
     setError(null);
     try {
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        throw new Error("The From date cannot be after the To date.");
+      }
       const res = await attendanceService.adminList({ dateFrom, dateTo, page });
       let data = res.data;
       if (status) data = data.filter((r) => r.status === status);
@@ -82,7 +85,11 @@ export default function AdminAttendance() {
   }
 
   function exportCSV() {
+    if (exporting) return;
     if (!rows.length) return toast.error("No rows to export.");
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return toast.error("No internet connection. Please reconnect before exporting.");
+    }
     setExporting(true);
     try {
       const header = [
@@ -93,23 +100,29 @@ export default function AdminAttendance() {
         "Hours",
         "Status",
       ];
+      const esc = (v) => {
+        const s = String(v ?? "");
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
       const lines = rows.map((r) => [
-        r.intern?.full_name ?? "",
-        r.date,
-        r.time_in ?? "",
-        r.time_out ?? "",
-        r.total_hours,
-        r.status,
+        esc(r.intern?.full_name ?? ""),
+        esc(r.date),
+        esc(r.time_in ?? ""),
+        esc(r.time_out ?? ""),
+        esc(r.total_hours),
+        esc(r.status),
       ]);
       const csv = [header, ...lines].map((row) => row.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const from = dateFrom || "start";
       const to = dateTo || "end";
       a.download = `attendance-${from}-${to}.csv`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
       toast.success("Attendance exported (CSV).");
     } finally {

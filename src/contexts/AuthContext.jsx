@@ -17,16 +17,19 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   async function loadProfile(authUser) {
     if (!authUser) {
       setProfile(null);
+      setProfileError(null);
       return null;
     }
     try {
       const p = await profileService.getByUserId(authUser.id);
       setProfile(p);
+      setProfileError(p ? null : "No profile/role is assigned to this account.");
       return p;
     } catch (err) {
       // Network errors (offline, Supabase down) are non-fatal —
@@ -35,6 +38,7 @@ export function AuthProvider({ children }) {
       // eslint-disable-next-line no-console
       console.warn("[IMS] Profile load failed (network?):", err.message);
       setProfile(null);
+      setProfileError(err?.message ?? "Failed to load profile.");
       return null;
     }
   }
@@ -43,7 +47,14 @@ export function AuthProvider({ children }) {
     let active = true;
 
     async function bootstrap() {
-      const current = await authService.getCurrentUser();
+      let current = null;
+      try {
+        current = await authService.getCurrentUser();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[IMS] Session restore failed:", err?.message);
+        current = null;
+      }
       if (!active) return;
       setUser(current ?? null);
       await loadProfile(current);
@@ -82,6 +93,7 @@ export function AuthProvider({ children }) {
       user,
       profile,
       role,
+      profileError,
       internId,
       supervisorId,
       loading,
@@ -92,18 +104,30 @@ export function AuthProvider({ children }) {
       // Re-reads the current auth user and refreshes the linked profile so
       // callers can read role immediately.
       refreshProfile: async () => {
-        const current = await authService.getCurrentUser();
+        let current = null;
+        try {
+          current = await authService.getCurrentUser();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[IMS] Session refresh failed:", err?.message);
+        }
         setUser(current ?? null);
         return loadProfile(current);
       },
       signIn: authService.signIn,
       signOut: async () => {
-        await authService.signOut();
+        try {
+          await authService.signOut();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[IMS] Sign out failed:", err?.message);
+        }
         setUser(null);
         setProfile(null);
+        setProfileError(null);
       },
     };
-  }, [user, profile, loading]);
+  }, [user, profile, loading, profileError]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

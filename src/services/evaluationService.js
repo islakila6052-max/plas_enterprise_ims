@@ -15,12 +15,19 @@ async function safeQuery(fn) {
 }
 
 export const evaluationService = {
-  async list({ internId, supervisorId, status, ratingMin, ratingMax, recommendation, page = 1, pageSize = 15 } = {}) {
+  async list({ internId, supervisorId, status, ratingMin, ratingMax, recommendation, search = "", page = 1, pageSize = 15 } = {}) {
+    // When searching we need an INNER join on the intern so PostgREST can
+    // filter parent rows by the embedded intern's name (server-side search
+    // that works correctly with pagination and exact counts).
+    const internEmbed = search
+      ? "intern:interns!inner(full_name, last_name)"
+      : "intern:interns(full_name, last_name)";
     let query = supabase
       .from("evaluations")
-      .select("*, intern:interns(full_name, last_name)", { count: "exact" })
+      .select(`*, ${internEmbed}`, { count: "exact" })
       .order("created_at", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
+    if (search) query = query.ilike("intern.full_name", `%${search.trim()}%`);
     if (internId) query = query.eq("intern_id", internId);
     if (supervisorId) query = query.eq("supervisor_id", supervisorId);
     if (status) query = query.eq("status", status);

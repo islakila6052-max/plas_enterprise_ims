@@ -20,9 +20,19 @@ export default function ForgotPassword() {
 
   async function onSubmit({ email }) {
     setServerError("");
+    if (submitting) return;
+    const cleaned = String(email ?? "").trim();
+    if (!cleaned) {
+      setServerError("Email is required.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setServerError("No internet connection. Please check your network and try again.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await authService.forgotPassword(email);
+      await authService.forgotPassword(cleaned);
       setSent(true);
     } catch (err) {
       setServerError(err.message);
