@@ -2,15 +2,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { Pin, PinOff, Pencil, Trash2 } from "lucide-react";
+import { Pin, PinOff, Pencil, Trash2, Heart } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ErrorAlert from "@/components/ui/ErrorAlert";
+import EmptyState from "@/components/ui/EmptyState";
 import { announcementService } from "@/services/announcementService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/constants";
@@ -22,6 +23,7 @@ export default function AdminAnnouncements() {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -40,11 +42,13 @@ export default function AdminAnnouncements() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await announcementService.list({});
       setRows(res.data);
     } catch (err) {
-      toast.error(err.message);
+      setLoadError(err);
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -160,6 +164,8 @@ export default function AdminAnnouncements() {
 
       {loading ? (
         <Spinner label="Loading announcements…" />
+      ) : loadError ? (
+        <ErrorAlert message={loadError.message} onRetry={load} loading={loading} />
       ) : (
         <div className="space-y-4">
           {rows.map((a) => (
@@ -187,10 +193,18 @@ export default function AdminAnnouncements() {
                     </span>
                   )}
                 </div>
-                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                  <p className="text-xs text-slate-400">
-                    {formatDate(a.created_at)}
-                  </p>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-400">
+                      {formatDate(a.created_at)}
+                    </p>
+                    <span
+                      title="Likes from interns"
+                      className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
+                      <Heart aria-hidden="true" className="h-3 w-3" />
+                      {a.like_count ?? 0}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1">
                     <ActionButton
                       icon={a.pinned ? PinOff : Pin}
@@ -217,11 +231,13 @@ export default function AdminAnnouncements() {
             </Card>
           ))}
           {rows.length === 0 && (
-            <Card>
-              <p className="p-5 text-center text-sm text-slate-500">
-                No announcements yet.
-              </p>
-            </Card>
+            <EmptyState
+              title="No announcements yet"
+              description="Publish your first update so interns see it on their Announcements page."
+              action={
+                <Button onClick={openCreate}>+ New Announcement</Button>
+              }
+            />
           )}
         </div>
       )}
