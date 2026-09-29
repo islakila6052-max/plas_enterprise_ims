@@ -16,9 +16,15 @@ async function safeQuery(fn) {
 
 export const journalService = {
   async list({ internId, status, supervisorId, dateFrom, dateTo, departmentId, page = 1, pageSize = 15 } = {}) {
+    // Embed the supervisor so the intern can see WHO left the feedback, not just
+    // the text. Previously only `intern` was embedded, so an intern reading a
+    // `supervisor_comment` had no way to attribute it.
     let query = supabase
       .from("daily_journals")
-      .select("*, intern:interns(full_name, last_name, profile_id, department:departments(id, name))", { count: "exact" })
+      .select(
+        "*, intern:interns(full_name, last_name, profile_id, department:departments(id, name)), supervisor:supervisors(id, full_name, first_name, last_name)",
+        { count: "exact" },
+      )
       .order("date", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (internId) query = query.eq("intern_id", internId);

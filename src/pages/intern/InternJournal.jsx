@@ -16,6 +16,8 @@ import { JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, todayISO } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
+import JournalFeedbackButton from "@/components/journal/JournalFeedbackButton";
+import JournalFeedbackModal from "@/components/journal/JournalFeedbackModal";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -26,6 +28,8 @@ export default function InternJournal() {
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  // Which journal entry's supervisor feedback is currently open in the modal.
+  const [feedbackJournal, setFeedbackJournal] = useState(null);
 
   const {
     register,
@@ -141,6 +145,18 @@ export default function InternJournal() {
       header: "Status",
       render: (r) => <Badge tone={TONE[r.status] ?? "gray"}>{JOURNAL_STATUS_LABELS[r.status] ?? r.status}</Badge>,
     },
+    {
+      // Supervisors have always been able to write `supervisor_comment`, but it
+      // was never rendered for the intern. This column surfaces it.
+      key: "feedback",
+      header: "Supervisor Feedback",
+      render: (r) => (
+        <JournalFeedbackButton
+          journal={r}
+          onClick={() => setFeedbackJournal(r)}
+        />
+      ),
+    },
   ];
 
   return (
@@ -219,6 +235,12 @@ export default function InternJournal() {
           />
         )}
       </Card>
+
+      <JournalFeedbackModal
+        journal={feedbackJournal}
+        open={Boolean(feedbackJournal)}
+        onClose={() => setFeedbackJournal(null)}
+      />
     </div>
   );
 }
