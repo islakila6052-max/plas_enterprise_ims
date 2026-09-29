@@ -523,9 +523,11 @@ export default function InternJournal() {
       ) : null}
 
       {/* Two-column layout on desktop: entries take the wide left column and the
-          calendar sits in a narrow right rail. Stacks on mobile, where a 25%
-          calendar column would be too cramped to read, so the calendar renders
-          first and full width. */}
+          calendar sits in a narrow right rail, where it stays anchored to the
+          right-hand side. On mobile the two stack, and the calendar is ordered
+          first so the monthly overview is visible before the entries. The two
+          orderings are driven purely by `order-first` / `lg:order-last` on the
+          calendar, which leaves the desktop arrangement untouched. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* Recent journals — 3 of 4 columns on desktop */}
         <Card className="lg:col-span-3">
@@ -570,8 +572,9 @@ export default function InternJournal() {
           </div>
         </Card>
 
-        {/* Monthly calendar — 1 of 4 columns, ordered first on mobile */}
-        <div className="lg:col-span-1 lg:order-last">
+        {/* Monthly calendar — 1 of 4 columns on the right on desktop, and the
+            first stacked block on mobile via `order-first`. */}
+        <div className="order-first lg:col-span-1 lg:order-last">
           <MonthProgress rows={rows} onSelectDay={setDetailJournal} />
         </div>
       </div>
