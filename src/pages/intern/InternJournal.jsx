@@ -491,12 +491,6 @@ export default function InternJournal() {
                   ? "No journals match your search."
                   : "No journals submitted yet. Start documenting your OJT journey today."}
               </p>
-              {!search && (
-                <Button onClick={openForm} className="mt-4">
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Write Today&apos;s Journal
-                </Button>
-              )}
             </div>
           ) : (
             <div className="space-y-3">
