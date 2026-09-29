@@ -189,7 +189,13 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-1/2 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl sm:left-auto sm:right-0 sm:translate-x-0">
+        // MOBILE: the bell sits at the far right of the navbar, so anchoring the
+        // panel to it and centring it (left-1/2 + -translate-x-1/2) pushed most
+        // of the dropdown off the right edge of a phone, which either clipped the
+        // panel or made the page scroll sideways. It is now fixed and inset from
+        // both edges, so it always fits any screen size. From `sm` up it returns
+        // to being anchored to the bell, where there is room for it.
+        <div className="fixed inset-x-3 top-16 z-30 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 sm:max-w-[calc(100vw-2rem)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
             <p className="text-sm font-semibold text-slate-700">Notifications</p>
             {unread > 0 && (
