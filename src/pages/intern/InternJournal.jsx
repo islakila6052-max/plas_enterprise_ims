@@ -24,7 +24,6 @@ import { JOURNAL_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatHours, todayISO } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
-import JournalFeedbackModal from "@/components/journal/JournalFeedbackModal";
 import JournalDetailModal from "@/components/journal/JournalDetailModal";
 import MonthProgress from "@/components/journal/MonthProgress";
 
@@ -170,9 +169,8 @@ export default function InternJournal() {
   // The form is collapsed by default so the page reads as a journal to review
   // rather than a blank form to fill in.
   const [formOpen, setFormOpen] = useState(false);
-  // Which journal entry's supervisor feedback is currently open in the modal.
-  const [feedbackJournal, setFeedbackJournal] = useState(null);
-  // Which journal entry is open in the full "Read Full Journal" modal.
+  // Which journal entry is open in the full "Read Full Journal" modal, which
+  // also shows the supervisor's feedback inline.
   const [detailJournal, setDetailJournal] = useState(null);
 
   const {
@@ -570,21 +568,12 @@ export default function InternJournal() {
         </div>
       </div>
 
-      <JournalFeedbackModal
-        journal={feedbackJournal}
-        open={Boolean(feedbackJournal)}
-        onClose={() => setFeedbackJournal(null)}
-      />
-
+      {/* Feedback is rendered inline inside the detail modal, so no separate
+          feedback modal is needed here. */}
       <JournalDetailModal
         journal={detailJournal}
         open={Boolean(detailJournal)}
         onClose={() => setDetailJournal(null)}
-        onViewFeedback={(j) => {
-          // Close the full view first so the two modals never stack.
-          setDetailJournal(null);
-          setFeedbackJournal(j);
-        }}
       />
     </div>
   );

@@ -30,7 +30,7 @@ function Section({ title, value }) {
  * the complete text. Read-only: an intern must not be able to edit a submitted
  * entry or a supervisor's feedback from here.
  */
-export default function JournalDetailModal({ journal, open, onClose, onViewFeedback }) {
+export default function JournalDetailModal({ journal, open, onClose }) {
   if (!journal) return null;
 
   const comment = journal.supervisor_comment?.trim();
@@ -83,12 +83,10 @@ export default function JournalDetailModal({ journal, open, onClose, onViewFeedb
           )}
         </section>
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-          {hasComment && onViewFeedback && (
-            <Button variant="secondary" onClick={() => onViewFeedback(journal)}>
-              View Feedback
-            </Button>
-          )}
+        {/* No "View Feedback" action here: the supervisor's comment is already
+            rendered in full directly above, so a button to open a second modal
+            containing the same text would be redundant. */}
+        <div className="flex justify-end border-t border-slate-100 pt-3">
           <Button onClick={onClose}>Close</Button>
         </div>
       </div>
