@@ -9,6 +9,7 @@ import {
   Flame,
   CheckCircle2,
   MessageSquareQuote,
+  Hourglass,
 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -24,6 +25,8 @@ import { formatDate, formatHours, todayISO } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
 import JournalFeedbackModal from "@/components/journal/JournalFeedbackModal";
+import JournalDetailModal from "@/components/journal/JournalDetailModal";
+import MonthProgress from "@/components/journal/MonthProgress";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -83,12 +86,13 @@ function StatChip({ icon: Icon, value, label, tone = "brand" }) {
 }
 
 /** One journal entry rendered as a card rather than a table row. */
-function JournalCard({ journal, onViewFeedback }) {
+function JournalCard({ journal, onViewFeedback, onReadFull }) {
   const hasComment = Boolean(journal.supervisor_comment?.trim());
   const StatusIcon = STATUS_ICON[journal.status];
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-brand-200">
+      {/* Header: date + status */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-semibold text-slate-800">{formatDate(journal.date)}</p>
@@ -105,64 +109,62 @@ function JournalCard({ journal, onViewFeedback }) {
         </Badge>
       </div>
 
+      {/* Clamped preview keeps the list scannable; the full text is one click away. */}
       <section className="mt-3">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Today&apos;s Activities
         </h4>
-        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
+        <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm text-slate-700">
           {journal.activities || "—"}
         </p>
       </section>
 
+      {/* Optional fields shown only when written, and only as short hints. */}
       {(journal.challenges || journal.learnings) && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
           {journal.challenges && (
-            <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Challenges
-              </h4>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
-                {journal.challenges}
-              </p>
-            </section>
+            <span className="min-w-0">
+              <span className="font-medium text-slate-600">Challenges: </span>
+              <span className="line-clamp-1">{journal.challenges}</span>
+            </span>
           )}
           {journal.learnings && (
-            <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Learnings
-              </h4>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
-                {journal.learnings}
-              </p>
-            </section>
+            <span className="min-w-0">
+              <span className="font-medium text-slate-600">Learnings: </span>
+              <span className="line-clamp-1">{journal.learnings}</span>
+            </span>
           )}
         </div>
       )}
 
-      {/* Feedback is part of the entry, not a separate table column. */}
-      <section
-        className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2.5 ${
-          hasComment
-            ? "border-brand-100 bg-brand-50/60"
-            : "border-dashed border-slate-200 bg-slate-50"
-        }`}>
-        <div className="flex min-w-0 items-center gap-2">
-          <MessageSquareQuote
-            aria-hidden
-            className={`h-4 w-4 shrink-0 ${hasComment ? "text-brand-600" : "text-slate-400"}`}
-          />
-          <p className={`text-sm ${hasComment ? "font-medium text-brand-800" : "text-slate-400"}`}>
-            {hasComment ? "Supervisor left feedback" : "No feedback yet"}
-          </p>
+      {/* Actions row. Feedback is part of the entry, not a separate table column. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <p
+          className={`flex min-w-0 items-center gap-1.5 text-xs ${
+            hasComment ? "font-medium text-brand-700" : "text-slate-400"
+          }`}>
+          <MessageSquareQuote aria-hidden className="h-3.5 w-3.5 shrink-0" />
+          {hasComment ? "Supervisor left feedback" : "No feedback yet"}
+        </p>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onReadFull(journal)}
+            className="flex min-h-[36px] items-center rounded-lg px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+            Read Full Journal
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewFeedback(journal)}
+            className={`flex min-h-[36px] items-center rounded-lg px-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
+              hasComment
+                ? "text-brand-700 hover:bg-brand-50"
+                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            }`}>
+            {hasComment ? "View Feedback" : "Check Status"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => onViewFeedback(journal)}
-          className="flex min-h-[36px] items-center gap-1 rounded-lg px-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
-          {hasComment ? "View" : "Check"}
-          <span aria-hidden>&rarr;</span>
-        </button>
-      </section>
+      </div>
     </article>
   );
 }
@@ -179,6 +181,8 @@ export default function InternJournal() {
   const [formOpen, setFormOpen] = useState(false);
   // Which journal entry's supervisor feedback is currently open in the modal.
   const [feedbackJournal, setFeedbackJournal] = useState(null);
+  // Which journal entry is open in the full "Read Full Journal" modal.
+  const [detailJournal, setDetailJournal] = useState(null);
 
   const {
     register,
@@ -299,14 +303,17 @@ export default function InternJournal() {
       entries: rows.length,
       hours: Math.round(totalHours * 100) / 100,
       streak: computeStreak(rows.map((r) => r.date)),
+      // Awaiting a supervisor decision, so the intern knows it is not stuck.
+      pending: rows.filter((r) => r.status === "pending").length,
     };
   }, [rows]);
 
   const today = todayISO();
-  const hasEntryToday = useMemo(
-    () => rows.some((r) => String(r.date ?? "").slice(0, 10) === today),
+  const todayEntries = useMemo(
+    () => rows.filter((r) => String(r.date ?? "").slice(0, 10) === today),
     [rows, today],
   );
+  const hasEntryToday = todayEntries.length > 0;
 
   function openForm() {
     reset({
@@ -328,7 +335,7 @@ export default function InternJournal() {
 
       {/* Summary strip: gives a reason to return to the page. */}
       <Card>
-        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4">
           <StatChip
             icon={NotebookPen}
             value={stats.entries}
@@ -346,6 +353,12 @@ export default function InternJournal() {
             label="Day Streak"
             tone="amber"
           />
+          <StatChip
+            icon={Hourglass}
+            value={stats.pending}
+            label="Pending Reviews"
+            tone="slate"
+          />
         </div>
         {stats.streak > 0 && (
           <p className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-500">
@@ -355,6 +368,63 @@ export default function InternJournal() {
             </span>
             .
           </p>
+        )}
+      </Card>
+
+      {/* Today's Journal: a compact status line plus the single primary action,
+          so the intern always knows whether today is done. */}
+      <Card>
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-800">
+                Today&apos;s Journal
+              </h3>
+              {hasEntryToday && (
+                <Badge tone="green">
+                  <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden />
+                  Submitted
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {hasEntryToday
+                ? todayEntries.length === 1
+                  ? "You've documented today. Add another entry if you worked later."
+                  : `You've submitted ${todayEntries.length} entries today.`
+                : "You haven't documented today yet."}
+            </p>
+          </div>
+
+          {!formOpen && (
+            <Button onClick={openForm} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4" aria-hidden />
+              Write Today&apos;s Journal
+            </Button>
+          )}
+        </div>
+
+        {/* Entries already written today, summarised without opening anything. */}
+        {hasEntryToday && (
+          <div className="border-t border-slate-100 px-4 py-3">
+            <ul className="space-y-1.5">
+              {todayEntries.map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate text-slate-600">
+                    {e.activities || "No activities recorded"}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-slate-400 tabular-nums">
+                      {formatHours(Number(e.hours_worked) || 0)}
+                    </span>
+                    <Badge tone={TONE[e.status] ?? "gray"}>
+                      {JOURNAL_STATUS_LABELS[e.status] ?? e.status}
+                    </Badge>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
 
@@ -405,7 +475,7 @@ export default function InternJournal() {
             <div>
               <Textarea
                 label="What did you work on today?"
-                placeholder="Tell us about the tasks and activities you completed…"
+                placeholder="e.g. Updated the inventory database and helped test the new POS screen with the cashier…"
                 rows={4}
                 maxLength={250}
                 error={errors.activities?.message}
@@ -421,7 +491,7 @@ export default function InternJournal() {
             <div>
               <Textarea
                 label="What challenges did you encounter?"
-                placeholder="Describe any problems or difficulties you faced…"
+                placeholder="e.g. The report was slow because the export timed out — I asked my supervisor how to narrow the date range…"
                 rows={3}
                 maxLength={250}
                 {...register("challenges")}
@@ -432,7 +502,7 @@ export default function InternJournal() {
             <div>
               <Textarea
                 label="What did you learn today?"
-                placeholder="Share a skill, concept, or experience you gained…"
+                placeholder="e.g. How to write a clean SQL JOIN, and why the team always runs migrations before deploying…"
                 rows={3}
                 maxLength={250}
                 {...register("learnings")}
@@ -453,14 +523,11 @@ export default function InternJournal() {
             </div>
           </form>
         </Card>
-      ) : (
-        <div className="flex justify-center">
-          <Button onClick={openForm} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4" aria-hidden />
-            Write Today&apos;s Journal
-          </Button>
-        </div>
-      )}
+      ) : null}
+
+      {/* Monthly consistency view. Sits above the history list so progress is
+          visible without scrolling into the entries themselves. */}
+      <MonthProgress rows={rows} onSelectDay={setDetailJournal} />
 
       {/* History as cards: reads like a journal, and stacks cleanly on mobile
           where the previous five-column table had to scroll sideways. */}
@@ -499,6 +566,7 @@ export default function InternJournal() {
                   key={r.id}
                   journal={r}
                   onViewFeedback={setFeedbackJournal}
+                  onReadFull={setDetailJournal}
                 />
               ))}
             </div>
@@ -510,6 +578,17 @@ export default function InternJournal() {
         journal={feedbackJournal}
         open={Boolean(feedbackJournal)}
         onClose={() => setFeedbackJournal(null)}
+      />
+
+      <JournalDetailModal
+        journal={detailJournal}
+        open={Boolean(detailJournal)}
+        onClose={() => setDetailJournal(null)}
+        onViewFeedback={(j) => {
+          // Close the full view first so the two modals never stack.
+          setDetailJournal(null);
+          setFeedbackJournal(j);
+        }}
       />
     </div>
   );
