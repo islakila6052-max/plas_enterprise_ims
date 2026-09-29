@@ -92,6 +92,13 @@ export default function InternManagement() {
     formState: { errors },
   } = useForm({ defaultValues: EMPTY });
 
+  // Live values for cross-field date validation. Both date fields are optional
+  // individually, but when both are present the end date must not precede the
+  // start date — without this, an intern can be saved with an end date that is
+  // years before their start date (this actually happened in the live data).
+  const watchStartDate = () => watch("start_date") || "";
+  const watchEndDate = () => watch("end_date") || "";
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -621,11 +628,17 @@ export default function InternManagement() {
         )}
       </Card>
 
-      {/* Add / Edit modal */}
+      {/* Add / Edit modal.
+          `dismissible={false}` — this form is long (name, contact, emergency
+          contact, institution, program, supervisor, dates, hours, password) and
+          takes a while to fill in. Previously a stray click on the dimmed
+          backdrop closed it and silently threw away all of that work. The X
+          button and the Cancel action below remain the explicit ways out. */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         size="lg"
+        dismissible={false}
         title={editing ? "Edit Intern" : "Add Intern"}
         footer={
           <>
@@ -802,12 +815,43 @@ export default function InternManagement() {
                 </option>
               ))}
             </Select>
-            <Input label="Start date" type="date" {...register("start_date")} />
-            <Input label="End date" type="date" {...register("end_date")} />
+            <Input
+              label="Start date"
+              type="date"
+              error={errors.start_date?.message}
+              {...register("start_date", {
+                validate: (v) => {
+                  if (!v) return true; // start date is optional
+                  if (v > watchEndDate()) {
+                    return "Start date cannot be after the end date";
+                  }
+                  return true;
+                },
+              })}
+            />
+            <Input
+              label="End date"
+              type="date"
+              error={errors.end_date?.message}
+              {...register("end_date", {
+                validate: (v) => {
+                  if (!v) return true; // open-ended internship is allowed
+                  if (v < watchStartDate()) {
+                    return "End date cannot be before the start date";
+                  }
+                  return true;
+                },
+              })}
+            />
             <Input
               label="Required hours"
               type="number"
-              {...register("required_hours")}
+              min={1}
+              error={errors.required_hours?.message}
+              {...register("required_hours", {
+                validate: (v) =>
+                  v === "" || Number(v) >= 1 || "Required hours must be at least 1",
+              })}
             />
             <Select label="Status" {...register("status")}>
               {Object.values(INTERN_STATUS).map((s) => (

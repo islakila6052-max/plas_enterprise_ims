@@ -18,15 +18,23 @@ async function safeQuery(fn) {
 }
 
 export const documentService = {
-  async list({ internId, status, page = 1, pageSize = 15 } = {}) {
+  async list({ internId, status, supervisorId, page = 1, pageSize = 15 } = {}) {
+    // Supervisors scope to their own interns. This needs an INNER join on
+    // `interns` so PostgREST can filter parent rows by the embedded
+    // `intern.supervisor_id` — a LEFT join cannot be filtered and would
+    // silently return every document in the system.
+    const internEmbed = supervisorId
+      ? "intern:interns!inner(first_name, last_name, full_name, profile_id)"
+      : "intern:interns(first_name, last_name, full_name, profile_id)";
     let query = supabase
       .from("documents")
-      .select("*, intern:interns(first_name, last_name, full_name, profile_id)", {
+      .select(`*, ${internEmbed}`, {
         count: "exact",
       })
       .order("created_at", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
     if (internId) query = query.eq("intern_id", internId);
+    if (supervisorId) query = query.eq("intern.supervisor_id", supervisorId);
     if (status) query = query.eq("status", status);
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);

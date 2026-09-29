@@ -1,6 +1,11 @@
 // src/services/attendanceService.js
 import { supabase } from "@/lib/supabase";
-import { diffHours, todayDateInAttendanceTZ } from "@/utils/format";
+import {
+  diffHours,
+  nowMinuteInAttendanceTZ,
+  todayDateInAttendanceTZ,
+} from "@/utils/format";
+import { SHIFT_START_MINUTE } from "@/lib/constants";
 
 /**
  * Safely execute a Supabase query, returning null on network failure.
@@ -50,6 +55,21 @@ export const attendanceService = {
     return data;
   },
 
+  /**
+   * Derive the attendance status for a clock-in.
+   *
+   * Previously `timeIn` hard-coded `present`, so the `late` and `absent` enum
+   * values existed in the schema and the UI badge map but were never written —
+   * every row read `present` and low-attendance reporting was impossible.
+   * A clock-in after SHIFT_START_MINUTE is now recorded as `late`. The computed
+   * hours are untouched, so late arrivals are never silently deducted.
+   */
+  _statusForClockIn(now = new Date()) {
+    return nowMinuteInAttendanceTZ(now) > SHIFT_START_MINUTE
+      ? "late"
+      : "present";
+  },
+
   async timeIn(internId, method = "manual") {
     const today = todayDateInAttendanceTZ();
     // Enforce one attendance record per intern per day.
@@ -70,7 +90,7 @@ export const attendanceService = {
         date: today,
         time_in: new Date().toISOString(),
         method,
-        status: "present",
+        status: this._statusForClockIn(),
       })
       .select("*")
       .single();

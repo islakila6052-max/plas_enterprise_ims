@@ -78,6 +78,11 @@ export default function DashboardLayout() {
       <OnboardingTour
         active={tourActive}
         onFinish={() => setTourActive(false)}
+        // Mobile tour support: the tour drives the off-canvas sidebar so its
+        // steps can actually highlight the nav links. Ignored on desktop, where
+        // the sidebar is always visible.
+        onRequestSidebar={() => setSidebarOpen(true)}
+        onReleaseSidebar={() => setSidebarOpen(false)}
       />
     </div>
   );

@@ -174,6 +174,14 @@ export default function AdminAnnouncements() {
               <div className="p-5">
                 <div className="min-w-0">
                   <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-medium">
+                    {/* Pinned state leads the meta row so the status reads
+                        first, at the top-left of the announcement, instead of
+                        trailing below the message body. */}
+                    {a.pinned && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                        <Pin className="h-3 w-3" /> Pinned
+                      </span>
+                    )}
                     <span className="text-brand-600">
                       {catLabel[a.category] ?? a.category}
                     </span>
@@ -188,11 +196,6 @@ export default function AdminAnnouncements() {
                   <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
                     {a.body}
                   </p>
-                  {a.pinned && (
-                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-                      <Pin className="h-3 w-3" /> Pinned
-                    </span>
-                  )}
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                   <div className="flex items-center gap-2">

@@ -1,10 +1,20 @@
 // src/components/ui/Modal.jsx
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/utils/cn";
 import { Icon } from "@/components/ui/icons";
 
 /**
- * Accessible modal dialog. Closes on Escape and backdrop click.
+ * Accessible modal dialog.
+ *
+ * By default the dialog closes on Escape and on a backdrop click.
+ *
+ * Set `dismissible={false}` for data-entry forms (e.g. "Add Intern") where an
+ * accidental backdrop click would silently discard everything the user typed.
+ * The X button and any explicit Cancel action still close the dialog, so the
+ * user is never trapped. When `dismissible` is false we also stop Escape from
+ * closing, because the two dismissal paths should behave consistently — a user
+ * who cannot dismiss by clicking outside should not lose work by reflexively
+ * hitting Escape either.
  */
 export default function Modal({
   open,
@@ -14,11 +24,17 @@ export default function Modal({
   children,
   footer,
   size = "md",
+  dismissible = true,
 }) {
+  // Tracks whether the pointer went down on the backdrop itself. Without this,
+  // a click that *starts* inside the scrolling panel and is released outside it
+  // still fires the backdrop's onClick and closes the dialog.
+  const backdropPressRef = useRef(false);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape" && dismissible) onClose?.();
     }
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -26,7 +42,7 @@ export default function Modal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, onClose, dismissible]);
 
   if (!open) return null;
 
@@ -45,7 +61,14 @@ export default function Modal({
       aria-label={title}>
       <div
         className="absolute inset-0 h-full w-full bg-slate-900/50 backdrop-blur-sm"
-        onClick={onClose}
+        onMouseDown={() => {
+          backdropPressRef.current = true;
+        }}
+        onClick={() => {
+          // Only treat this as a dismissal if the press began on the backdrop.
+          if (dismissible && backdropPressRef.current) onClose?.();
+          backdropPressRef.current = false;
+        }}
       />
       <div
         className={cn(

@@ -32,6 +32,17 @@ export const INTERN_STATUS_LABELS = {
   [INTERN_STATUS.ARCHIVED]: "Archived",
 };
 
+/**
+ * Attendance lateness rules.
+ *
+ * `SHIFT_START_MINUTE` is the scheduled start of the OJT shift in minutes after
+ * midnight, expressed in the attendance timezone (Asia/Manila). Interns clocking
+ * in at or before this time are `present`; anything later is `late`. Overtime is
+ * not penalised — a late clock-in only changes the status label, never the
+ * computed `total_hours`.
+ */
+export const SHIFT_START_MINUTE = 13 * 60; // 13:00 (1:00 PM)
+
 export const ATTENDANCE_STATUS = {
   PRESENT: "present",
   LATE: "late",

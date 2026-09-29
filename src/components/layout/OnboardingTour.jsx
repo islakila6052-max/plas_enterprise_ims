@@ -139,12 +139,24 @@ const CARD_GAP = 20;
 const EST_CARD_HEIGHT = 340;
 const TRANSITION_MS = 200;
 
+/** Mobile: gap reserved between the bottom sheet and the screen edge. */
+const MOBILE_EDGE_GAP = 12;
+/** Breakpoint that matches Tailwind's `lg` — below this the sidebar is a drawer. */
+const MOBILE_BREAKPOINT = 1024;
+/** Shortest card we allow on mobile before it starts scrolling internally. */
+const MOBILE_MIN_CARD_HEIGHT = 200;
+
 /**
  * Interactive first-time onboarding tour. Highlights each sidebar feature
  * in order with Next / Back / Skip / Finish controls. Runs automatically on
  * an admin's first dashboard visit; can be restarted from the profile menu.
  */
-export default function OnboardingTour({ active, onFinish }) {
+export default function OnboardingTour({
+  active,
+  onFinish,
+  onRequestSidebar,
+  onReleaseSidebar,
+}) {
   const { role, profile } = useAuth();
 
   const items = useMemo(() => getNavItems(role), [role]);
@@ -165,6 +177,9 @@ export default function OnboardingTour({ active, onFinish }) {
   const [cardVisible, setCardVisible] = useState(true);
   const transitionTimer = useRef(null);
   const missCount = useRef(0);
+  // Ref to the step card so the measurement loop can read its real height and
+  // keep the highlighted sidebar row from hiding behind the card on phones.
+  const cardRef = useRef(null);
 
   const step = steps[stepIndex];
   const showWelcome = phase === -1;
@@ -172,6 +187,18 @@ export default function OnboardingTour({ active, onFinish }) {
   const touring = phase >= 0 && phase < steps.length;
   const isMobile = viewport.width < 640;
   const isTablet = viewport.width >= 640 && viewport.width < 1024;
+
+  // MOBILE TOUR: below Tailwind's `lg` breakpoint the sidebar is an off-canvas
+  // drawer (`-translate-x-full`). Every tour step targets a sidebar link, but
+  // a closed drawer still leaves those <a> elements in the DOM at a negative
+  // x-offset — so the spotlight was being placed entirely off-screen and the
+  // tour appeared broken on phones. We therefore drive the drawer open for the
+  // duration of the tour on small screens.
+  //
+  // Uses the `lg` breakpoint (not `sm`) because that is where the sidebar
+  // actually switches from drawer to sticky column.
+  const isDrawerLayout = viewport.width < MOBILE_BREAKPOINT;
+  const [drawerOpenForTour, setDrawerOpenForTour] = useState(false);
 
   // Reset to the welcome screen whenever the tour is activated.
   useEffect(() => {
@@ -199,26 +226,109 @@ export default function OnboardingTour({ active, onFinish }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // MOBILE TOUR: open the off-canvas drawer whenever we are on a step that
+  // targets a sidebar link, and only release it on the full-screen welcome /
+  // finish cards (where there is nothing to highlight).
+  //
+  // Because `step` changes on every Next, this re-evaluates per step and the
+  // drawer is re-asserted open each time — which is exactly the "keep the
+  // sidebar open when the next step targets a sidebar item" behaviour.
+  // Every step in the tour targets a sidebar link, so the drawer stays open for
+  // the whole feature tour on phones.
+  useEffect(() => {
+    if (!active) return;
+    const needsDrawer =
+      isDrawerLayout && touring && Boolean(step?.target);
+
+    if (needsDrawer) {
+      if (!drawerOpenForTour) setDrawerOpenForTour(true);
+      onRequestSidebar?.();
+    } else if (drawerOpenForTour) {
+      setDrawerOpenForTour(false);
+      onReleaseSidebar?.();
+    }
+    // `drawerOpenForTour` is intentionally omitted: including it would make
+    // this effect re-run on its own state change and fight the parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, isDrawerLayout, touring, step, onRequestSidebar, onReleaseSidebar]);
+
+  // Always hand the drawer back when the tour unmounts or is dismissed, so a
+  // user is never left with the sidebar stuck open behind the tour.
+  useEffect(() => {
+    if (!active && drawerOpenForTour) {
+      setDrawerOpenForTour(false);
+      onReleaseSidebar?.();
+    }
+  }, [active, drawerOpenForTour, onReleaseSidebar]);
+
   // Track the highlighted element's position while touring.
   useEffect(() => {
     if (!touring || !step) return;
     let raf;
+    // Reset the miss counter whenever the step changes so a new step gets a
+    // full grace period to appear.
+    missCount.current = 0;
 
     function measure() {
       const el = document.querySelector(step.target);
       if (el) {
-        missCount.current = 0;
-        const r = el.getBoundingClientRect();
-        setTargetRect({
-          top: r.top,
-          left: r.left,
-          width: r.width,
-          height: r.height,
-        });
+        let r = el.getBoundingClientRect();
+
+        // --- MOBILE: keep the highlighted sidebar row clear of the bottom card
+        // --- On a phone the step card docks to the bottom of the screen.
+        // Sidebar entries lower down (e.g. "Profile", "Settings") would
+        // otherwise sit behind the card and be highlighted invisibly. Scroll
+        // the drawer's nav container just enough to lift the target into the
+        // clear space above the card, then re-read the rect so the spotlight
+        // uses post-scroll coordinates.
+        if (isDrawerLayout) {
+          const cardH = cardRef.current?.offsetHeight ?? 0;
+          if (cardH > 0) {
+            const visibleLimit =
+              viewport.height - cardH - MOBILE_EDGE_GAP * 2;
+            const scroller = el.closest("nav");
+            if (scroller && scroller.scrollHeight > scroller.clientHeight) {
+              if (r.bottom > visibleLimit) {
+                scroller.scrollTop += r.bottom - visibleLimit;
+              } else if (r.top < CARD_MARGIN && scroller.scrollTop > 0) {
+                scroller.scrollTop -= CARD_MARGIN - r.top;
+              }
+              r = el.getBoundingClientRect();
+            }
+          }
+        }
+
+        // A closed mobile drawer leaves the link in the DOM but translated
+        // fully off-canvas (negative x). Treating that as "found" pinned the
+        // spotlight off-screen, so require the element to actually intersect
+        // the viewport before we highlight it.
+        const isOnScreen =
+          r.width > 0 &&
+          r.height > 0 &&
+          r.right > 0 &&
+          r.left < viewport.width &&
+          r.bottom > 0 &&
+          r.top < viewport.height;
+
+        if (isOnScreen) {
+          missCount.current = 0;
+          setTargetRect({
+            top: r.top,
+            left: r.left,
+            width: r.width,
+            height: r.height,
+          });
+        } else {
+          // Off-screen (typically a closed mobile drawer): keep waiting so the
+          // card falls back to a readable centred panel instead of
+          // highlighting an invisible element.
+          missCount.current += 1;
+          if (missCount.current > 20) setTargetRect(null);
+        }
       } else {
-        // Element not in the DOM/visible yet (e.g. collapsed mobile nav).
-        // Give it a short grace period, then fall back to a centered card
-        // rather than getting stuck with no visible tour at all.
+        // Element not in the DOM yet. Give it a short grace period, then fall
+        // back to a centered card rather than getting stuck with no visible
+        // tour at all.
         missCount.current += 1;
         if (missCount.current > 20) setTargetRect(null);
       }
@@ -227,7 +337,9 @@ export default function OnboardingTour({ active, onFinish }) {
     measure();
 
     return () => cancelAnimationFrame(raf);
-  }, [touring, step]);
+    // `viewport.width` is a dependency so that rotating a phone re-evaluates
+    // visibility immediately rather than after the miss-count expires.
+  }, [touring, step, viewport.width]);
 
   // Keyboard navigation: Esc to skip, arrow keys to move between steps.
   useEffect(() => {
@@ -287,14 +399,48 @@ export default function OnboardingTour({ active, onFinish }) {
 
   /** Computes an in-viewport position for the step card next to the target. */
   function getCardStyle() {
+    // MOBILE / DRAWER LAYOUT: the highlighted item is a row in the open sidebar
+    // drawer, so placing the card beside it (the desktop algorithm) would leave
+    // it overlapping or running off the right edge of a phone screen.
+    // Instead the card docks to the bottom as a full-width sheet, and the
+    // spotlight stays on the sidebar row above it. `maxHeight` + internal
+    // scrolling keeps the card fully on-screen on short devices.
     if (isMobile) {
+      const maxCardHeight = Math.max(
+        MOBILE_MIN_CARD_HEIGHT,
+        viewport.height - MOBILE_EDGE_GAP * 2,
+      );
       return {
         position: "fixed",
-        left: 12,
-        right: 12,
-        bottom: 12,
+        left: MOBILE_EDGE_GAP,
+        right: MOBILE_EDGE_GAP,
+        bottom: MOBILE_EDGE_GAP,
         width: "auto",
         maxWidth: "none",
+        maxHeight: maxCardHeight,
+        // Keep the controls reachable without the whole viewport scrolling.
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+      };
+    }
+
+    // Tablet keeps the side-by-side layout but must still never run off the
+    // right edge when the drawer layout has just collapsed to sticky.
+    if (isDrawerLayout) {
+      const maxCardHeight = Math.max(
+        MOBILE_MIN_CARD_HEIGHT,
+        viewport.height - MOBILE_EDGE_GAP * 2,
+      );
+      return {
+        position: "fixed",
+        left: MOBILE_EDGE_GAP,
+        right: MOBILE_EDGE_GAP,
+        bottom: MOBILE_EDGE_GAP,
+        width: "auto",
+        maxWidth: CARD_WIDTH_TABLET,
+        maxHeight: maxCardHeight,
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
       };
     }
 
@@ -339,7 +485,7 @@ export default function OnboardingTour({ active, onFinish }) {
           }`}
         />
         <div
-          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl transition-all duration-300 ease-out ${
+          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl transition-all duration-300 ease-out sm:p-8 ${
             entered ? "opacity-100 scale-100" : "opacity-0 scale-95"
           }`}>
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 ring-1 ring-brand-100">
@@ -368,8 +514,15 @@ export default function OnboardingTour({ active, onFinish }) {
             </button>
           </div>
 
-          <p className="mt-5 text-[11px] text-slate-300">
+          {/* Keyboard arrows are meaningless on a touch device, so the hint is
+              swapped for one that matches the current input method. Both
+              variants are rendered and toggled with responsive utilities, which
+              leaves the desktop presentation unchanged. */}
+          <p className="mt-5 hidden text-[11px] text-slate-300 sm:block">
             Tip: use ← → to navigate, Esc to exit anytime
+          </p>
+          <p className="mt-5 text-[11px] text-slate-300 sm:hidden">
+            Tip: tap Next to continue. Your menu will open automatically.
           </p>
         </div>
       </div>
@@ -386,7 +539,7 @@ export default function OnboardingTour({ active, onFinish }) {
           }`}
         />
         <div
-          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xl transition-all duration-300 ease-out ${
+          className={`absolute left-1/2 top-1/2 w-[92vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl transition-all duration-300 ease-out sm:p-8 ${
             entered ? "opacity-100 scale-100" : "opacity-0 scale-95"
           }`}>
           <div
@@ -440,6 +593,7 @@ export default function OnboardingTour({ active, onFinish }) {
 
       {/* Step card */}
       <div
+        ref={cardRef}
         className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all duration-200 ease-out ${
           cardVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
         }`}
@@ -500,19 +654,22 @@ export default function OnboardingTour({ active, onFinish }) {
             <button
               type="button"
               onClick={finishTour}
-              className="rounded-lg px-1 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
+              className="-ml-1 rounded-lg px-2 py-2 text-xs font-medium text-slate-400 transition-colors hover:text-slate-600 sm:py-1.5">
               Skip Tour
             </button>
             <div className="flex items-center gap-2">
+              {/* Touch targets are enlarged below `sm` and revert to the
+                  original desktop sizing from `sm` upwards, so the desktop
+                  layout is untouched. */}
               <Button
                 variant="secondary"
                 onClick={prevStep}
-                className="!px-3 !py-1.5 !text-xs transition-transform active:scale-[0.97]">
+                className="!px-3 !py-2.5 !text-xs transition-transform active:scale-[0.97] sm:!py-1.5">
                 ← Back
               </Button>
               <Button
                 onClick={nextStep}
-                className="!px-3 !py-1.5 !text-xs transition-transform active:scale-[0.97]">
+                className="!px-4 !py-2.5 !text-xs transition-transform active:scale-[0.97] sm:!px-3 sm:!py-1.5">
                 {isLast ? "Finish ✓" : "Next →"}
               </Button>
             </div>

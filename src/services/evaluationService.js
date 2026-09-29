@@ -60,11 +60,26 @@ export const evaluationService = {
   /**
    * Fetch evaluation stats with graceful degradation.
    * Returns safe defaults on network failure.
+   *
+   * NOTE: `evaluations` has no `score` column — the six criteria columns plus
+   * `overall_rating` are the only numeric scores. Querying a non-existent
+   * "score" column made PostgREST return an error, which safeQuery swallowed,
+   * so `averageScore` was silently always 0. Select the real columns instead
+   * and compute the average in JS from whichever values are present.
    */
   async getStats(internId) {
     if (!internId) return { totalEvaluations: 0, pendingCount: 0, averageScore: 0 };
 
-    const [totalResult, pendingResult, scoresResult] = await Promise.all([
+    const SCORE_COLUMNS = [
+      "attendance",
+      "communication",
+      "teamwork",
+      "initiative",
+      "technical_skills",
+      "professionalism",
+    ].join(",");
+
+    const [totalResult, pendingResult, rowsResult] = await Promise.all([
       safeQuery(() =>
         supabase.from("evaluations").select("*", { count: "exact", head: true }).eq("intern_id", internId)
       ),
@@ -72,12 +87,30 @@ export const evaluationService = {
         supabase.from("evaluations").select("*", { count: "exact", head: true }).eq("intern_id", internId).eq("status", "pending")
       ),
       safeQuery(() =>
-        supabase.from("evaluations").select("score").eq("intern_id", internId)
+        supabase
+          .from("evaluations")
+          .select(`overall_rating,${SCORE_COLUMNS}`)
+          .eq("intern_id", internId)
       ),
     ]);
 
-    const scores = (scoresResult?.data ?? []).map((r) => Number(r.score)).filter((n) => !isNaN(n));
-    const averageScore = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100 : 0;
+    // Average every evaluation's own overall score when the supervisor entered
+    // one; otherwise fall back to the mean of that row's six criteria so the
+    // number is still meaningful instead of 0.
+    const perRowScores = (rowsResult?.data ?? []).map((row) => {
+      const overall = Number(row.overall_rating);
+      if (overall > 0) return overall;
+      const criteria = SCORE_COLUMNS.split(",")
+        .map((c) => Number(row[c]))
+        .filter((n) => n > 0);
+      if (criteria.length === 0) return null;
+      return criteria.reduce((a, b) => a + b, 0) / criteria.length;
+    }).filter((n) => n != null);
+
+    const averageScore =
+      perRowScores.length > 0
+        ? Math.round((perRowScores.reduce((a, b) => a + b, 0) / perRowScores.length) * 100) / 100
+        : 0;
 
     return {
       totalEvaluations: totalResult?.count ?? 0,
