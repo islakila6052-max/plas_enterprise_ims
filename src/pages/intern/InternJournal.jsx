@@ -525,54 +525,60 @@ export default function InternJournal() {
         </Card>
       ) : null}
 
-      {/* Monthly consistency view. Sits above the history list so progress is
-          visible without scrolling into the entries themselves. */}
-      <MonthProgress rows={rows} onSelectDay={setDetailJournal} />
-
-      {/* History as cards: reads like a journal, and stacks cleanly on mobile
-          where the previous five-column table had to scroll sideways. */}
-      <Card>
-        <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-base font-semibold text-slate-800">Recent Journals</h3>
-          <Input
-            placeholder="Search activities…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="sm:max-w-xs"
-            aria-label="Search journal activities"
-          />
-        </div>
-        <div className="p-4">
-          {loading ? (
-            <Spinner label="Loading journals…" />
-          ) : loadError ? (
-            <ErrorAlert
-              message={loadError.message}
-              onRetry={load}
-              loading={loading}
+      {/* Two-column layout on desktop: entries take the wide left column and the
+          calendar sits in a narrow right rail. Stacks on mobile, where a 25%
+          calendar column would be too cramped to read, so the calendar renders
+          first and full width. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        {/* Recent journals — 3 of 4 columns on desktop */}
+        <Card className="lg:col-span-3">
+          <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-base font-semibold text-slate-800">Recent Journals</h3>
+            <Input
+              placeholder="Search activities…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="sm:max-w-xs"
+              aria-label="Search journal activities"
             />
-          ) : rows.length === 0 ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-slate-500">
-                {search
-                  ? "No journals match your search."
-                  : "No journals submitted yet. Start documenting your OJT journey today."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {rows.map((r) => (
-                <JournalCard
-                  key={r.id}
-                  journal={r}
-                  onViewFeedback={setFeedbackJournal}
-                  onReadFull={setDetailJournal}
-                />
-              ))}
-            </div>
-          )}
+          </div>
+          <div className="p-4">
+            {loading ? (
+              <Spinner label="Loading journals…" />
+            ) : loadError ? (
+              <ErrorAlert
+                message={loadError.message}
+                onRetry={load}
+                loading={loading}
+              />
+            ) : rows.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-slate-500">
+                  {search
+                    ? "No journals match your search."
+                    : "No journals submitted yet. Start documenting your OJT journey today."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rows.map((r) => (
+                  <JournalCard
+                    key={r.id}
+                    journal={r}
+                    onViewFeedback={setFeedbackJournal}
+                    onReadFull={setDetailJournal}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Monthly calendar — 1 of 4 columns, ordered first on mobile */}
+        <div className="lg:col-span-1 lg:order-last">
+          <MonthProgress rows={rows} onSelectDay={setDetailJournal} />
         </div>
-      </Card>
+      </div>
 
       <JournalFeedbackModal
         journal={feedbackJournal}
