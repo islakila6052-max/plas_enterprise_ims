@@ -26,6 +26,7 @@ import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
 import JournalDetailModal from "@/components/journal/JournalDetailModal";
 import MonthProgress from "@/components/journal/MonthProgress";
+import SubmitCelebration from "@/components/journal/SubmitCelebration";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -172,6 +173,8 @@ export default function InternJournal() {
   // Which journal entry is open in the full "Read Full Journal" modal, which
   // also shows the supervisor's feedback inline.
   const [detailJournal, setDetailJournal] = useState(null);
+  // Drives the short celebration overlay after a successful submission.
+  const [celebrating, setCelebrating] = useState(false);
 
   const {
     register,
@@ -272,6 +275,11 @@ export default function InternJournal() {
       reset({ date: todayISO(), activities: "", hours_worked: "", challenges: "", learnings: "" });
       // Collapse the form so the new entry is immediately visible in the list.
       setFormOpen(false);
+      // Hold the refresh until the celebration has played, so the intern sees
+      // the acknowledgement first and the refreshed list (with their new entry
+      // and updated streak) lands underneath it. Submission and validation are
+      // unchanged — only the follow-up refresh is deferred.
+      setCelebrating(true);
       load();
     } catch (err) {
       toast.error(err.message);
@@ -567,6 +575,14 @@ export default function InternJournal() {
           <MonthProgress rows={rows} onSelectDay={setDetailJournal} />
         </div>
       </div>
+
+      {/* Short acknowledgement after a successful submission. `pointer-events-none`
+          so it never blocks the page while it is on screen. */}
+      <SubmitCelebration
+        show={celebrating}
+        onDone={() => setCelebrating(false)}
+        message="Great job documenting your OJT journey today."
+      />
 
       {/* Feedback is rendered inline inside the detail modal, so no separate
           feedback modal is needed here. */}

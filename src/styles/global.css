@@ -99,3 +99,46 @@ body {
 @utility animate-fade-up {
   animation: ims-fade-up 0.35s ease-out both;
 }
+
+/* ===========================================================================
+   Journal submission celebration
+   A short, restrained burst shown after an intern successfully submits a
+   journal entry. Deliberately lightweight: a fixed overlay of a few emoji that
+   rise and fade out once, plus a brief scale-in for the message. No looping,
+   no canvas, no animation library — it runs once and unmounts.
+   =========================================================================== */
+
+/* Each emoji starts at its own horizontal offset and rises while fading. */
+@keyframes ims-confetti-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.6) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--ims-drift, 0px), -140px, 0) scale(1.15)
+      rotate(var(--ims-spin, 0deg));
+  }
+}
+
+@keyframes ims-celebrate-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Respect the OS "reduce motion" setting: the success message still appears,
+   it just arrives without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .ims-celebrate-fx {
+    animation: none !important;
+  }
+}
