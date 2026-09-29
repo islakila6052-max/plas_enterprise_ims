@@ -18,6 +18,7 @@ import ActionButton from "@/components/ui/ActionButton";
 import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPES } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
 import { Icon } from "@/components/ui/icons";
+import DocumentPreview from "@/components/documents/DocumentPreview";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 
@@ -332,17 +333,11 @@ export default function InternDocuments() {
                 </Badge>
               </div>
             </div>
-            <div className="rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-6 text-center text-slate-500">
-              Document preview is not available in the browser.
-            </div>
-            <div className="flex justify-end">
-              <Button
-                variant="secondary"
-                onClick={() => download(preview)}
-                loading={downloading}>
-                Download
-              </Button>
-            </div>
+            <DocumentPreview
+              doc={preview}
+              onDownload={download}
+              downloading={downloading}
+            />
           </div>
         )}
       </Modal>

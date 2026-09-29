@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ActionButton from "@/components/ui/ActionButton";
+import DocumentPreview from "@/components/documents/DocumentPreview";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
 const TYPE_LABEL = Object.fromEntries(
@@ -290,38 +291,32 @@ export default function AdminDocuments() {
                 <p className="text-slate-500">{preview.intern?.full_name}</p>
               </div>
             </div>
-            <div className="rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-6 text-center text-slate-500">
-              Document preview is not available in the browser.
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => download(preview)}
-                loading={downloading}>
-                Download
-              </Button>
-              {preview.status === "pending" && (
-                <>
-                  <Button
-                    onClick={() => {
-                      review(preview, "approved");
-                      setPreview(null);
-                    }}
-                    loading={reviewing}>
-                    Approve
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => {
-                      review(preview, "rejected");
-                      setPreview(null);
-                    }}
-                    loading={reviewing}>
-                    Reject
-                  </Button>
-                </>
-              )}
-            </div>
+            <DocumentPreview
+              doc={preview}
+              onDownload={download}
+              downloading={downloading}
+            />
+            {preview.status === "pending" && (
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+                <Button
+                  onClick={() => {
+                    review(preview, "approved");
+                    setPreview(null);
+                  }}
+                  loading={reviewing}>
+                  Approve
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    review(preview, "rejected");
+                    setPreview(null);
+                  }}
+                  loading={reviewing}>
+                  Reject
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>

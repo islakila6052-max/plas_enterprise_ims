@@ -5,6 +5,43 @@ import { notify } from "@/services/activityService";
 const BUCKET = "intern-documents";
 
 /**
+ * Best-effort MIME type from a filename, for when the browser reports an empty
+ * `file.type` (common for Office documents on some OSes).
+ */
+function guessMimeType(name) {
+  if (!name) return null;
+  const ext = String(name).split(".").pop()?.toLowerCase();
+  const map = {
+    pdf: "application/pdf",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  };
+  return map[ext] ?? null;
+}
+
+/**
+ * Classify a document for inline preview.
+ * Prefers the stored `mime_type`; falls back to the file extension so older
+ * rows uploaded before `mime_type` was persisted still preview correctly.
+ */
+export function getPreviewKind(doc) {
+  if (!doc) return "none";
+  const mime = (doc.mime_type || "").toLowerCase();
+  const ext = (doc.file_name || doc.label || "").split(".").pop()?.toLowerCase();
+
+  if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp"].includes(ext))
+    return "image";
+  if (mime === "application/pdf" || ext === "pdf") return "pdf";
+  return "none";
+}
+
+
+/**
  * Safely execute a Supabase query, returning null on network failure.
  * Used for non-critical queries that should not crash the UI.
  */
@@ -57,6 +94,12 @@ export const documentService = {
         file_path: path,
         file_url: urlData.publicUrl,
         file_name: file?.name ?? `${type}.pdf`,
+        // Persist the MIME type and byte size. Without these the UI had no way
+        // to know whether a document could be rendered inline, so every preview
+        // fell back to a "cannot preview" placeholder. `file.type` can be empty
+        // for some browsers/OSes, so fall back to a name-based guess.
+        mime_type: file?.type || guessMimeType(file?.name),
+        file_size: file?.size ?? null,
         status: "pending",
       })
       .select("*")
