@@ -1,5 +1,5 @@
 // src/pages/intern/InternJournal.jsx
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import {
@@ -27,8 +27,12 @@ import { supabase } from "@/lib/supabase";
 import JournalDetailModal from "@/components/journal/JournalDetailModal";
 import MonthProgress from "@/components/journal/MonthProgress";
 import SubmitCelebration from "@/components/journal/SubmitCelebration";
+import JournalPagination from "@/components/journal/JournalPagination";
 
 const TONE = { pending: "amber", approved: "green", rejected: "red" };
+
+/** Journal entries shown per page in the history list. */
+const PAGE_SIZE = 5;
 
 /** Icons per status, so state reads correctly without relying on colour alone. */
 const STATUS_ICON = { approved: CheckCircle2, pending: Clock, rejected: null };
@@ -173,6 +177,11 @@ export default function InternJournal() {
   // Which journal entry is open in the full "Read Full Journal" modal, which
   // also shows the supervisor's feedback inline.
   const [detailJournal, setDetailJournal] = useState(null);
+  // Current page of the journal history list (5 entries per page).
+  const [page, setPage] = useState(1);
+  // Scrolled into view on page change, so the intern lands on the new entries
+  // instead of wherever the previous page happened to leave them.
+  const historyRef = useRef(null);
   // Drives the short celebration overlay after a successful submission.
   const [celebrating, setCelebrating] = useState(false);
 
@@ -311,6 +320,30 @@ export default function InternJournal() {
     [rows, today],
   );
   const hasEntryToday = todayEntries.length > 0;
+
+  // Paginate the history list only. `rows` is the full set the intern has, and
+  // stays untouched for the stats strip, the streak and the calendar, so paging
+  // back and forth cannot change any of those figures.
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const visibleRows = useMemo(
+    () => rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [rows, safePage],
+  );
+
+  // A new search can leave the current page beyond the last page, so reset.
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  function handlePageChange(next) {
+    setPage(next);
+    // Keep keyboard focus predictable: move it to the new page's first entry
+    // rather than leaving it on a control that may no longer exist.
+    if (historyRef.current) {
+      historyRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 
   function openForm() {
     reset({
@@ -530,7 +563,7 @@ export default function InternJournal() {
           calendar, which leaves the desktop arrangement untouched. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* Recent journals — 3 of 4 columns on desktop */}
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-3" ref={historyRef}>
           <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-semibold text-slate-800">Recent Journals</h3>
             <Input
@@ -560,7 +593,7 @@ export default function InternJournal() {
               </div>
             ) : (
               <div className="space-y-3">
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
                   <JournalCard
                     key={r.id}
                     journal={r}
@@ -570,6 +603,12 @@ export default function InternJournal() {
               </div>
             )}
           </div>
+          <JournalPagination
+            page={safePage}
+            totalItems={rows.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={handlePageChange}
+          />
         </Card>
 
         {/* Monthly calendar — 1 of 4 columns on the right on desktop, and the

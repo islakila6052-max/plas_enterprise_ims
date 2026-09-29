@@ -1,14 +1,22 @@
 // src/components/ui/Card.jsx
+import { forwardRef } from "react";
 import { cn } from "@/utils/cn";
 
-/** Surface card used for panels and dashboard widgets. */
-export default function Card({ children, className = "", ...props }) {
+/**
+ * Surface card used for panels and dashboard widgets.
+ *
+ * Forwards its ref to the underlying div so callers can scroll to it or measure
+ * it. Previously a ref passed here was silently dropped.
+ */
+export const Card = forwardRef(function Card({ children, className = "", ...props }, ref) {
   return (
-    <div className={cn("surface", className)} {...props}>
+    <div ref={ref} className={cn("surface", className)} {...props}>
       {children}
     </div>
   );
-}
+});
+
+export default Card;
 
 /** Card header with title + optional action slot. */
 export function CardHeader({ title, subtitle, action, className = "" }) {
