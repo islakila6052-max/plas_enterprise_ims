@@ -1,5 +1,5 @@
 // src/contexts/AuthContext.jsx
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
@@ -19,15 +19,32 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Tracks the user id whose profile is already loaded (or in flight) so the
+  // bootstrap pass and the INITIAL_SESSION event do not each fire the same
+  // profiles query. Supabase replays INITIAL_SESSION on subscribe, which used
+  // to double-fetch on every page load.
+  const loadedProfileFor = useRef(null);
+  // Holds the last successfully loaded profile so a duplicate call can return
+  // it without a stale closure over `profile` state.
+  const loadedProfile = useRef(null);
 
-  async function loadProfile(authUser) {
+  const loadProfile = useCallback(async (authUser) => {
     if (!authUser) {
+      loadedProfileFor.current = null;
+      loadedProfile.current = null;
       setProfile(null);
       setProfileError(null);
       return null;
     }
+    // Already loaded for this exact user — reuse it instead of re-querying.
+    if (loadedProfileFor.current === authUser.id) {
+      return loadedProfile.current;
+    }
+    // Mark before awaiting so two concurrent callers cannot both start a fetch.
+    loadedProfileFor.current = authUser.id;
     try {
       const p = await profileService.getByUserId(authUser.id);
+      loadedProfile.current = p;
       setProfile(p);
       setProfileError(p ? null : "No profile/role is assigned to this account.");
       return p;
@@ -37,11 +54,15 @@ export function AuthProvider({ children }) {
       // refresh once connectivity is restored.
       // eslint-disable-next-line no-console
       console.warn("[IMS] Profile load failed (network?):", err.message);
+      // Allow a retry on the next auth event, since this user never loaded.
+      if (loadedProfileFor.current === authUser.id) {
+        loadedProfileFor.current = null;
+      }
       setProfile(null);
       setProfileError(err?.message ?? "Failed to load profile.");
       return null;
     }
-  }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -81,7 +102,7 @@ export function AuthProvider({ children }) {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [loadProfile]);
 
   const value = useMemo(() => {
     const role = profile?.role ?? null;
@@ -102,7 +123,8 @@ export function AuthProvider({ children }) {
       isSupervisor: role === ROLES.SUPERVISOR,
       isIntern: role === ROLES.INTERN,
       // Re-reads the current auth user and refreshes the linked profile so
-      // callers can read role immediately.
+      // callers can read role immediately. Clears the dedupe guard first so the
+      // refresh genuinely hits the database instead of returning the cached row.
       refreshProfile: async () => {
         let current = null;
         try {
@@ -112,6 +134,7 @@ export function AuthProvider({ children }) {
           console.warn("[IMS] Session refresh failed:", err?.message);
         }
         setUser(current ?? null);
+        loadedProfileFor.current = null;
         return loadProfile(current);
       },
       signIn: authService.signIn,
@@ -123,11 +146,13 @@ export function AuthProvider({ children }) {
           console.warn("[IMS] Sign out failed:", err?.message);
         }
         setUser(null);
+        loadedProfileFor.current = null;
+        loadedProfile.current = null;
         setProfile(null);
         setProfileError(null);
       },
     };
-  }, [user, profile, loading, profileError]);
+  }, [user, profile, loading, profileError, loadProfile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

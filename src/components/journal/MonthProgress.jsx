@@ -111,7 +111,7 @@ export default function MonthProgress({ rows = [], onSelectDay }) {
               aria-label={
                 journal
                   ? `${formatTitle(journal.date)}: journal documented, ${journal.status}`
-                  : `${formatTitle(journal.date)}: no journal`
+                  : `${formatTitle(cell.key)}: no journal`
               }
               className={[
                 "relative flex aspect-square w-full items-center justify-center rounded-lg text-xs transition",
