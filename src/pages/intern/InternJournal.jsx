@@ -86,7 +86,7 @@ function StatChip({ icon: Icon, value, label, tone = "brand" }) {
 }
 
 /** One journal entry rendered as a card rather than a table row. */
-function JournalCard({ journal, onViewFeedback, onReadFull }) {
+function JournalCard({ journal, onReadFull }) {
   const hasComment = Boolean(journal.supervisor_comment?.trim());
   const StatusIcon = STATUS_ICON[journal.status];
 
@@ -137,7 +137,10 @@ function JournalCard({ journal, onViewFeedback, onReadFull }) {
         </div>
       )}
 
-      {/* Actions row. Feedback is part of the entry, not a separate table column. */}
+      {/* Actions row. The feedback status is shown as text only — the comment
+          itself is read from the "Read Full Journal" modal, which displays it
+          inline. A second "View Feedback" button here would open the same
+          content twice on one card. */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <p
           className={`flex min-w-0 items-center gap-1.5 text-xs ${
@@ -146,24 +149,12 @@ function JournalCard({ journal, onViewFeedback, onReadFull }) {
           <MessageSquareQuote aria-hidden className="h-3.5 w-3.5 shrink-0" />
           {hasComment ? "Supervisor left feedback" : "No feedback yet"}
         </p>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onReadFull(journal)}
-            className="flex min-h-[36px] items-center rounded-lg px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
-            Read Full Journal
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewFeedback(journal)}
-            className={`flex min-h-[36px] items-center rounded-lg px-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
-              hasComment
-                ? "text-brand-700 hover:bg-brand-50"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            }`}>
-            {hasComment ? "View Feedback" : "Check Status"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onReadFull(journal)}
+          className="flex min-h-[36px] items-center rounded-lg px-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500">
+          Read Full Journal
+        </button>
       </div>
     </article>
   );
@@ -565,7 +556,6 @@ export default function InternJournal() {
                   <JournalCard
                     key={r.id}
                     journal={r}
-                    onViewFeedback={setFeedbackJournal}
                     onReadFull={setDetailJournal}
                   />
                 ))}
