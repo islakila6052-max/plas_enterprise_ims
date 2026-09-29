@@ -24,7 +24,9 @@ export default function Sidebar({ open, onClose }) {
   /** Restart the onboarding tour on the user's dashboard. */
   function handleRestartTour() {
     setProfileOpen(false);
-    resetTour();
+    // Scope the reset to this user so "Restart Tour" reliably re-arms the
+    // auto-start, without clearing anyone else's completion flag.
+    resetTour(profile?.id);
     const home = isAdmin ? "/admin" : isSupervisor ? "/supervisor" : "/intern";
     navigate(home, { replace: true });
     // Let the layout remount/re-render before re-triggering the tour.

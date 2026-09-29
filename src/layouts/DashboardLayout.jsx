@@ -34,7 +34,8 @@ function usePageTitle() {
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const title = usePageTitle();
-  const { isAdmin, isSupervisor, isIntern, loading: authLoading } = useAuth();
+  const { isAdmin, isSupervisor, isIntern, loading: authLoading, profile } =
+    useAuth();
   const location = useLocation();
 
   // Interactive onboarding tour: auto-starts on a user's FIRST dashboard
@@ -47,12 +48,17 @@ export default function DashboardLayout() {
       : "/intern";
   const [tourActive, setTourActive] = useState(false);
 
+  // The completion flag is keyed by user id, so a brand-new account gets the
+  // tour on its own first dashboard visit even on a device where an admin has
+  // already been through it. `profile?.id` is also a dependency so the check
+  // re-runs once the profile finishes loading.
   useEffect(() => {
     if (authLoading || !tourEnabled) return;
-    if (!hasCompletedTour() && location.pathname === homePath) {
+    if (!profile?.id) return;
+    if (!hasCompletedTour(profile.id) && location.pathname === homePath) {
       setTourActive(true);
     }
-  }, [authLoading, tourEnabled, location.pathname, homePath]);
+  }, [authLoading, tourEnabled, profile?.id, location.pathname, homePath]);
 
   // Manual restart from the Sidebar profile menu ("Restart Tour").
   useEffect(() => {

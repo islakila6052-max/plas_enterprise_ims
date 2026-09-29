@@ -5,28 +5,63 @@ import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
 import { Icon } from "@/components/ui/icons";
 
-const STORAGE_KEY = "ims_onboarding_tour_completed";
+/**
+ * Onboarding-tour completion is tracked PER USER, not per browser.
+ *
+ * A single shared key broke the "first login" promise on shared devices: once
+ * an admin completed the tour, the flag stayed set, so every intern who later
+ * logged in on that same browser was treated as having already seen it and the
+ * tour silently never appeared. Keying by user id means each account gets the
+ * tour exactly once, and an admin signing in does not consume it for someone
+ * else.
+ */
+const STORAGE_KEY_PREFIX = "ims_onboarding_tour_completed";
 
-/** True if this browser has already completed the onboarding tour. */
-export function hasCompletedTour() {
+/** Build the per-user storage key, e.g. `ims_onboarding_tour_completed:<uuid>`. */
+function storageKeyFor(userId) {
+  return userId ? `${STORAGE_KEY_PREFIX}:${userId}` : null;
+}
+
+/**
+ * True if THIS user has already completed the tour.
+ * Without a user id we cannot tell, so we fail closed (no tour) rather than
+ * risk re-showing it to someone who dismissed it.
+ */
+export function hasCompletedTour(userId) {
+  const key = storageKeyFor(userId);
+  if (!key) return true;
   try {
-    return localStorage.getItem(STORAGE_KEY) === "true";
+    return localStorage.getItem(key) === "true";
   } catch {
     return true; // fail closed: never nag if storage is unavailable
   }
 }
 
-export function markTourCompleted() {
+export function markTourCompleted(userId) {
+  const key = storageKeyFor(userId);
+  if (!key) return;
   try {
-    localStorage.setItem(STORAGE_KEY, "true");
+    localStorage.setItem(key, "true");
   } catch {
     /* non-fatal */
   }
 }
 
-export function resetTour() {
+/**
+ * Clear the flag. Scoped to one user when a userId is given, otherwise every
+ * legacy/unscoped entry is removed (used before the tour auto-starts so a
+ * manual "Restart Tour" always works).
+ */
+export function resetTour(userId) {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    if (userId) {
+      localStorage.removeItem(storageKeyFor(userId));
+      return;
+    }
+    // Remove any pre-per-user entries so they cannot keep suppressing the tour.
+    Object.keys(localStorage)
+      .filter((k) => k === STORAGE_KEY_PREFIX || k.startsWith(`${STORAGE_KEY_PREFIX}:`))
+      .forEach((k) => localStorage.removeItem(k));
   } catch {
     /* non-fatal */
   }
@@ -363,7 +398,7 @@ export default function OnboardingTour({
   const firstName = (profile?.full_name ?? "").split(" ")[0] || "there";
 
   function finishTour() {
-    markTourCompleted();
+    markTourCompleted(profile?.id);
     onFinish?.();
   }
 
