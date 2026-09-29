@@ -252,19 +252,19 @@ export default function AdminJournals() {
             </p>
             <div>
               <p className="mb-1 font-medium text-slate-700">Activities</p>
-              <p className="whitespace-pre-wrap text-slate-600">
+              <p className="whitespace-pre-wrap break-words text-slate-600">
                 {reviewing.activities}
               </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Challenges</p>
-              <p className="whitespace-pre-wrap text-slate-600">
+              <p className="whitespace-pre-wrap break-words text-slate-600">
                 {reviewing.challenges || "—"}
               </p>
             </div>
             <div>
               <p className="mb-1 font-medium text-slate-700">Learnings</p>
-              <p className="whitespace-pre-wrap text-slate-600">
+              <p className="whitespace-pre-wrap break-words text-slate-600">
                 {reviewing.learnings || "—"}
               </p>
             </div>

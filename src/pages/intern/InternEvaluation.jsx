@@ -99,7 +99,7 @@ export default function InternEvaluation() {
                     <p className="mb-1 text-sm font-medium text-slate-700">
                       Comments
                     </p>
-                    <p className="whitespace-pre-wrap text-sm text-slate-600">
+                    <p className="whitespace-pre-wrap break-words text-sm text-slate-600">
                       {e.comments}
                     </p>
                   </div>

@@ -225,10 +225,20 @@ export default function NotificationBell() {
                     n.is_read ? "" : "bg-brand-50/40"
                   }`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-800">{n.title}</span>
-                    {!n.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" />}
+                    {/* `min-w-0` lets this flex child shrink below its content
+                        width; `break-words` then wraps an unbroken token
+                        (e.g. a long URL pasted into an announcement title)
+                        instead of stretching the dropdown. */}
+                    <span className="min-w-0 break-words text-sm font-medium text-slate-800">
+                      {n.title}
+                    </span>
+                    {!n.is_read && (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+                    )}
                   </div>
-                  <span className="line-clamp-2 text-xs text-slate-500">{n.message}</span>
+                  <span className="line-clamp-2 break-words text-xs text-slate-500">
+                    {n.message}
+                  </span>
                   <span className="text-[10px] uppercase tracking-wide text-slate-300">{n.type}</span>
                 </button>
               ))

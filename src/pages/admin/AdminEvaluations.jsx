@@ -130,7 +130,7 @@ export default function AdminEvaluations() {
             {detail.comments && (
               <div>
                 <p className="mb-1 text-sm font-medium text-slate-700">Comments</p>
-                <p className="whitespace-pre-wrap text-sm text-slate-600">{detail.comments}</p>
+                <p className="whitespace-pre-wrap break-words text-sm text-slate-600">{detail.comments}</p>
               </div>
             )}
           </div>

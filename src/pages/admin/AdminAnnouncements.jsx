@@ -190,10 +190,10 @@ export default function AdminAnnouncements() {
                       {formatTime(a.created_at)}
                     </span>
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-800">
+                  <h3 className="break-words text-lg font-semibold text-slate-800">
                     {a.title}
                   </h3>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
                     {a.body}
                   </p>
                 </div>

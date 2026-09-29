@@ -437,7 +437,7 @@ export default function InternAttendance() {
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-800">Remarks</h3>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               {remarksModal.text}
             </div>
             <div className="mt-4 flex justify-end">

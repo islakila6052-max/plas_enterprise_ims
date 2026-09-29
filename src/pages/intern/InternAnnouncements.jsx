@@ -110,8 +110,12 @@ export default function InternAnnouncements() {
                           {timeAgo(a.created_at)} · {formatDateTime(a.created_at)}
                         </span>
                       </div>
-                      <h3 className="text-base font-semibold text-slate-800">{a.title}</h3>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{a.body}</p>
+                      <h3 className="break-words text-base font-semibold text-slate-800">
+                        {a.title}
+                      </h3>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
+                        {a.body}
+                      </p>
                       <LikeRow announcement={a} onToggle={handleToggle} likesAvailable={likesAvailable} />
                     </div>
                   </Card>
@@ -132,8 +136,12 @@ export default function InternAnnouncements() {
                         {timeAgo(a.created_at)} · {formatDateTime(a.created_at)}
                       </span>
                     </div>
-                    <h3 className="text-base font-semibold text-slate-800">{a.title}</h3>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{a.body}</p>
+                    <h3 className="break-words text-base font-semibold text-slate-800">
+                      {a.title}
+                    </h3>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
+                      {a.body}
+                    </p>
                     <LikeRow announcement={a} onToggle={handleToggle} likesAvailable={likesAvailable} />
                   </div>
                 </Card>
