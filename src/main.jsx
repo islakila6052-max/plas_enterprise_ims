@@ -8,7 +8,7 @@ import "@/styles/global.css";
 import App from "@/App";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
-import { onlineManager } from "@/lib/onlineManager";
+import { logger } from "@/lib/logger";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,8 +47,9 @@ function handleUnhandledRejection(event) {
   }
 
   // For non-network unhandled rejections, log but don't crash.
-  // eslint-disable-next-line no-console
-  console.error("[IMS] Unhandled promise rejection:", error);
+  // L3: routed through the redacting logger - the raw reason object can carry
+  // query fragments or PII, and this is a no-op in production.
+  logger.error("[IMS] Unhandled promise rejection:", error);
   event.preventDefault();
 }
 
@@ -68,11 +69,3 @@ createRoot(document.getElementById("root")).render(
     </QueryClientProvider>
   </StrictMode>,
 );
-
-// Clean up when the app unmounts (rare, but good practice).
-if (typeof window !== "undefined") {
-  window.__ims_cleanup = () => {
-    window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-    onlineManager.destroy();
-  };
-}

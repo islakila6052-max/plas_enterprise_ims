@@ -1,5 +1,6 @@
 // src/services/documentService.js
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { notify } from "@/services/activityService";
 
 const BUCKET = "intern-documents";
@@ -49,9 +50,33 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error("[IMS] Safe query failed:", err.message);
+    logger.error("[IMS] Safe query failed:", err.message);
     return null;
   }
+}
+
+/**
+ * SECURITY (C3): build a safe object name for the private bucket.
+ *
+ * The previous name was `${Date.now()}-${file.name}`, which embedded the
+ * user-supplied filename verbatim into the storage path. That leaked the
+ * intern's real name through the URL and allowed path/control characters to
+ * ride along. We keep only a conservative extension and randomise the stem, so
+ * nothing about the user is disclosed and no path segment is client-crafted.
+ *
+ * The RLS policy (migration 0045) already requires the first folder segment to
+ * equal the caller's own intern id; this keeps the second segment inert too.
+ */
+function buildStorageName(file) {
+  const raw = String(file?.name ?? "");
+  const dot = raw.lastIndexOf(".");
+  const ext = dot > -1 ? raw.slice(dot + 1).toLowerCase() : "";
+  const safeExt = /^[a-z0-9]{1,8}$/.test(ext) ? ext : "bin";
+  const rand =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${rand}.${safeExt}`;
 }
 
 export const documentService = {
@@ -79,12 +104,16 @@ export const documentService = {
   },
 
   async upload({ internId, type, file, label }) {
-    const path = `${internId}/${Date.now()}-${file.name}`;
+    const path = `${internId}/${buildStorageName(file)}`;
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
       .upload(path, file, { upsert: false });
     if (upErr) throw new Error(upErr.message);
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    // SECURITY (C3): the `intern-documents` bucket is PRIVATE (migration 0045).
+    // We must never persist a public URL here - `documents.file_url` used to
+    // hold getPublicUrl() output, which handed out a permanent, unauthenticated
+    // link to the intern's resume / MOA / endorsement. `file_url` is now always
+    // null and every read resolves a short-lived signed URL instead.
     const { data, error } = await supabase
       .from("documents")
       .insert({
@@ -92,7 +121,7 @@ export const documentService = {
         type,
         label: label || type,
         file_path: path,
-        file_url: urlData.publicUrl,
+        file_url: null,
         file_name: file?.name ?? `${type}.pdf`,
         // Persist the MIME type and byte size. Without these the UI had no way
         // to know whether a document could be rendered inline, so every preview
@@ -115,14 +144,16 @@ export const documentService = {
         .single();
 
       if (intern?.supervisor_id) {
-        const { data: supProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", intern.supervisor_id)
-          .single();
-        if (supProfile?.id) {
+        // C4: `intern.supervisor_id` is a supervisors.id, not a profiles.id.
+        // Resolving it with a SECURITY DEFINER helper returns the auth user id
+        // without needing broad read access to the profiles table.
+        const { data: supProfileId } = await supabase.rpc(
+          "supervisor_profile_id",
+          { p_supervisor_row_id: intern.supervisor_id },
+        );
+        if (supProfileId) {
           await notify({
-            user_id: supProfile.id,
+            user_id: supProfileId,
             type: "document_review",
             title: "New document submitted",
             message: `${intern.full_name || "An intern"} submitted a document for review.`,
@@ -132,15 +163,15 @@ export const documentService = {
         }
       }
 
-      // Only one admin notification
-      const { data: adminProfiles } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("role", "admin");
+      // C4: notify admins. profile_ids_by_role() returns ONLY the uuid column, so
+      // this no longer requires reading every admin's profile row.
+      const { data: adminIds } = await supabase.rpc("profile_ids_by_role", {
+        p_role: "admin",
+      });
 
-      for (const admin of adminProfiles || []) {
+      for (const adminId of adminIds || []) {
         await notify({
-          user_id: admin.id,
+          user_id: adminId,
           type: "document_review",
           title: "New document submitted",
           message: `${intern?.full_name || "An intern"} submitted a document for review.`,
@@ -149,19 +180,20 @@ export const documentService = {
         });
       }
     } catch (err) {
-      console.error("[DOCUMENT NOTIFICATION] Failed:", err);
+      logger.error("[DOCUMENT NOTIFICATION] Failed:", err);
     }
 
     return data;
   },
 
   async review(id, status) {
-    const { data, error } = await supabase
-      .from("documents")
-      .update({ status })
-      .eq("id", id)
-      .select("*")
-      .single();
+    // H2: document status is a reviewer decision, so it is set by the
+    // `document_review` RPC (admin-only) rather than by a client UPDATE that an
+    // intern could have used to mark their own upload 'approved'.
+    const { data, error } = await supabase.rpc("document_review", {
+      p_document_id: id,
+      p_status: status,
+    });
     if (error) throw new Error(error.message);
 
     // Notify intern about review
@@ -183,18 +215,35 @@ export const documentService = {
         });
       }
     } catch (err) {
-      console.error("[DOCUMENT REVIEW NOTIFICATION] Failed:", err);
+      logger.error("[DOCUMENT REVIEW NOTIFICATION] Failed:", err);
     }
 
     return data;
   },
 
+  /**
+   * Resolve a short-lived signed URL for a stored document.
+   *
+   * C3: the bucket is private (migration 0045), so this is the ONLY supported
+   * way to read a file. Never fall back to a stored `file_url` - that column is
+   * now always null and is retained only so old rows keep their shape.
+   */
   async downloadUrl(filePath) {
+    if (!filePath) throw new Error("This document has no stored file.");
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .createSignedUrl(filePath, 60);
     if (error) throw new Error(error.message);
     return data.signedUrl;
+  },
+
+  /**
+   * Convenience wrapper used by the UI: always returns a fresh signed URL.
+   * Accepts either a full document row or a bare storage path.
+   */
+  async resolveUrl(doc) {
+    const path = typeof doc === "string" ? doc : doc?.file_path;
+    return this.downloadUrl(path);
   },
 
   async remove(id, filePath) {

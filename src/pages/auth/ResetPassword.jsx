@@ -73,7 +73,14 @@ export default function ResetPassword() {
                   error={errors.password?.message}
                   {...register("password", {
                     required: "Password is required",
-                    minLength: { value: 8, message: "At least 8 characters" },
+                    // H6: matches the server-side policy (12+ chars, upper,
+                    // lower, digit). The server remains the enforcement point.
+                    minLength: { value: 12, message: "At least 12 characters" },
+                    pattern: {
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+                      message:
+                        "Include an uppercase letter, a lowercase letter and a number.",
+                    },
                   })}
                 />
                 <Input

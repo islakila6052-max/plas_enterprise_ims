@@ -1,11 +1,7 @@
 // src/services/attendanceService.js
 import { supabase } from "@/lib/supabase";
-import {
-  diffHours,
-  nowMinuteInAttendanceTZ,
-  todayDateInAttendanceTZ,
-} from "@/utils/format";
-import { SHIFT_START_MINUTE } from "@/lib/constants";
+import { logger } from "@/lib/logger";
+import { todayDateInAttendanceTZ } from "@/utils/format";
 
 /**
  * Safely execute a Supabase query, returning null on network failure.
@@ -15,7 +11,7 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error("[IMS] Safe query failed:", err.message);
+    logger.error("[IMS] Safe query failed:", err.message);
     return null;
   }
 }
@@ -56,47 +52,23 @@ export const attendanceService = {
   },
 
   /**
-   * Derive the attendance status for a clock-in.
-   *
-   * Previously `timeIn` hard-coded `present`, so the `late` and `absent` enum
-   * values existed in the schema and the UI badge map but were never written —
-   * every row read `present` and low-attendance reporting was impossible.
-   * A clock-in after SHIFT_START_MINUTE is now recorded as `late`. The computed
-   * hours are untouched, so late arrivals are never silently deducted.
+   * SECURITY (H2): this used to decide `present` vs `late` in the BROWSER and
+   * the value was written straight to the row, so a client could simply claim
+   * `present` for a late arrival. The decision now lives in the
+   * `attendance_clock_in` SQL function, which derives the status from the
+   * SERVER clock and the `settings.shift_start_minute` value. `internId` is
+   * likewise ignored by the RPC: the row is always bound to
+   * `current_intern_id()`.
    */
-  _statusForClockIn(now = new Date()) {
-    return nowMinuteInAttendanceTZ(now) > SHIFT_START_MINUTE
-      ? "late"
-      : "present";
-  },
-
   async timeIn(internId, method = "manual") {
-    const today = todayDateInAttendanceTZ();
-    // Enforce one attendance record per intern per day.
-    // If a record already exists (open or closed), reject the request.
-    const { data: existing } = await supabase
-      .from("attendance")
-      .select("*")
-      .eq("intern_id", internId)
-      .eq("date", today)
-      .maybeSingle();
-    if (existing) {
-      throw new Error("You have already submitted your attendance for today.");
-    }
-    const { data, error } = await supabase
-      .from("attendance")
-      .insert({
-        intern_id: internId,
-        date: today,
-        time_in: new Date().toISOString(),
-        method,
-        status: this._statusForClockIn(),
-      })
-      .select("*")
-      .single();
+    // H2: the insert now happens inside the `attendance_clock_in` RPC, which
+    // derives `status` (present/late) from the SERVER clock and enforces the
+    // one-record-per-day rule. A client can no longer assert its own status.
+    const { data, error } = await supabase.rpc("attendance_clock_in", {
+      p_method: method,
+    });
     if (error) {
-      // Catch duplicate-key violations from the database-level unique index
-      // in case a race condition bypassed the existence check above.
+      // 23505 = the daily duplicate check tripped inside the function.
       if (error.code === "23505") {
         throw new Error(
           "You have already submitted your attendance for today.",
@@ -112,33 +84,19 @@ export const attendanceService = {
   // src/services/attendanceService.js
 
   async timeOut(recordId, timeOutISO, remarks = null) {
-    // Enforce at most one time-out per attendance record.
-    const { data: existing } = await supabase
-      .from("attendance")
-      .select("time_out, time_in")
-      .eq("id", recordId)
-      .maybeSingle();
-    if (!existing) {
-      throw new Error("Attendance record not found.");
+    // H2: `attendance_clock_out` closes the caller's own open record for today
+    // and computes `total_hours` in the database. The client can no longer post
+    // an arbitrary duration, nor target another intern's record.
+    const { data, error } = await supabase.rpc("attendance_clock_out", {
+      p_time_out: timeOutISO,
+      p_remarks: remarks || null,
+    });
+    if (error) {
+      if (error.code === "P0002" || /open attendance record/i.test(error.message)) {
+        throw new Error("You do not have an open attendance record to close.");
+      }
+      throw new Error(error.message);
     }
-    if (existing.time_out) {
-      throw new Error("You have already timed out for today.");
-    }
-
-    // Calculate total hours from time_in to the provided timeOut
-    const total = diffHours(existing.time_in, timeOutISO);
-    const { data, error } = await supabase
-      .from("attendance")
-      .update({
-        time_out: timeOutISO,
-        total_hours: total,
-        remarks: remarks || null,
-        method: "manual",
-      })
-      .eq("id", recordId)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
     return data;
   },
 
@@ -150,34 +108,14 @@ export const attendanceService = {
    * @param {string} remarks - Reason for the missed clock-out
    */
   async submitClaim(recordId, claimedTimeOutISO, remarks) {
-    const { data: existing } = await supabase
-      .from("attendance")
-      .select("time_out, time_in, claim_status")
-      .eq("id", recordId)
-      .maybeSingle();
-    if (!existing) {
-      throw new Error("Attendance record not found.");
-    }
-    if (existing.time_out) {
-      throw new Error("This attendance record already has a time out.");
-    }
-    if (existing.claim_status === "pending") {
-      throw new Error("You already have a pending claim for this record.");
-    }
-    if (existing.claim_status === "approved") {
-      throw new Error("This claim has already been approved.");
-    }
-
-    const { data, error } = await supabase
-      .from("attendance")
-      .update({
-        claimed_time_out: claimedTimeOutISO,
-        claim_status: "pending",
-        claim_remarks: remarks || null,
-      })
-      .eq("id", recordId)
-      .select("*")
-      .single();
+    // H2: all pre-checks (record exists, no time_out yet, no pending claim,
+    // claimed time after time_in) now run server-side inside the function, so
+    // they cannot be bypassed by calling the API directly.
+    const { data, error } = await supabase.rpc("attendance_submit_claim", {
+      p_record_id: recordId,
+      p_claimed_time_out: claimedTimeOutISO,
+      p_remarks: remarks || null,
+    });
     if (error) throw new Error(error.message);
     return data;
   },
@@ -191,57 +129,15 @@ export const attendanceService = {
    * @param {string} [comment] - Optional supervisor comment
    */
   async reviewClaim(recordId, decision, reviewerProfileId, comment = null) {
-    const { data: existing } = await supabase
-      .from("attendance")
-      .select("time_out, time_in, claimed_time_out, claim_status")
-      .eq("id", recordId)
-      .maybeSingle();
-    if (!existing) {
-      throw new Error("Attendance record not found.");
-    }
-    if (!existing.claimed_time_out) {
-      throw new Error("No claim exists for this attendance record.");
-    }
-    if (existing.claim_status !== "pending") {
-      throw new Error("This claim has already been reviewed.");
-    }
-
-    const patch = {
-      claim_status: decision,
-      claim_reviewed_by: reviewerProfileId,
-      claim_reviewed_at: new Date().toISOString(),
-      claim_review_comment: comment || null,
-    };
-
-    // Populate the attendance remarks with the supervisor's review comment so
-    // the intern can see what the supervisor communicated about the claim.
-    if (comment) {
-      patch.remarks = comment;
-    }
-
-    // On approval, apply the claimed time as the official time_out and
-    // recompute total hours.
-    if (decision === "approved") {
-      patch.time_out = existing.claimed_time_out;
-      patch.total_hours = diffHours(
-        existing.time_in,
-        existing.claimed_time_out,
-      );
-      patch.method = "claimed";
-    }
-
-    // On rejection, the intern has no valid time-out for the day, so mark
-    // the attendance status as absent instead of leaving it as present.
-    if (decision === "rejected") {
-      patch.status = "absent";
-    }
-
-    const { data, error } = await supabase
-      .from("attendance")
-      .update(patch)
-      .eq("id", recordId)
-      .select("*")
-      .single();
+    // H2: `attendance_review_claim` takes the reviewer identity from the JWT
+    // (NOT from this argument), verifies the intern is actually assigned to the
+    // caller, and computes time_out / total_hours / status server-side. An
+    // intern can no longer self-approve a claim or flip status back to present.
+    const { data, error } = await supabase.rpc("attendance_review_claim", {
+      p_record_id: recordId,
+      p_decision: decision,
+      p_comment: comment || null,
+    });
     if (error) throw new Error(error.message);
     return data;
   },

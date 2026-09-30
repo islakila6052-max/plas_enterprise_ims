@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { PAGE_SIZE } from "@/lib/constants";
+import { sanitizeSearch } from "@/utils/format";
 import { userService } from "@/services/userService";
 
 /**
@@ -10,7 +12,7 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error("[IMS] Safe query failed:", err.message);
+    logger.error("[IMS] Safe query failed:", err.message);
     return null;
   }
 }
@@ -39,9 +41,13 @@ export const internService = {
         .range((page - 1) * pageSize, page * pageSize - 1);
 
       if (search) {
-        query = query.or(
-          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,full_name.ilike.%${search}%`,
-        );
+        // M2: sanitise before interpolating into the PostgREST filter string.
+        const term = sanitizeSearch(search);
+        if (term) {
+          query = query.or(
+            `first_name.ilike.%${term}%,last_name.ilike.%${term}%,full_name.ilike.%${term}%`,
+          );
+        }
       }
       if (departmentId) query = query.eq("department_id", departmentId);
       if (status) query = query.eq("status", status);
@@ -118,7 +124,7 @@ export const internService = {
       } catch (e) {
         // Non-fatal: the intern data is already removed. Surface but don't fail
         // the whole operation if the auth delete is blocked for any reason.
-        console.error("Intern auth user delete failed:", e);
+        logger.error("Intern auth user delete failed:", e);
       }
     }
     return;

@@ -7,7 +7,8 @@ import { cn } from "@/utils/cn";
  * bulleted requirements list.
  *
  * Requirements (same as the Add Intern / Add Supervisor validation rules):
- *   1. At least 8 characters
+ *   1. At least 12 characters (H6 - raised from 8 to match the server policy
+ *      enforced by api/admin/_security.js)
  *   2. One uppercase letter (A-Z)
  *   3. One lowercase letter (a-z)
  *   4. One number (0-9)
@@ -38,7 +39,7 @@ const STRENGTH_STYLES = [
  */
 export function getPasswordIssue(pw = "") {
   if (!pw) return null;
-  if (pw.length < 8) return "Password must be at least 8 characters";
+  if (pw.length < 12) return "Password must be at least 12 characters";
   if (!/[A-Z]/.test(pw))
     return "Password must contain an uppercase letter (A–Z)";
   if (!/[a-z]/.test(pw))

@@ -8,6 +8,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY    service-role key (secret, bypasses RLS)
 //   SUPABASE_ANON_KEY            anon/public key (verifies the caller's session)
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, denyRateLimit, denyCrossOrigin } from "./_security.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -46,10 +47,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Only admins / HR staff may delete users.
+  // L5/L6: reject cross-origin browser requests before any privileged work.
+  if (denyCrossOrigin(req, res)) return;
+
+  // H5: deletions are the most destructive action in the system, so cap them.
+  const limit = rateLimit(req, "delete-user", 30, 60 * 60 * 1000);
+  if (!limit.ok) return denyRateLimit(res, limit.retryAfter);
+
+  // H9: deleting an auth account is destructive and unrecoverable, so it is
+  // admin-only. `hr_staff` can manage interns but cannot remove accounts.
   const caller = await getCallerProfile(req.headers.authorization);
-  if (!caller || !["admin", "hr_staff"].includes(caller.role)) {
-    return res.status(403).json({ error: "Forbidden: insufficient privileges to delete users" });
+  if (!caller || caller.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden: only administrators may delete users" });
   }
 
   const { userId } = req.body;
@@ -62,6 +71,47 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "You cannot delete your own account." });
   }
 
+  // H10: refuse to remove the LAST admin/hr_staff account. Deleting every admin
+  // would both lock the company out of the system AND silently re-open
+  // /api/admin/setup-admin, which mints a brand-new admin for whoever finds
+  // the URL first. Fail closed if the count cannot be established.
+  let privilegedCount = 0;
+  try {
+    const { count, error: countErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .in("role", ["admin", "hr_staff"]);
+    if (countErr) throw countErr;
+    privilegedCount = count ?? 0;
+  } catch (e) {
+    console.error("Could not verify remaining admin count:", e);
+    return res.status(500).json({
+      error: "Could not verify administrator accounts. Please try again.",
+    });
+  }
+
+  // Refuse when this deletion would remove the final privileged account.
+  if (privilegedCount <= 1) {
+    return res.status(400).json({
+      error:
+        "Cannot delete the last remaining administrator account. Create another admin first.",
+    });
+  }
+
+  // If the target is itself privileged, make sure one would remain afterwards.
+  const { data: target } = await supabaseAdmin
+    .from("profiles")
+    .select("id, role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (target && ["admin", "hr_staff"].includes(target.role) && privilegedCount <= 1) {
+    return res.status(400).json({
+      error:
+        "Cannot delete the last remaining administrator account. Create another admin first.",
+    });
+  }
+
   try {
     // Hard delete the auth user. profiles.id REFERENCES auth.users ON DELETE
     // CASCADE, so the profile row is removed too. Intern/supervisor rows that
@@ -72,7 +122,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true });
   } catch (error) {
+    // M12: the raw GoTrue error is logged server-side but not returned - it can
+    // expose internal identifiers and constraint names.
     console.error("Error deleting user:", error);
-    return res.status(400).json({ error: error.message || "Failed to delete user" });
+    return res.status(400).json({ error: "Unable to delete the account. Please try again." });
   }
 }

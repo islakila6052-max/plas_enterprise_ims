@@ -56,6 +56,33 @@ export function todayISO() {
  */
 export const ATTENDANCE_TIMEZONE = "Asia/Manila";
 
+/**
+ * SECURITY (M2): sanitise a user-supplied search term before it is embedded
+ * in a PostgREST `.or()` / `.ilike()` filter string.
+ *
+ * The query builder is not a SQL engine, so this is not classic SQL injection
+ * - values always travel as bound parameters. But an unescaped search term can
+ * still break out of the intended filter expression: PostgREST treats `,`
+ * `.` `(` `)` as structural, so a term like `a),or(1.eq.1` alters the parsed
+ * filter and can return unintended rows, or produce a 500.
+ *
+ * We keep letters, digits, spaces and a few name characters (so real searches
+ * like "De La Cruz" still work) and drop everything structural. Commas are
+ * replaced with a space rather than removed, so "Smith, John" still matches.
+ *
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string} safe filter fragment, or "" when nothing usable remains
+ */
+export function sanitizeSearch(value, maxLength = 80) {
+  return String(value ?? "")
+    .replace(/[,()]/g, " ")
+    .replace(/[^A-Za-z0-9 .'\-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function zoneParts(instant, timeZone, extra = {}) {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,

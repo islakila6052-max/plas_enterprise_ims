@@ -8,14 +8,35 @@ import Card from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { Icon } from "@/components/ui/icons";
 
-/** Password strength rules. Each rule is a predicate on the raw password. */
+/**
+ * Password strength rules. Each rule is a predicate on the raw password.
+ *
+ * H6: the length floor was 8, which is far too weak for an account that can
+ * reach admin functions. It is now 12 to match the server-side policy in
+ * api/admin/_security.js (validatePassword) and the Supabase Auth policy. The
+ * server remains the enforcement point; this is guidance only.
+ */
 const RULES = [
-  { id: "length", label: "At least 8 characters", test: (p) => p.length >= 8 },
+  { id: "length", label: "At least 12 characters", test: (p) => p.length >= 12 },
   { id: "upper", label: "At least one uppercase letter", test: (p) => /[A-Z]/.test(p) },
   { id: "lower", label: "At least one lowercase letter", test: (p) => /[a-z]/.test(p) },
   { id: "number", label: "At least one number", test: (p) => /[0-9]/.test(p) },
-  { id: "special", label: "At least one symbol", test: (p) => /[^A-Za-z0-9]/.test(p) },
+  { id: "special", label: "At least one symbol (recommended)", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
+
+/**
+ * The subset of rules the server actually enforces (length + upper + lower +
+ * number). The "symbol" rule is deliberately excluded: it is a recommendation
+ * shown in the meter, not a requirement, so a user is never blocked by a rule
+ * the backend would also reject.
+ */
+const REQUIRED_RULES = ["length", "upper", "lower", "number"];
+
+export function meetsServerPolicy(password) {
+  return REQUIRED_RULES.every((id) =>
+    RULES.find((r) => r.id === id)?.test(password ?? ""),
+  );
+}
 
 /** Returns a 0-4 strength score based on how many rules pass. */
 function strengthScore(password) {
@@ -107,12 +128,15 @@ export default function ChangePassword() {
               }
               {...register("password", {
                 required: "Password is required",
-                minLength: { value: 8, message: "At least 8 characters" },
+                // H6: 12+ chars, upper, lower, digit - exactly the policy
+                // enforced server-side by api/admin/_security.js. The "symbol"
+                // rule is dropped here so the client never blocks a password
+                // the backend would accept.
+                minLength: { value: 12, message: "At least 12 characters" },
                 validate: {
                   upper: (p) => /[A-Z]/.test(p) || "Needs at least one uppercase letter",
                   lower: (p) => /[a-z]/.test(p) || "Needs at least one lowercase letter",
                   number: (p) => /[0-9]/.test(p) || "Needs at least one number",
-                  special: (p) => /[^A-Za-z0-9]/.test(p) || "Needs at least one symbol",
                 },
               })}
             />

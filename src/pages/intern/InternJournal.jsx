@@ -208,18 +208,22 @@ export default function InternJournal() {
     setLoadError(null);
     try {
       const res = await journalService.list({ internId, page: 1, pageSize: 30 });
-      let data = res.data ?? [];
-      if (search) {
-        const q = search.toLowerCase();
-        data = data.filter((r) => (r.activities ?? "").toLowerCase().includes(q));
-      }
-      setRows(data);
+      // NOTE: `rows` holds the COMPLETE, unfiltered set on purpose. The stat
+      // strip, the day streak, the month calendar and "today's entries" are all
+      // derived from it, so they must describe the intern's real history rather
+      // than whatever happens to match the current search box. The search is
+      // applied later, at render time, to the paginated list only.
+      //
+      // Filtering here instead meant typing in the search box rewrote
+      // "Journal Entries", "Hours Logged", "Day Streak" and "Pending Reviews",
+      // and emptied the calendar - so a search appeared to delete data.
+      setRows(res.data ?? []);
     } catch (err) {
       setLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [internId, search]);
+  }, [internId]);
 
   useEffect(() => {
     load();
@@ -260,14 +264,15 @@ export default function InternJournal() {
           .eq("id", internId)
           .single();
         if (intern?.supervisor_id) {
-          const { data: supProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", intern.supervisor_id)
-            .single();
-          if (supProfile?.id) {
+          // `intern.supervisor_id` is a supervisors.id, so resolve it through
+          // the SECURITY DEFINER helper (profiles is no longer listable).
+          const { data: supProfileId } = await supabase.rpc(
+            "supervisor_profile_id",
+            { p_supervisor_row_id: intern.supervisor_id },
+          );
+          if (supProfileId) {
             await notify({
-              user_id: supProfile.id,
+              user_id: supProfileId,
               type: "journal_submitted",
               title: "New journal entry",
               message: `${profile?.full_name || "An intern"} submitted a journal entry for ${values.date}.`,
@@ -321,14 +326,26 @@ export default function InternJournal() {
   );
   const hasEntryToday = todayEntries.length > 0;
 
-  // Paginate the history list only. `rows` is the full set the intern has, and
-  // stays untouched for the stats strip, the streak and the calendar, so paging
-  // back and forth cannot change any of those figures.
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  // The search is applied HERE, at render time, instead of inside `load()`.
+  // `rows` stays the intern's complete history, so the stat strip, the day
+  // streak, the month calendar and "today's entries" below are unaffected by
+  // what is typed into the search box. Only the list on the right reacts to it.
+  const searchTerm = search.trim().toLowerCase();
+  const filteredRows = useMemo(() => {
+    if (!searchTerm) return rows;
+    return rows.filter((r) =>
+      (r.activities ?? "").toLowerCase().includes(searchTerm),
+    );
+  }, [rows, searchTerm]);
+
+  // Paginate the filtered list only. The unfiltered `rows` above still backs
+  // the stats, the streak and the calendar, so neither searching nor paging can
+  // change any of those figures.
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const visibleRows = useMemo(
-    () => rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [rows, safePage],
+    () => filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredRows, safePage],
   );
 
   // A new search can leave the current page beyond the last page, so reset.
@@ -566,13 +583,24 @@ export default function InternJournal() {
         <Card className="lg:col-span-3" ref={historyRef}>
           <div className="flex flex-col gap-3 border-b border-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-semibold text-slate-800">Recent Journals</h3>
-            <Input
-              placeholder="Search activities…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="sm:max-w-xs"
-              aria-label="Search journal activities"
-            />
+            <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+              <Input
+                placeholder="Search activities…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="sm:max-w-xs"
+                aria-label="Search journal activities"
+              />
+              {/* Makes it explicit that the search narrows this list only, and
+                  not the totals above or the calendar beside it. */}
+              {searchTerm && !loading && !loadError && (
+                <p className="text-xs text-slate-500 sm:pr-1">
+                  {filteredRows.length === 0
+                    ? "No matches"
+                    : `Showing ${filteredRows.length} of ${rows.length}`}
+                </p>
+              )}
+            </div>
           </div>
           <div className="p-4">
             {loading ? (
@@ -586,10 +614,22 @@ export default function InternJournal() {
             ) : rows.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-slate-500">
-                  {search
-                    ? "No journals match your search."
-                    : "No journals submitted yet. Start documenting your OJT journey today."}
+                  No journals submitted yet. Start documenting your OJT journey
+                  today.
                 </p>
+              </div>
+            ) : filteredRows.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-slate-500">
+                  No journals match &ldquo;{search.trim()}&rdquo;.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="mt-2 text-sm font-semibold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+                >
+                  Clear search
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -605,7 +645,7 @@ export default function InternJournal() {
           </div>
           <JournalPagination
             page={safePage}
-            totalItems={rows.length}
+            totalItems={filteredRows.length}
             pageSize={PAGE_SIZE}
             onPageChange={handlePageChange}
           />

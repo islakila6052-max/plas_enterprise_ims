@@ -1,5 +1,6 @@
 // src/services/institutionService.js
 import { supabase } from "@/lib/supabase";
+import { sanitizeSearch } from "@/utils/format";
 
 /**
  * Institution service. Institutions are master setup data (schools / universities)
@@ -28,9 +29,13 @@ export const institutionService = {
         .select(COLUMNS.join(","))
         .order("institution_name", { ascending: true });
       if (search) {
-        query = query.or(
-          `institution_name.ilike.%${search}%,abbreviation.ilike.%${search}%,campus.ilike.%${search}%`,
-        );
+        // M2: sanitise before interpolating into the PostgREST filter string.
+        const term = sanitizeSearch(search);
+        if (term) {
+          query = query.or(
+            `institution_name.ilike.%${term}%,abbreviation.ilike.%${term}%,campus.ilike.%${term}%`,
+          );
+        }
       }
       const { data, error } = await query;
       if (error) throw new Error(error.message);

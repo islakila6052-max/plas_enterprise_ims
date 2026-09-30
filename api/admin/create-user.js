@@ -11,6 +11,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY    service-role key (server-side only, secret)
 //   SUPABASE_ANON_KEY            anon/public key (used to verify the caller)
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, denyRateLimit, validatePassword, denyCrossOrigin } from "./_security.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -64,29 +65,58 @@ export default async function handler(req, res) {
     });
   }
 
+  // L5/L6: reject cross-origin browser requests before any privileged work.
+  if (denyCrossOrigin(req, res)) return;
+
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // --- RBAC: HR Admin / HR Staff may create any user. Supervisors may create
-  //     interns (their own assigned interns). Interns cannot create users. ----
+  // H5: rate limit BEFORE any privileged work. Without this, a single stolen
+  // supervisor/admin token could mint or destroy accounts as fast as the
+  // function would cold-start.
+  const limit = rateLimit(req, "create-user", 20, 60 * 60 * 1000);
+  if (!limit.ok) return denyRateLimit(res, limit.retryAfter);
+
+  // --- RBAC: only HR Admin / HR Staff may create auth accounts. -------------
+  // SECURITY (C5): supervisors were previously allowed to call
+  // auth.admin.createUser and could therefore mint UNLIMITED arbitrary auth
+  // accounts at will, with the target role supplied by the client. That is a
+  // standing account-creation capability that belongs to HR only.
+  // Supervisors should now request intern registration, which an admin
+  // approves and provisions. The extra "supervisor may only create interns"
+  // branch is therefore gone rather than merely narrowed.
   const caller = await getCallerProfile(req.headers.authorization);
-  const allowedRoles = ["admin", "hr_staff", "supervisor"];
+  const allowedRoles = ["admin", "hr_staff"];
   const allowed = caller && allowedRoles.includes(caller.role);
   if (!allowed) {
-    return res.status(403).json({ error: "Forbidden: insufficient privileges to create users" });
+    return res.status(403).json({
+      error:
+        "Forbidden: only administrators may create accounts. Ask an administrator to provision this account.",
+    });
   }
-  const { email, password, user_metadata } = req.body;
+  const { email, password, user_metadata } = req.body ?? {};
 
-  // Supervisors are restricted to creating interns only.
-  if (caller.role === "supervisor" && user_metadata?.role && user_metadata.role !== "intern") {
-    return res.status(403).json({ error: "Forbidden: supervisors can only create intern accounts" });
+  // Validate the requested role against a server-side allowlist. The role is
+  // never taken on trust from the client beyond this point.
+  const ALLOWED_NEW_ROLES = ["admin", "hr_staff", "supervisor", "intern"];
+  const requestedRole = user_metadata?.role ?? "intern";
+  if (!ALLOWED_NEW_ROLES.includes(requestedRole)) {
+    return res.status(400).json({ error: "Invalid role for a new account." });
   }
 
   // Validate required fields
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  // H6: enforce the password policy SERVER-side. This endpoint previously
+  // accepted any non-empty string, so a 1-character password was a valid
+  // account. The UI's strength meter is advisory and easily bypassed.
+  const pwCheck = validatePassword(password, email);
+  if (!pwCheck.ok) {
+    return res.status(400).json({ error: pwCheck.message });
   }
 
 try {
@@ -95,10 +125,12 @@ try {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm email
+      // Do NOT auto-confirm: a magic-link/confirmation email is delivered so
+      // the address is proven to belong to the new user before first login.
+      email_confirm: false,
       user_metadata: {
         full_name: user_metadata?.full_name || "",
-        role: user_metadata?.role || "intern",
+        role: requestedRole,
       },
     });
 
@@ -114,7 +146,7 @@ try {
           id: authUser.id,
           full_name: user_metadata?.full_name || "",
           email: authUser.email,
-          role: user_metadata?.role || "intern",
+          role: requestedRole,
         },
         { onConflict: "id" },
       );
@@ -129,7 +161,7 @@ try {
         action: "create",
         resource_type: "auth_user",
         resource_id: authUser.id,
-        changes: { email, role: user_metadata?.role || "intern" },
+        changes: { email, role: requestedRole },
       });
     } catch {
       /* non-fatal */
@@ -144,29 +176,32 @@ try {
       },
     });
   } catch (error) {
-    // The underlying failure is usually a Supabase auth/postgrest error object.
-    // Normalise to a readable string so the client never sees "Error: {}".
+    // M12: log the real cause server-side, but return a GENERIC message.
+    // The previous handler echoed the raw GoTrue/PostgREST error (which can
+    // contain table names, constraint names and SQL fragments) back to the
+    // client, and the "already registered" hint acted as a user-enumeration
+    // oracle on a privileged endpoint.
     console.error("Error creating user:", error);
-    const message =
-      error?.message ||
-      error?.error_description ||
-      error?.invalid_email ||
-      error?.details ||
-      (typeof error === "string" ? error : "") ||
-      "Failed to create user";
+    const raw = String(
+      error?.message || error?.error_description || error?.details || "",
+    ).toLowerCase();
 
-    // Distinguish the most common cause to give the user an actionable hint.
-    const lower = String(message).toLowerCase();
-    let hint = "";
-    if (lower.includes("already registered") || lower.includes("already exists") || lower.includes("duplicate")) {
-      hint = "An account with this email already exists. Use a different email, or delete the existing account first.";
-    } else if (lower.includes("valid email") || lower.includes("email")) {
-      hint = "The email address appears to be invalid.";
+    let status = 400;
+    let message = "Unable to create the account. Please try again.";
+
+    if (raw.includes("already registered") || raw.includes("already exists") || raw.includes("duplicate")) {
+      // Neutral wording: still tells the admin what to do, but does not confirm
+      // the address is registered to an outsider probing the endpoint.
+      message = "Unable to create the account with those details. Use a different email address.";
+    } else if (raw.includes("valid email") || raw.includes("email address")) {
+      message = "The email address appears to be invalid.";
+    } else if (raw.includes("password")) {
+      message = "The password does not meet the security requirements.";
+    } else if (raw.includes("rate") || raw.includes("too many")) {
+      status = 429;
+      message = "Too many requests. Please wait a moment and try again.";
     }
 
-    return res.status(400).json({
-      error: String(message),
-      ...(hint ? { hint } : {}),
-    });
+    return res.status(status).json({ error: message });
   }
 }

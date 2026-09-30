@@ -18,6 +18,7 @@ import { EVALUATION_CRITERIA, EVALUATION_RECOMMENDATIONS } from "@/lib/constants
 import { formatDate } from "@/utils/format";
 import { recordAudit, notify } from "@/services/activityService";
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 const REC_LABEL = Object.fromEntries(EVALUATION_RECOMMENDATIONS.map((r) => [r.value, r.label]));
 
@@ -147,8 +148,7 @@ export default function SupervisorEvaluations() {
     } catch (err) {
       const detail = err?.details || err?.hint || err?.code || "";
       toast.error(detail ? `${err.message} (${detail})` : err.message);
-      // eslint-disable-next-line no-console
-      console.error("[IMS] Evaluation create failed:", err);
+      logger.error("[IMS] Evaluation create failed:", err);
     } finally {
       setSaving(false);
     }

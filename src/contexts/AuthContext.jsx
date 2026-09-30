@@ -1,8 +1,11 @@
 // src/contexts/AuthContext.jsx
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 const AuthContext = createContext(null);
 
@@ -19,6 +22,17 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // H8 - session lifetime.
+  // persistSession + autoRefreshToken means a token left on a shared or
+  // compromised machine stays valid indefinitely: there was no absolute expiry
+  // and no idle timeout, and signing out was the only way to end it. We now
+  // enforce BOTH an idle timeout and a hard absolute cap, also bounded by the
+  // JWT's own exp so a forged local clock cannot extend a session.
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes idle
+  const ABSOLUTE_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours max
+  const ACTIVITY_EVENTS = ["mousedown", "keydown", "touchstart", "scroll"];
+  const IDLE_WARN_MS = 2 * 60 * 1000; // warn 2 min before idle expiry
+
   // Tracks the user id whose profile is already loaded (or in flight) so the
   // bootstrap pass and the INITIAL_SESSION event do not each fire the same
   // profiles query. Supabase replays INITIAL_SESSION on subscribe, which used
@@ -27,6 +41,10 @@ export function AuthProvider({ children }) {
   // Holds the last successfully loaded profile so a duplicate call can return
   // it without a stale closure over `profile` state.
   const loadedProfile = useRef(null);
+  // H8: epoch ms when the current session was first seen, plus the last time
+  // the user was seen active. Both reset on sign-in/sign-out.
+  const sessionStartedAt = useRef(0);
+  const lastActiveAt = useRef(0);
 
   const loadProfile = useCallback(async (authUser) => {
     if (!authUser) {
@@ -53,7 +71,7 @@ export function AuthProvider({ children }) {
       // the user can still interact with the app and data will
       // refresh once connectivity is restored.
       // eslint-disable-next-line no-console
-      console.warn("[IMS] Profile load failed (network?):", err.message);
+      logger.warn("[IMS] Profile load failed (network?):", err.message);
       // Allow a retry on the next auth event, since this user never loaded.
       if (loadedProfileFor.current === authUser.id) {
         loadedProfileFor.current = null;
@@ -73,7 +91,7 @@ export function AuthProvider({ children }) {
         current = await authService.getCurrentUser();
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.warn("[IMS] Session restore failed:", err?.message);
+        logger.warn("[IMS] Session restore failed:", err?.message);
         current = null;
       }
       if (!active) return;
@@ -92,7 +110,7 @@ export function AuthProvider({ children }) {
       // not become an unhandled rejection that crashes the whole app.
       loadProfile(nextUser).catch((err) => {
         // eslint-disable-next-line no-console
-        console.error("[IMS] Failed to load profile on auth change:", err);
+        logger.error("[IMS] Failed to load profile on auth change:", err);
         setProfile(null);
       });
       setLoading(false);
@@ -103,6 +121,87 @@ export function AuthProvider({ children }) {
       unsubscribe();
     };
   }, [loadProfile]);
+
+  // ---------------------------------------------------------------------------
+  // H8 - idle + absolute session timeout
+  // ---------------------------------------------------------------------------
+  // Runs only while a user is signed in. Pointer/keyboard/touch/scroll events
+  // push the idle deadline forward, but the absolute deadline is fixed at
+  // sign-in and is never extended, so a session cannot be kept alive forever
+  // by scripted activity. Both timers are also capped by the JWT's own `exp`.
+  useEffect(() => {
+    if (!user) {
+      sessionStartedAt.current = 0;
+      lastActiveAt.current = 0;
+      return undefined;
+    }
+
+    const now = Date.now();
+    if (!sessionStartedAt.current) sessionStartedAt.current = now;
+    lastActiveAt.current = now;
+
+    let warned = false;
+
+    const endSession = async () => {
+      // Sign out server-side too, so the refresh token is revoked rather than
+      // merely dropped from this tab.
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        /* best effort - local state is cleared regardless */
+      }
+      sessionStartedAt.current = 0;
+      lastActiveAt.current = 0;
+      setUser(null);
+      setProfile(null);
+      setProfileError("Your session expired. Please sign in again.");
+    };
+
+    const tick = () => {
+      if (!user) return;
+      const t = Date.now();
+
+      // Never outlive the access token itself, even if refreshed locally.
+      const expMs = user.exp ? user.exp * 1000 : Infinity;
+      if (t >= expMs) return void endSession();
+
+      if (t - sessionStartedAt.current >= ABSOLUTE_TIMEOUT_MS) {
+        return void endSession();
+      }
+
+      const idleFor = t - lastActiveAt.current;
+      if (idleFor >= IDLE_TIMEOUT_MS) {
+        return void endSession();
+      }
+
+      if (!warned && idleFor >= IDLE_TIMEOUT_MS - IDLE_WARN_MS) {
+        warned = true;
+        toast(
+          "You'll be signed out shortly due to inactivity. Move the mouse to stay signed in.",
+          { id: "ims-idle-warning", duration: 12000 },
+        );
+      }
+    };
+
+    const onActivity = () => {
+      lastActiveAt.current = Date.now();
+      warned = false;
+      toast.dismiss?.("ims-idle-warning");
+    };
+
+    for (const evt of ACTIVITY_EVENTS) {
+      window.addEventListener(evt, onActivity, { passive: true });
+    }
+    const interval = window.setInterval(tick, 30 * 1000);
+
+    return () => {
+      window.clearInterval(interval);
+      for (const evt of ACTIVITY_EVENTS) {
+        window.removeEventListener(evt, onActivity);
+      }
+      toast.dismiss?.("ims-idle-warning");
+    };
+  }, [user]);
 
   const value = useMemo(() => {
     const role = profile?.role ?? null;
@@ -131,7 +230,7 @@ export function AuthProvider({ children }) {
           current = await authService.getCurrentUser();
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.warn("[IMS] Session refresh failed:", err?.message);
+          logger.warn("[IMS] Session refresh failed:", err?.message);
         }
         setUser(current ?? null);
         loadedProfileFor.current = null;
@@ -143,7 +242,7 @@ export function AuthProvider({ children }) {
           await authService.signOut();
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.warn("[IMS] Sign out failed:", err?.message);
+          logger.warn("[IMS] Sign out failed:", err?.message);
         }
         setUser(null);
         loadedProfileFor.current = null;

@@ -1,5 +1,6 @@
 // src/components/ui/ErrorBoundary.jsx
 import { Component } from "react";
+import { logger } from "@/lib/logger";
 
 /**
  * Catches render-time and async errors that escape React's tree so a single
@@ -20,8 +21,12 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // eslint-disable-next-line no-console
-    console.error("[IMS] Uncaught error in component tree:", error, info);
+    // L3: redacting logger - component stack + error message are scrubbed of
+    // anything resembling a token, email, uuid or phone number, and this is
+    // silent in production.
+    logger.error("[IMS] Uncaught error in component tree:", error, {
+      componentStack: info?.componentStack,
+    });
   }
 
   handleReset = () => {

@@ -133,7 +133,9 @@ export default function ProfileSettings() {
         }
       }
 
-      await profileService.update(user.id, {
+      // The target row is resolved from the caller's JWT by the
+      // `update_own_profile` RPC, so no user id is passed from the client.
+      await profileService.update({
         full_name: values.full_name.trim(),
         contact_number: cleanContactNumber,
         bio: (values.bio ?? "").trim(),

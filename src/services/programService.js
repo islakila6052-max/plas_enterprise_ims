@@ -1,5 +1,6 @@
 // src/services/programService.js
 import { supabase } from "@/lib/supabase";
+import { sanitizeSearch } from "@/utils/format";
 
 /**
  * Program service. Programs belong to an institution (1:N). Admin-only writes;
@@ -29,9 +30,13 @@ export const programService = {
 
       if (institutionId) query = query.eq("institution_id", institutionId);
       if (search) {
-        query = query.or(
-          `program_name.ilike.%${search}%,program_code.ilike.%${search}%,abbreviation.ilike.%${search}%`,
-        );
+        // M2: sanitise before interpolating into the PostgREST filter string.
+        const term = sanitizeSearch(search);
+        if (term) {
+          query = query.or(
+            `program_name.ilike.%${term}%,program_code.ilike.%${term}%,abbreviation.ilike.%${term}%`,
+          );
+        }
       }
       const { data, error } = await query;
       if (error) throw new Error(error.message);

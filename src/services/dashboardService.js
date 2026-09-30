@@ -1,5 +1,6 @@
 // src/services/dashboardService.js
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { todayDateInAttendanceTZ } from "@/utils/format";
 
 /**
@@ -14,7 +15,7 @@ async function count(table, query) {
   if (error) {
     // A single failing count (e.g. an unauthenticated request, or a filter
     // the gateway rejects) must never break the whole dashboard. Degrade to 0.
-    console.error(`[IMS] count(${table}) failed:`, error.message);
+    logger.error(`[IMS] count(${table}) failed:`, error.message);
     return 0;
   }
   return count ?? 0;
@@ -28,7 +29,7 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error(`[IMS] safeQuery failed:`, err.message);
+    logger.error(`[IMS] safeQuery failed:`, err.message);
     return null;
   }
 }

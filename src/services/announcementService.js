@@ -1,5 +1,6 @@
 // src/services/announcementService.js
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 /**
  * Safely execute a Supabase query, returning null on network failure.
@@ -9,7 +10,7 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error("[IMS] Safe query failed:", err.message);
+    logger.error("[IMS] Safe query failed:", err.message);
     return null;
   }
 }
@@ -123,19 +124,38 @@ export const announcementService = {
   },
 
   async create(payload) {
-    const { data, error } = await supabase.from("announcements").insert(payload).select("*").single();
+    // M9: writes go through the `announcement_create` RPC, which enforces the
+    // admin check server-side and writes an audit_logs row in the SAME
+    // transaction. Announcements are company-wide content, so an unattributed
+    // create/edit/delete is a real accountability gap.
+    const { data, error } = await supabase.rpc("announcement_create", {
+      p_title: payload.title,
+      p_body: payload.body,
+      p_category: payload.category ?? "company_news",
+      p_pinned: payload.pinned ?? false,
+    });
     if (error) throw new Error(error.message);
     return data;
   },
 
   async update(id, payload) {
-    const { data, error } = await supabase.from("announcements").update(payload).eq("id", id).select("*").single();
+    const { data, error } = await supabase.rpc("announcement_update", {
+      p_id: id,
+      p_title: payload.title,
+      p_body: payload.body,
+      p_category: payload.category ?? null,
+      p_pinned: payload.pinned ?? null,
+    });
     if (error) throw new Error(error.message);
     return data;
   },
 
   async remove(id) {
-    const { error } = await supabase.from("announcements").delete().eq("id", id);
+    // M9: the delete RPC records the removed title/body in the audit trail
+    // before the row disappears, so the content remains recoverable.
+    const { error } = await supabase.rpc("announcement_delete", {
+      p_id: id,
+    });
     if (error) throw new Error(error.message);
     return;
   },

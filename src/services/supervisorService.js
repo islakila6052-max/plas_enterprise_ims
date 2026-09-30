@@ -1,5 +1,6 @@
 // supervisorService.js
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 import { userService } from "@/services/userService";
 
 export const supervisorService = {
@@ -207,7 +208,7 @@ export const supervisorService = {
       try {
         await userService.deleteAuthUser(supData.profile_id);
       } catch (e) {
-        console.error("Supervisor auth user delete failed:", e);
+        logger.error("Supervisor auth user delete failed:", e);
       }
     }
 

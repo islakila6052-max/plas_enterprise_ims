@@ -116,14 +116,15 @@ export default function InternAttendance() {
           .eq("id", internId)
           .single();
         if (intern?.supervisor_id) {
-          const { data: supProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", intern.supervisor_id)
-            .single();
-          if (supProfile?.id) {
+          // `intern.supervisor_id` is a supervisors.id, so resolve it through
+          // the SECURITY DEFINER helper (profiles is no longer listable).
+          const { data: supProfileId } = await supabase.rpc(
+            "supervisor_profile_id",
+            { p_supervisor_row_id: intern.supervisor_id },
+          );
+          if (supProfileId) {
             await notify({
-              user_id: supProfile.id,
+              user_id: supProfileId,
               type: "attendance_update",
               title: "Time in recorded",
               message: `${intern.full_name || "Your intern"} just timed in for ${todayDateInAttendanceTZ()}.`,
@@ -177,14 +178,15 @@ export default function InternAttendance() {
           .eq("id", internId)
           .single();
         if (intern?.supervisor_id) {
-          const { data: supProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", intern.supervisor_id)
-            .single();
-          if (supProfile?.id) {
+          // `intern.supervisor_id` is a supervisors.id, so resolve it through
+          // the SECURITY DEFINER helper (profiles is no longer listable).
+          const { data: supProfileId } = await supabase.rpc(
+            "supervisor_profile_id",
+            { p_supervisor_row_id: intern.supervisor_id },
+          );
+          if (supProfileId) {
             await notify({
-              user_id: supProfile.id,
+              user_id: supProfileId,
               type: "attendance_update",
               title: "Time out recorded",
               message: `${intern.full_name || "Your intern"} timed out for ${formatDate(open.date)}.`,

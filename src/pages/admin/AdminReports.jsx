@@ -19,6 +19,7 @@ import { settingsService } from "@/services/settingsService";
 import { formatDate, formatTime, formatHours } from "@/utils/format";
 import jsPDF from "jspdf";
 import { autoTable } from "jspdf-autotable";
+import { logger } from "@/lib/logger";
 import {
   INTERN_STATUS,
   INTERN_STATUS_LABELS,
@@ -288,7 +289,7 @@ export default function AdminReports() {
         const internData = internRes?.data || [];
         setInterns(internData);
       } catch (err) {
-        console.error("Failed to load filter options:", err);
+        logger.error("Failed to load filter options:", err);
         toast.error("Failed to load filter options");
       }
     }

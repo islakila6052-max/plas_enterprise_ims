@@ -33,6 +33,7 @@ import {
   PAGE_SIZE,
 } from "@/lib/constants";
 import { formatDate } from "@/utils/format";
+import { logger } from "@/lib/logger";
 import {
   recordAudit,
   notify,
@@ -372,8 +373,8 @@ export default function InternManagement() {
       setModalOpen(false);
       load();
     } catch (err) {
-      // Surface the full Supabase error (code + details) for easier debugging.
-      console.error("Intern create/update failed:", err);
+      // L3: redacting logger - the raw Supabase error object can carry PII.
+      logger.error("Intern create/update failed:", err);
       const message = String(err?.message || "");
       const lower = message.toLowerCase();
       // The most common real-world cause: the typed email is already registered
@@ -733,11 +734,13 @@ export default function InternManagement() {
                   }
                   {...register("password", {
                     required: !editing && "Password is required",
-                    minLength: { value: 8, message: "At least 8 characters" },
+                    // H6: must match the server-side policy exactly (12+ chars,
+                    // upper, lower, digit) or /api/admin/create-user rejects the
+                    // request after the user has filled in the whole form.
+                    minLength: { value: 12, message: "At least 12 characters" },
                     pattern: {
-                      value:
-                        /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
-                      message: "Needs uppercase, lowercase, number & symbol",
+                      value: /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{12,}$/,
+                      message: "Needs uppercase, lowercase and a number",
                     },
                   })}
                 />

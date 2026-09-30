@@ -420,14 +420,16 @@ export default function AdminSupervisors() {
                 }
                 {...register("password", {
                   required: "Password is required",
+                  // H6: must match the server-side policy exactly (12+ chars,
+                  // upper, lower, digit) or the API rejects the request after
+                  // the user has already filled in the whole form.
                   minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters",
+                    value: 12,
+                    message: "Password must be at least 12 characters",
                   },
                   pattern: {
-                    value:
-                      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/,
-                    message: "Needs uppercase, lowercase, number & symbol",
+                    value: /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{12,}$/,
+                    message: "Needs uppercase, lowercase and a number",
                   },
                 })}
               />

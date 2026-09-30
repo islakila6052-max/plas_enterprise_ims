@@ -11,6 +11,7 @@
 // Environment variables (same as create-user.js):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, denyRateLimit, validatePassword, denyCrossOrigin } from "./_security.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -42,13 +43,26 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default async function handler(req, res) {
   if (!supabaseAdmin) return configError(res);
 
+  // L5/L6: reject cross-origin browser requests. This endpoint is
+  // UNAUTHENTICATED, so an off-site page must not be able to drive it at all.
+  if (denyCrossOrigin(req, res)) return;
+
+  // H5: this endpoint is unauthenticated by design, so it is the single most
+  // attractive target in the app - whoever finds /api/admin/setup-admin while
+  // no admin exists can mint themselves an administrator. Cap attempts hard.
+  const limit = rateLimit(req, "setup-admin", 5, 60 * 60 * 1000);
+  if (!limit.ok) return denyRateLimit(res, limit.retryAfter);
+
   // ---- GET: report whether first-time setup is still available. ----------
   if (req.method === "GET") {
     try {
       const exists = await adminExists();
       return res.status(200).json({ setupRequired: !exists });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      // M12: the raw error is logged, but the client only learns that the
+      // check could not be completed - not the underlying database detail.
+      console.error("Error checking setup availability:", err);
+      return res.status(500).json({ error: "Could not determine setup status." });
     }
   }
 
@@ -77,10 +91,13 @@ export default async function handler(req, res) {
       .status(400)
       .json({ error: "A valid email address is required." });
   }
-  if (!password || String(password).length < 8) {
-    return res.status(400).json({
-      error: "Password must be at least 8 characters long.",
-    });
+  // H6: the bootstrap admin gets the STRONGEST policy, not the weakest one.
+  // A first-run admin created with an 8-character password is a permanent
+  // backdoor into the whole system, so the same 12-char server-side policy
+  // enforced by create-user.js applies here too.
+  const pwCheck = validatePassword(password, email);
+  if (!pwCheck.ok) {
+    return res.status(400).json({ error: pwCheck.message });
   }
 
   try {
@@ -96,7 +113,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: String(email).trim(),
       password,
-      email_confirm: true,
+      email_confirm: true, // first admin is provisioned by an operator
       user_metadata: { full_name: String(full_name).trim(), role: "admin" },
     });
     if (error) throw error;
@@ -136,8 +153,10 @@ export default async function handler(req, res) {
       user: { id: authUser.id, email: authUser.email },
     });
   } catch (error) {
+    // M12: log the detail, return a generic message.
+    console.error("Error creating the admin account:", error);
     return res.status(400).json({
-      error: error.message || "Failed to create the admin account.",
+      error: "Unable to create the administrator account. Please try again.",
     });
   }
 }

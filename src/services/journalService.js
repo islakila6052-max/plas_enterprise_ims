@@ -1,5 +1,6 @@
 // src/services/journalService.js
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 /**
  * Safely execute a Supabase query, returning null on network failure.
@@ -9,7 +10,7 @@ async function safeQuery(fn) {
   try {
     return await fn();
   } catch (err) {
-    console.error("[IMS] Safe query failed:", err.message);
+    logger.error("[IMS] Safe query failed:", err.message);
     return null;
   }
 }
@@ -56,29 +57,17 @@ export const journalService = {
   },
 
   async review(id, status, supervisorId, comment) {
-    // Only set supervisor_id when one is provided. Passing null here would
-    // wipe the link the supervisor's journal list + RLS depend on.
-    const patch = { status, supervisor_comment: comment };
-    if (supervisorId) patch.supervisor_id = supervisorId;
-    // NOTE: Do NOT chain .single() here. PostgREST returns 406
-    // ("Cannot coerce the result to a single JSON object") when the UPDATE's
-    // RETURNING set is empty — which happens when RLS filters the row out on
-    // the way back (e.g. an admin's write policy using() not matching, or the
-    // row already changed). The approval itself still succeeds; we just can't
-    // assume one row comes back. Use head:true to confirm the write without
-    // demanding a returned object.
-    const { error } = await supabase
-      .from("daily_journals")
-      .update(patch)
-      .eq("id", id);
+    // H2: reviewing now goes through the `journal_review` RPC, which verifies
+    // the caller is the intern's assigned supervisor (or an admin) and keeps
+    // `intern_id` immutable. Previously an intern could set their own journal
+    // `status` to 'approved' and forge a supervisor comment.
+    const { data, error } = await supabase.rpc("journal_review", {
+      p_journal_id: id,
+      p_status: status,
+      p_comment: comment || null,
+    });
     if (error) throw new Error(error.message);
-    // Best-effort fetch of the updated row for callers that want it.
-    const { data } = await supabase
-      .from("daily_journals")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    return data ?? { id, ...patch };
+    return data;
   },
 
   /**

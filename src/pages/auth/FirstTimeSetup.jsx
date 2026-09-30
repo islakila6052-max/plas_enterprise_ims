@@ -160,13 +160,21 @@ export default function FirstTimeSetup() {
               <Input
                 label="Password"
                 type={showPassword ? "text" : "password"}
-                placeholder="At least 8 characters"
+                placeholder="At least 12 characters"
                 error={errors.password?.message}
                 {...register("password", {
                   required: "Password is required.",
                   minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters.",
+                    // H6: the bootstrap admin must meet the same server-side
+                    // policy as every other account (12+ chars, upper, lower,
+                    // digit) - it is the most privileged account in the system.
+                    value: 12,
+                    message: "Password must be at least 12 characters.",
+                  },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+                    message:
+                      "Include an uppercase letter, a lowercase letter and a number.",
                   },
                 })}
               />

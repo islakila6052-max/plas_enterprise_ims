@@ -31,12 +31,14 @@ export default function DocumentPreview({ doc, onDownload, downloading }) {
       setLoading(true);
       setError(null);
       try {
-        // Prefer the stored public URL; fall back to a fresh signed URL for
-        // rows uploaded when the bucket was private or the link expired.
-        let resolved = doc.file_url || null;
-        if (!resolved && doc.file_path) {
-          resolved = await documentService.downloadUrl(doc.file_path);
+        // SECURITY: the bucket is private (migration 0045). Always mint a
+        // fresh short-lived signed URL; a stored `file_url` is no longer a
+        // valid access path and is ignored even if an old row still has one.
+        if (!doc.file_path) {
+          if (!cancelled) setError("This document has no stored file.");
+          return;
         }
+        const resolved = await documentService.downloadUrl(doc.file_path);
         if (!cancelled) setUrl(resolved);
       } catch (err) {
         if (!cancelled) setError(err.message);

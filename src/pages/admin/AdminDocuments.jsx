@@ -105,10 +105,10 @@ export default function AdminDocuments() {
   async function download(row) {
     setDownloading(true);
     try {
-      // The bucket is public, so file_url is directly usable. Fall back to a
-      // signed URL for private buckets / expired links.
-      const url =
-        row.file_url || (await documentService.downloadUrl(row.file_path));
+      // SECURITY: the bucket is private, so a signed URL is the only way in.
+      // Never prefer `row.file_url` - migration 0045 nulls it out precisely so
+      // a stale public link can never be rendered again.
+      const url = await documentService.downloadUrl(row.file_path);
       if (!url) {
         toast.error("Download link unavailable.");
         return;

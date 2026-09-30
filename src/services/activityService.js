@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 /**
  * Central place to record admin/supervisor/intern actions (audit_logs) and
@@ -75,18 +76,24 @@ function normalizeChanges(changes) {
 
 export async function recordAudit(entry) {
   try {
-    const { error } = await supabase.from("audit_logs").insert({
-      user_id: entry.user_id,
-      action: entry.action, // create | update | delete | review | login
-      resource_type: entry.resource_type,
-      resource_id: entry.resource_id ?? null,
-      changes: normalizeChanges(entry.changes),
-      ip_address: entry.ip_address ?? null,
-      user_agent: entry.user_agent ?? null,
+    // M3: route through the `write_audit_log` RPC. It resolves the acting user
+    // from the JWT and captures ip_address / user_agent server-side from the
+    // request headers, which the client cannot forge. Previously this insert
+    // supplied both columns as null, so the audit trail could never attribute
+    // an action to a device or network.
+    const { error } = await supabase.rpc("write_audit_log", {
+      p_action: entry.action, // create | update | delete | review | login
+      p_resource_type: entry.resource_type,
+      p_resource_id: entry.resource_id ?? null,
+      p_changes: normalizeChanges(entry.changes),
     });
     if (error) throw error;
-  } catch {
-    /* non-fatal: never block the main action */
+  } catch (err) {
+    // Non-fatal: never block the primary action. Surfaced in dev so a
+    // misconfigured database is not mistaken for "auditing is working".
+    if (import.meta.env?.DEV) {
+      logger.error("[AUDIT] Failed to record audit entry:", err);
+    }
   }
 }
 
@@ -102,29 +109,35 @@ export async function notify(payload) {
       metadata: payload.metadata ?? {},
     });
     if (error)
-      console.error("[NOTIFICATION] Failed to create notification:", error);
+      logger.error("[NOTIFICATION] Failed to create notification:", error);
   } catch (err) {
-    console.error("[NOTIFICATION] Unexpected error:", err);
+    logger.error("[NOTIFICATION] Unexpected error:", err);
   }
 }
 
-/** Fetch all profile ids for a role. Internal helper, not exported. */
+/**
+ * Fetch all profile ids for a role.
+ *
+ * SECURITY (C4): since migration 0045 scoped `profiles` SELECT (an intern can no
+ * longer list every admin's row), this goes through the `profile_ids_by_role`
+ * SECURITY DEFINER RPC. It returns ONLY the uuid column, so no email /
+ * contact_number / bio is ever exposed to the caller.
+ */
 async function getProfileIdsByRole(role) {
-  const { data } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("role", role);
+  const { data } = await supabase.rpc("profile_ids_by_role", {
+    p_role: role,
+  });
   return data ?? [];
 }
 
 async function getInternProfile(internId) {
   if (!internId) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("id", internId)
-    .single();
-  return data;
+  // `internId` here is an interns.id, not a profiles.id - resolve it properly
+  // so notification fan-out actually reaches the intended intern.
+  const { data } = await supabase.rpc("intern_profile_id", {
+    p_intern_row_id: internId,
+  });
+  return data ? { id: data } : null;
 }
 
 /**
@@ -178,13 +191,13 @@ async function fanOutNotifications({ internId, metadata, resolve }) {
         .from("notifications")
         .insert(notifications);
       if (error)
-        console.error(
+        logger.error(
           "[NOTIFICATION FANOUT] Failed to create notifications:",
           error,
         );
     }
   } catch (err) {
-    console.error("[NOTIFICATION FANOUT] Unexpected error:", err);
+    logger.error("[NOTIFICATION FANOUT] Unexpected error:", err);
   }
 }
 

@@ -124,8 +124,8 @@ export default function InternDocuments() {
     }
     setDownloading(true);
     try {
-      const url =
-        row.file_url || (await documentService.downloadUrl(row.file_path));
+      // SECURITY: signed URL only - the storage bucket is private now.
+      const url = await documentService.downloadUrl(row.file_path);
       if (!url) {
         toast.error("Download link unavailable.");
         return;
