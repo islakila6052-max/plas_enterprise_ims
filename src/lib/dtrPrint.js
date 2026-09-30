@@ -13,7 +13,12 @@
 // printed document. The only unescaped interpolation is STYLE, a literal
 // defined in this file.
 
-import { longDate, formatHoursValue } from "./dtr";
+import {
+  longDate,
+  shortDate,
+  formatHoursValue,
+  TIMEZONE_LABEL,
+} from "./dtr";
 
 /** Escape text destined for an HTML text node or attribute value. */
 export function escapeHtml(value) {
@@ -38,6 +43,7 @@ const STYLE = [
   "h1 { font-size: 16px; letter-spacing: 2.5px; margin: 9px 0 3px;",
   "  text-transform: uppercase; font-weight: 700; }",
   ".rule { border-bottom: 2px solid #166534; margin: 5px 0 10px; }",
+  ".tznote { font-size: 8.5px; color: #6b7280; margin-top: 4px; }",
   ".meta { width: 100%; border-collapse: collapse; margin-bottom: 11px; }",
   ".meta td { padding: 2px 0; vertical-align: top; }",
   ".meta .label { color: #4b5563; width: 92px; font-weight: 600; }",
@@ -118,12 +124,15 @@ export function buildDtrDocument({
   from,
   to,
   intern = {},
-  company = "Internship Management System",
+  company = "PLAS ENTERPRISE & ENGINEERING SERVICES",
   generatedAt = "",
 }) {
   const days = dtr?.days ?? [];
   const summary = dtr?.summary ?? {};
   const D = escapeHtml;
+  // A blank settings row yields "", which would print an empty header.
+  // Coalesce so the record always names the company.
+  const companyName = String(company || "").trim() || "PLAS ENTERPRISE & ENGINEERING SERVICES";
   const dash = "&mdash;";
 
   const bodyRows = days
@@ -133,11 +142,10 @@ export function buildDtrDocument({
         rowClass(d) +
         "\">" +
         '<td class="num">' +
-        i +
-        1 +
+        D(d.dayOfMonth || i + 1) +
         "</td>" +
         '<td class="date">' +
-        D(d.date) +
+        D(d.displayDate || d.date) +
         "</td>" +
         '<td class="day">' +
         D(d.dayName) +
@@ -183,7 +191,7 @@ export function buildDtrDocument({
     '<div class="doc">',
     '<div class="center">',
     '<div class="company">' +
-      D(company) +
+      D(companyName) +
       "</div>",
     '<div class="subtitle">Internship Management System</div>',
     "</div>",
@@ -193,6 +201,9 @@ export function buildDtrDocument({
     "&nbsp;&mdash;&nbsp;",
     D(longDate(to)),
     "</span></div>",
+    '<div class="center tznote">Times shown in ',
+    D(TIMEZONE_LABEL),
+    "</div>",
     '<div class="rule"></div>',
 
     '<table class="meta">',

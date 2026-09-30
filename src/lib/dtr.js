@@ -26,6 +26,7 @@
 // the rows are re-read on every call.
 
 import { ATTENDANCE_STATUS, ATTENDANCE_STATUS_LABELS } from "./constants";
+import { ATTENDANCE_TIMEZONE } from "@/utils/format";
 
 /** Status shown when a date has no attendance row at all. */
 export const NO_RECORD = "No record";
@@ -51,6 +52,11 @@ export function eachDate(fromISO, toISO) {
   return out;
 }
 
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 const DAY_NAMES = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
@@ -61,17 +67,47 @@ export function dayName(isoDate) {
   return DAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 
-/** `HH:MM` in Asia/Manila - the operating timezone for attendance. */
+/**
+ * `HH:MM` in Asia/Manila - Philippine Time (PHT, UTC+8, no DST).
+ *
+ * `hourCycle: "h23"` is deliberate and important. Asking for `hour12: false`
+ * alone is NOT reliable: several engines resolve that to hour cycle h24, which
+ * renders midnight as "24:00" instead of "00:00". Pinning h23 is the only way
+ * to guarantee a true 24-hour clock reading 00:00-23:00.
+ *
+ * The source columns are `timestamptz`, stored by Postgres in UTC. Converting
+ * with an explicit timeZone is what makes the printed clock read as Philippine
+ * wall-clock time rather than UTC.
+ */
 export function manilaTime(value) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Manila",
+    timeZone: ATTENDANCE_TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).format(d);
+}
+
+/** Label printed on the record, so the timezone is never ambiguous. */
+export const TIMEZONE_LABEL = "Philippine Time (PHT, UTC+8)";
+
+/** Day of the month as a number, e.g. 1 for the 1st. */
+export function dayOfMonth(isoDate) {
+  return Number(String(isoDate ?? "").slice(8, 10)) || 0;
+}
+
+/**
+ * Short readable date for a table cell, e.g. "1 Sep 2026".
+ * A DTR should read like a document, not like a database dump.
+ */
+export function shortDate(isoDate) {
+  if (!isoDate) return "";
+  const [y, m, d] = String(isoDate).split("-").map(Number);
+  if (!y || !m || !d) return String(isoDate);
+  return `${d} ${MONTH_SHORT[m - 1] ?? ""} ${y}`;
 }
 
 /** Long human date, e.g. "1 September 2026". */
@@ -165,6 +201,8 @@ export function buildDtr({
 
     return {
       date,
+      dayOfMonth: dayOfMonth(date),
+      displayDate: shortDate(date),
       dayName: dayName(date),
       timeIn: manilaTime(rec?.time_in),
       timeOut: manilaTime(rec?.time_out),

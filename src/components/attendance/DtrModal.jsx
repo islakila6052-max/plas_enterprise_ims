@@ -27,6 +27,12 @@ const RANGE_OPTIONS = [
   { value: "custom", label: "Custom Date Range" },
 ];
 
+/**
+ * Shown when the `settings` row has no company_name yet. Kept in step with
+ * the printed record so a blank settings row still produces a correct DTR.
+ */
+const DEFAULT_COMPANY = "PLAS ENTERPRISE & ENGINEERING SERVICES";
+
 const EMPTY_META = {
   name: "",
   studentNumber: "",
@@ -62,7 +68,7 @@ export default function DtrModal({ open, onClose }) {
   const [error, setError] = useState(null);
   const [printing, setPrinting] = useState(false);
   const [internMeta, setInternMeta] = useState(EMPTY_META);
-  const [company, setCompany] = useState("Internship Management System");
+  const [company, setCompany] = useState(DEFAULT_COMPANY);
 
   const { from, to } = useMemo(() => {
     if (rangePreset === "this_month") return monthBounds(today, 0);
@@ -115,7 +121,9 @@ export default function DtrModal({ open, onClose }) {
       }
       try {
         const s = await settingsService.get();
-        if (active && s?.company_name) setCompany(s.company_name);
+        if (active && String(s?.company_name ?? "").trim()) {
+          setCompany(String(s.company_name).trim());
+        }
       } catch {
         /* keep the default company name */
       }

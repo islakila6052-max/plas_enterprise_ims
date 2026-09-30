@@ -22,6 +22,16 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // UX FIX: a profile fetch is in flight. `loading` alone is NOT enough,
+  // because on a page refresh Supabase fires INITIAL_SESSION almost
+  // immediately: setUser() and setLoading(false) both run before the profile
+  // query resolves, so the route briefly saw "signed in, no role" and flashed
+  // the "Couldn't load your profile" screen. This flag keeps the app in its
+  // loading state until the profile has genuinely settled.
+  const [profileLoading, setProfileLoading] = useState(false);
+  // True while an automatic retry is pending, so the UI can say
+  // "Reconnecting…" instead of showing a dead-end error.
+  const [retrying, setRetrying] = useState(false);
   // H8 - session lifetime.
   // persistSession + autoRefreshToken means a token left on a shared or
   // compromised machine stays valid indefinitely: there was no absolute expiry
@@ -46,12 +56,14 @@ export function AuthProvider({ children }) {
   const sessionStartedAt = useRef(0);
   const lastActiveAt = useRef(0);
 
-  const loadProfile = useCallback(async (authUser) => {
+  const loadProfile = useCallback(async (authUser, attempt = 0) => {
     if (!authUser) {
       loadedProfileFor.current = null;
       loadedProfile.current = null;
       setProfile(null);
       setProfileError(null);
+      setProfileLoading(false);
+      setRetrying(false);
       return null;
     }
     // Already loaded for this exact user — reuse it instead of re-querying.
@@ -60,24 +72,49 @@ export function AuthProvider({ children }) {
     }
     // Mark before awaiting so two concurrent callers cannot both start a fetch.
     loadedProfileFor.current = authUser.id;
+    setProfileLoading(true);
     try {
       const p = await profileService.getByUserId(authUser.id);
       loadedProfile.current = p;
       setProfile(p);
       setProfileError(p ? null : "No profile/role is assigned to this account.");
+      setProfileLoading(false);
+      setRetrying(false);
       return p;
     } catch (err) {
-      // Network errors (offline, Supabase down) are non-fatal —
-      // the user can still interact with the app and data will
-      // refresh once connectivity is restored.
-      // eslint-disable-next-line no-console
+      // Network errors (offline, Supabase down) are non-fatal. Retry a couple
+      // of times automatically, because on a page refresh the very first
+      // request often lands while the connection is still settling - and
+      // bouncing the user to an error screen for that is needlessly alarming.
+      const transient =
+        attempt < 2 &&
+        /network|internet|offline|failed to fetch|timeout|fetch/i.test(
+          String(err?.message ?? ""),
+        );
+
       logger.warn("[IMS] Profile load failed (network?):", err.message);
+
+      if (transient) {
+        setRetrying(true);
+        setProfileLoading(true);
+        // Back off a little further each time.
+        setTimeout(() => {
+          if (loadedProfileFor.current === authUser.id) {
+            loadedProfileFor.current = null; // allow the retry to re-fetch
+          }
+          loadProfile(authUser, attempt + 1);
+        }, 400 * (attempt + 1));
+        return null;
+      }
+
       // Allow a retry on the next auth event, since this user never loaded.
       if (loadedProfileFor.current === authUser.id) {
         loadedProfileFor.current = null;
       }
       setProfile(null);
       setProfileError(err?.message ?? "Failed to load profile.");
+      setProfileLoading(false);
+      setRetrying(false);
       return null;
     }
   }, []);
@@ -103,17 +140,32 @@ export function AuthProvider({ children }) {
 
     bootstrap();
 
-    const unsubscribe = authService.onAuthStateChange((_event, session) => {
+    const unsubscribe = authService.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
-      // Guard: loadProfile is async and not awaited here. If it rejects it must
-      // not become an unhandled rejection that crashes the whole app.
+
+      // Sign-out is decided immediately; everything else waits for the profile
+      // so the app never renders "signed in, but no role" mid-flight.
+      if (!nextUser) {
+        setLoading(false);
+        loadProfile(null);
+        return;
+      }
+
       loadProfile(nextUser).catch((err) => {
-        // eslint-disable-next-line no-console
+        // loadProfile handles its own errors; this is only a safety net so a
+        // rejection can never become an unhandled promise rejection.
         logger.error("[IMS] Failed to load profile on auth change:", err);
         setProfile(null);
+        setProfileLoading(false);
       });
-      setLoading(false);
+
+      // UX FIX: previously `setLoading(false)` ran here unconditionally, which
+      // is the actual cause of the "Couldn't load your profile" flash on
+      // refresh - INITIAL_SESSION fires before the profile query resolves.
+      // The combined `loading` value now also accounts for profileLoading, so
+      // the spinner persists until the profile has actually settled.
+      if (event === "SIGNED_OUT") setLoading(false);
     });
 
     return () => {
@@ -203,8 +255,55 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
+  // Hoisted out of the memo so the recovery effect above can depend on it.
+  const role = profile?.role ?? null;
+
+  // ---------------------------------------------------------------------------
+  // UX FIX - recovery.
+  // Two safety nets so a transient network blip never becomes a dead end:
+  //   1. `loadProfile` already retries twice with a backoff.
+  //   2. When the browser reports it is back online (or simply after a short
+  //      delay), retry once more. A page refresh often loses the first request
+  //      while the connection settles, and this recovers silently.
+  useEffect(() => {
+    if (!user || role || !profileError) return undefined;
+    // A genuine "no profile/role assigned" must NOT be retried - that is a
+    // real account state an admin has to fix, not a network problem.
+    if (!/network|internet|offline|failed to fetch|timeout|fetch/i.test(profileError)) {
+      return undefined;
+    }
+
+    const retry = () => loadProfile(user);
+    const timer = setTimeout(retry, 1200);
+
+    const onOnline = () => {
+      setRetrying(true);
+      loadProfile(user).finally(() => setRetrying(false));
+    };
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [user, role, profileError, loadProfile]);
+
+  // Manual retry for the error screen. Re-runs the profile fetch for the
+  // CURRENT user only - there is no way to point it at someone else.
+  const retryProfile = useCallback(async () => {
+    const current = await authService.getCurrentUser();
+    if (!current) return;
+    setRetrying(true);
+    try {
+      loadedProfileFor.current = null; // force a re-fetch
+      await loadProfile(current);
+      setUser(current);
+    } finally {
+      setRetrying(false);
+    }
+  }, [loadProfile]);
+
   const value = useMemo(() => {
-    const role = profile?.role ?? null;
     // Resolved linked record ids. In the DB these live on profiles.intern_id /
     // profiles.supervisor_id (kept in sync by the sync_profile_links trigger).
     const internId = profile?.intern_id ?? null;
@@ -216,7 +315,14 @@ export function AuthProvider({ children }) {
       profileError,
       internId,
       supervisorId,
-      loading,
+      // UX FIX: the combined flag is what stops the "Couldn't load your profile"
+      // flash. `loading` covers the initial bootstrap; `profileLoading` covers
+      // the profile query, including the automatic retries.
+      loading: loading || profileLoading,
+      // True while an automatic retry is pending, so the UI can say
+      // "Reconnecting…" rather than showing a dead-end error.
+      retrying,
+      retryProfile,
       isAuthenticated: Boolean(user),
       isAdmin: role === ROLES.ADMIN || role === ROLES.HR_STAFF,
       isSupervisor: role === ROLES.SUPERVISOR,
@@ -249,9 +355,20 @@ export function AuthProvider({ children }) {
         loadedProfile.current = null;
         setProfile(null);
         setProfileError(null);
+        setProfileLoading(false);
+        setRetrying(false);
       },
     };
-  }, [user, profile, loading, profileError, loadProfile]);
+  }, [
+    user,
+    profile,
+    loading,
+    profileLoading,
+    retrying,
+    profileError,
+    loadProfile,
+    retryProfile,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
