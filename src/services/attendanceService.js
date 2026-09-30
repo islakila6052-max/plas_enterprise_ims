@@ -156,6 +156,38 @@ export const attendanceService = {
     return { data: data ?? [], count: count ?? 0 };
   },
 
+  /**
+   * Read-only fetch of attendance rows for ONE intern across a date range.
+   * Backs the Daily Time Record.
+   *
+   * This is deliberately a SELECT and nothing else. Generating a DTR must never
+   * create a row, change an hour count, or back-date anything, so there is no
+   * write path anywhere near this method. The existing Time In / Time Out
+   * functions are untouched.
+   *
+   * OWNERSHIP IS ENFORCED BY THE DATABASE, NOT HERE. The policy
+   * `attendance readable scoped` (migration 0045) allows a row only when
+   * intern_id = current_intern_id(), i.e. the intern resolved from the caller's
+   * own JWT. So even if a caller hand-crafted a request with someone else's
+   * internId, Postgres returns zero rows rather than another intern's data.
+   * The `internId` argument is supplied by the UI from the signed-in intern's
+   * own profile - never from a URL parameter or user input.
+   */
+  async listForRange({ internId, from, to }) {
+    if (!internId || !from || !to || from > to) return [];
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("id, date, time_in, time_out, total_hours, method, status, remarks")
+      .eq("intern_id", internId)
+      .gte("date", from)
+      .lte("date", to)
+      .order("date", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
   async adminList({
     dateFrom,
     dateTo,

@@ -1,6 +1,7 @@
 // src/pages/intern/InternAttendance.jsx
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
+import { Printer } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -11,6 +12,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ErrorAlert from "@/components/ui/ErrorAlert";
 import TimeOutForm from "@/components/attendance/TimeOutForm";
 import ClaimTimeOutForm from "@/components/attendance/ClaimTimeOutForm";
+import DtrModal from "@/components/attendance/DtrModal";
 import { attendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/contexts/AuthContext";
 import { ATTENDANCE_STATUS_LABELS } from "@/lib/constants";
@@ -45,6 +47,8 @@ export default function InternAttendance() {
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [claimRecord, setClaimRecord] = useState(null);
   const [remarksModal, setRemarksModal] = useState({ open: false, text: "" });
+  // Daily Time Record modal. Opens the read-only DTR generator.
+  const [showDtr, setShowDtr] = useState(false);
 
   const load = useCallback(async () => {
     if (!internId) {
@@ -353,7 +357,21 @@ export default function InternAttendance() {
       <PageHeader
         title="My Attendance"
         description="Time in and out and view your attendance history."
+        action={
+          <Button
+            variant="secondary"
+            onClick={() => setShowDtr(true)}
+            disabled={!internId}
+          >
+            <Printer className="mr-2 h-4 w-4" aria-hidden />
+            Generate / Print DTR
+          </Button>
+        }
       />
+
+      {/* Daily Time Record. Read-only: it renders the intern's existing
+          attendance rows and never creates or edits one. */}
+      <DtrModal open={showDtr} onClose={() => setShowDtr(false)} />
 
       <Card>
         <div className="flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
