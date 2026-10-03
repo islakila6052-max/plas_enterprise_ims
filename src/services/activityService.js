@@ -99,14 +99,20 @@ export async function recordAudit(entry) {
 
 /** Notify a specific user. */
 export async function notify(payload) {
+  if (!payload?.user_id) return;
   try {
-    const { error } = await supabase.from("notifications").insert({
-      user_id: payload.user_id,
-      type: payload.type,
-      title: payload.title,
-      message: payload.message,
-      link: payload.link ?? null,
-      metadata: payload.metadata ?? {},
+    // Fix: notifications must be written through the `notify_user` SECURITY
+    // DEFINER RPC. A direct INSERT into `notifications` is denied by RLS - the
+    // table only grants SELECT + UPDATE to `authenticated` (migration 0046) -
+    // which surfaces in the browser as:
+    //   POST /rest/v1/notifications 403 (Forbidden)
+    const { error } = await supabase.rpc("notify_user", {
+      p_user_id: payload.user_id,
+      p_type: payload.type,
+      p_title: payload.title,
+      p_message: payload.message,
+      p_link: payload.link ?? null,
+      p_metadata: payload.metadata ?? {},
     });
     if (error)
       logger.error("[NOTIFICATION] Failed to create notification:", error);
@@ -187,13 +193,27 @@ async function fanOutNotifications({ internId, metadata, resolve }) {
     }
 
     if (notifications.length > 0) {
-      const { error } = await supabase
-        .from("notifications")
-        .insert(notifications);
-      if (error)
+      // Fix: route each notification through the `notify_user` SECURITY DEFINER
+      // RPC. A direct batch INSERT into `notifications` is denied by RLS
+      // (`authenticated` only has SELECT + UPDATE), i.e. the
+      // `POST /rest/v1/notifications 403 (Forbidden)` error.
+      const results = await Promise.all(
+        notifications.map((n) =>
+          supabase.rpc("notify_user", {
+            p_user_id: n.user_id,
+            p_type: n.type,
+            p_title: n.title,
+            p_message: n.message,
+            p_link: n.link ?? null,
+            p_metadata: n.metadata ?? {},
+          }),
+        ),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed)
         logger.error(
           "[NOTIFICATION FANOUT] Failed to create notifications:",
-          error,
+          failed.error,
         );
     }
   } catch (err) {
