@@ -141,8 +141,8 @@ export const announcementService = {
   async update(id, payload) {
     const { data, error } = await supabase.rpc("announcement_update", {
       p_id: id,
-      p_title: payload.title,
-      p_body: payload.body,
+      p_title: payload.title ?? null,
+      p_body: payload.body ?? null,
       p_category: payload.category ?? null,
       p_pinned: payload.pinned ?? null,
     });
