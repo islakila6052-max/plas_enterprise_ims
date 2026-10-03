@@ -251,6 +251,9 @@ grant execute on function public.current_supervisor_intern_ids () to authenticat
 -- Was: `using (true)` - every user could read every profile row, including
 -- email, contact_number and bio of every intern in the company.
 drop policy if exists "profiles readable by authenticated" on public.profiles;
+-- Also drop the NEW name: if 0045 already ran, the old name no longer exists and
+-- the create below would fail with 42710 without this guard.
+drop policy if exists "profiles readable scoped" on public.profiles;
 create policy "profiles readable scoped"
   on public.profiles for select to authenticated
   using (id = auth.uid () or public.is_admin ());
@@ -262,6 +265,7 @@ create policy "profiles readable scoped"
 -- Was: `using (true)`.  Supervisors are staff, not company-wide directory
 -- data; only admins and the supervisor themselves need the row.
 drop policy if exists "supervisors readable" on public.supervisors;
+drop policy if exists "supervisors readable scoped" on public.supervisors;
 create policy "supervisors readable scoped"
   on public.supervisors for select to authenticated
   using (id = public.current_supervisor_id () or public.is_admin ());
@@ -273,6 +277,7 @@ create policy "supervisors readable scoped"
 -- Was: `using (true)`, which made "intern manages own attendance" and
 -- "supervisor reads assigned attendance" inert.
 drop policy if exists "attendance readable" on public.attendance;
+drop policy if exists "attendance readable scoped" on public.attendance;
 create policy "attendance readable scoped"
   on public.attendance for select to authenticated
   using (
@@ -288,6 +293,7 @@ create policy "attendance readable scoped"
 -- ---------------------------------------------------------------------------
 -- Was: `using (true)` - any intern could read every intern's journal entries.
 drop policy if exists "journals readable" on public.daily_journals;
+drop policy if exists "journals readable scoped" on public.daily_journals;
 create policy "journals readable scoped"
   on public.daily_journals for select to authenticated
   using (
@@ -306,6 +312,7 @@ create policy "journals readable scoped"
 -- Was: `using (true)`, exposing every document row (and, before the bucket was
 -- made private, a working public URL to the underlying file).
 drop policy if exists "documents readable" on public.documents;
+drop policy if exists "documents readable scoped" on public.documents;
 create policy "documents readable scoped"
   on public.documents for select to authenticated
   using (
@@ -322,6 +329,7 @@ create policy "documents readable scoped"
 -- Was: `using (true)`.  Evaluation comments are confidential supervisor
 -- assessments and must never be readable by peer interns.
 drop policy if exists "evaluations readable" on public.evaluations;
+drop policy if exists "evaluations readable scoped" on public.evaluations;
 create policy "evaluations readable scoped"
   on public.evaluations for select to authenticated
   using (
@@ -1263,6 +1271,7 @@ drop policy if exists "supervisor deletes assigned interns" on public.interns;
 -- `evaluation_create` RPC (0046) which verifies the assignment server-side.
 -- Update is intentionally NOT granted: an evaluation is immutable once filed.
 drop policy if exists "supervisor manages assigned evaluations" on public.evaluations;
+drop policy if exists "supervisor inserts assigned evaluations" on public.evaluations;
 create policy "supervisor inserts assigned evaluations"
   on public.evaluations for insert to authenticated
   with check (
