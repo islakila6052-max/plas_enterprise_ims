@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- 0046 - HIGH security fixes (write-path integrity, audit logging, accounts)
 -- ============================================================================
 -- Follows 0045 (which fixed the CRITICAL privilege-escalation / public-storage
@@ -164,6 +164,10 @@ create policy "own notifications updatable"
 -- No INSERT policy: a user may only mark THEIR OWN notifications as read.
 -- Fan-out happens through SECURITY DEFINER functions (below), which also stops
 -- a user from spamming arbitrary rows into other people's notification lists.
+-- NOTE: DROP first: the live DB may already hold these names with a different
+-- return type (integer/uuid), and CREATE OR REPLACE cannot change that.
+drop function if exists public.notify_role (text, text, text, text, text, jsonb);
+drop function if exists public.notify_user (uuid, text, text, text, text, jsonb);
 create or replace function public.notify_role (
   p_role text,
   p_type text,
@@ -229,6 +233,9 @@ alter table public.settings
 -- ---------------------------------------------------------------------------
 -- Replaces the client-side INSERT. `status` is derived here (late vs present)
 -- from the server clock, so it can no longer be asserted by the caller.
+-- NOTE: DROP first: live may hold clock_in WITH default / clock_out WITHOUT
+-- matching default. CREATE OR REPLACE cannot add/remove defaults.
+drop function if exists public.attendance_clock_in (text);
 create or replace function public.attendance_clock_in (p_method text default 'manual')
   returns public.attendance
   language plpgsql
@@ -292,6 +299,7 @@ grant execute on function public.attendance_clock_in (text) to authenticated, se
 -- ---------------------------------------------------------------------------
 -- total_hours is computed by the database. The caller can no longer post an
 -- arbitrary duration and inflate the hours that feed evaluations and reports.
+drop function if exists public.attendance_clock_out (timestamptz, text);
 create or replace function public.attendance_clock_out (
   p_time_out timestamptz,
   p_remarks text default null
@@ -351,6 +359,15 @@ grant execute on function public.attendance_clock_out (timestamptz, text) to aut
 -- ---------------------------------------------------------------------------
 -- H2 (3/4) - attendance: submit a missed clock-out claim
 -- ---------------------------------------------------------------------------
+-- NOTE: DROP first: the live DB holds attendance_submit_claim(uuid,timestamptz,text)
+-- WITH a default on p_remarks, and CREATE OR REPLACE cannot remove defaults.
+drop function if exists public.attendance_submit_claim (uuid, timestamptz, text);
+drop function if exists public.attendance_review_claim (uuid, text, text);
+drop function if exists public.attendance_clock_out (timestamptz, text);
+drop function if exists public.attendance_clock_in (text);
+drop function if exists public.journal_review (uuid, text, text);
+drop function if exists public.document_review (uuid, text);
+drop function if exists public.evaluation_create (uuid, integer, integer, integer, integer, integer, integer, integer, text, text);
 create or replace function public.attendance_submit_claim (
   p_record_id uuid,
   p_claimed_time_out timestamptz,
@@ -416,6 +433,7 @@ grant execute on function public.attendance_submit_claim (uuid, timestamptz, tex
 -- The reviewer id is taken from the JWT, never from the request body, and the
 -- resulting time_out / total_hours / status are computed here. A supervisor can
 -- only act on an intern assigned to them.
+-- (DROP already issued above alongside submit_claim.)
 create or replace function public.attendance_review_claim (
   p_record_id uuid,
   p_decision text,
@@ -492,6 +510,7 @@ grant execute on function public.attendance_review_claim (uuid, text, text) to a
 -- ---------------------------------------------------------------------------
 -- intern_id is immutable here, closing the M8 gap where a supervisor could
 -- re-point a journal at a different intern.
+-- (DROPs already issued above: a prior default on p_comment blocks REPLACE.)
 create or replace function public.journal_review (
   p_journal_id uuid,
   p_status text,
@@ -547,6 +566,7 @@ grant execute on function public.journal_review (uuid, text, text) to authentica
 -- ---------------------------------------------------------------------------
 -- H2 - document review (status is a reviewer decision, not a client field)
 -- ---------------------------------------------------------------------------
+-- (DROP already issued above.)
 create or replace function public.document_review (p_document_id uuid, p_status text)
   returns public.documents
   language plpgsql
@@ -586,6 +606,7 @@ grant execute on function public.document_review (uuid, text) to authenticated, 
 -- ---------------------------------------------------------------------------
 -- H2 - evaluation create (supervisor_id is bound to the caller server-side)
 -- ---------------------------------------------------------------------------
+-- (DROP already issued above: live holds 2 defaults, file must re-apply them.)
 create or replace function public.evaluation_create (
   p_intern_id uuid,
   p_attendance integer,

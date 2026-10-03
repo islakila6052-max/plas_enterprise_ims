@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- 0048 - REPAIR: re-apply the missing security migrations 0045 + 0046 + 0047
 -- ============================================================================
 -- Verified against the live project (wsofrunlefoljliakrzc) on 2026-10-01:
@@ -570,6 +570,10 @@ create policy "own notifications updatable"
 -- No INSERT policy: a user may only mark THEIR OWN notifications as read.
 -- Fan-out happens through SECURITY DEFINER functions (below), which also stops
 -- a user from spamming arbitrary rows into other people's notification lists.
+-- NOTE: DROP first: the live DB may already hold these names with a different
+-- return type (integer/uuid), and CREATE OR REPLACE cannot change that.
+drop function if exists public.notify_role (text, text, text, text, text, jsonb);
+drop function if exists public.notify_user (uuid, text, text, text, text, jsonb);
 create or replace function public.notify_role (
   p_role text,
   p_type text,

@@ -46,6 +46,9 @@
 --
 -- SECURITY DEFINER so it still works now that M1 forces RLS on audit_logs even
 -- for the owner, and so a client cannot forge the acting user.
+-- NOTE: DROP first: live holds write_audit_log(text,text,uuid,jsonb) WITHOUT
+-- defaults; CREATE OR REPLACE cannot add them.
+drop function if exists public.write_audit_log (text, text, uuid, jsonb);
 create or replace function public.write_audit_log (
   p_action text,
   p_resource_type text,
@@ -153,6 +156,11 @@ grant execute on function public.write_audit_log (text, text, uuid, jsonb) to au
 -- could be altered or removed with no attributable trace. Each mutation now
 -- goes through a SECURITY DEFINER RPC that writes the audit entry in the same
 -- transaction, so the record cannot be lost even if the client drops it.
+-- NOTE: DROPs first: live holds announcement_* WITHOUT matching defaults;
+-- CREATE OR REPLACE cannot add/remove defaults.
+drop function if exists public.announcement_create (text, text, text, boolean);
+drop function if exists public.announcement_update (uuid, text, text, text, boolean);
+drop function if exists public.announcement_delete (uuid);
 create or replace function public.announcement_create (
   p_title text,
   p_body text,
