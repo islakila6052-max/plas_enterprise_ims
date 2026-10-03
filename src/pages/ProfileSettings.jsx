@@ -1,6 +1,7 @@
 // src/pages/ProfileSettings.jsx
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
 import { profileService } from "@/services/profileService";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
@@ -120,6 +121,7 @@ export default function ProfileSettings() {
     if (savedTimer.current) clearTimeout(savedTimer.current);
     setSaving(true);
 
+    let profileSaved = false;
     try {
       let cleanContactNumber = null;
 
@@ -140,6 +142,8 @@ export default function ProfileSettings() {
         contact_number: cleanContactNumber,
         bio: (values.bio ?? "").trim(),
       });
+      profileSaved = true;
+      toast.success("Profile saved.");
 
       // NOTE: the audit trail for profile changes (name/bio/contact/role) is
       // written automatically by the database trigger created in
@@ -152,9 +156,11 @@ export default function ProfileSettings() {
 
       savedTimer.current = setTimeout(() => setSaved(false), 5000);
     } catch (err) {
-      setServerError(
-        err.message || "Failed to update profile. Please try again.",
-      );
+      const message = profileSaved
+        ? "Profile saved, but the latest profile could not be refreshed. Please reload."
+        : err.message || "Failed to update profile. Please try again.";
+      setServerError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
