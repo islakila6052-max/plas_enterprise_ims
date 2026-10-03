@@ -64,14 +64,40 @@ export const attendanceService = {
     // H2: the insert now happens inside the `attendance_clock_in` RPC, which
     // derives `status` (present/late) from the SERVER clock and enforces the
     // one-record-per-day rule. A client can no longer assert its own status.
+    //
+    // The payload must stay EXACTLY `{ p_method }`: PostgREST resolves an RPC
+    // by the argument names it is given, so sending a null/empty value (or a
+    // differently named key) would not match `attendance_clock_in(text)` and
+    // would surface as "Could not find the function ...(p_method)". The
+    // `|| "manual"` fallback guarantees a non-empty string.
     const { data, error } = await supabase.rpc("attendance_clock_in", {
-      p_method: method,
+      p_method: method || "manual",
     });
     if (error) {
       // 23505 = the daily duplicate check tripped inside the function.
       if (error.code === "23505") {
         throw new Error(
           "You have already submitted your attendance for today.",
+        );
+      }
+      // PGRST202 / 42883 = the function is missing from the PostgREST schema
+      // cache (never created, or the cache was not reloaded after creation).
+      // 404 = the same condition seen by the browser. Surface an actionable
+      // message instead of the raw "Could not find the function" text.
+      if (
+        error.code === "PGRST202" ||
+        error.code === "42883" ||
+        /schema cache|Could not find the function/i.test(error.message ?? "")
+      ) {
+        throw new Error(
+          "Time In is temporarily unavailable: the server is missing the attendance function. Please contact an administrator.",
+        );
+      }
+      // 42501 = insufficient_privilege raised when the auth account has no
+      // linked intern row.
+      if (error.code === "42501") {
+        throw new Error(
+          "Your intern profile isn't linked yet. Please contact an administrator.",
         );
       }
       throw new Error(error.message);

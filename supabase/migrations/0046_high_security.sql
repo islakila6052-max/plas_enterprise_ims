@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- 0046 - HIGH security fixes (write-path integrity, audit logging, accounts)
 -- ============================================================================
 -- Follows 0045 (which fixed the CRITICAL privilege-escalation / public-storage
@@ -199,7 +199,30 @@ create or replace function public.notify_user (
   set search_path = public
 as $$
 begin
+  if p_user_id is null then
+    return;
+  end if;
+  insert into public.notifications (user_id, type, title, message, link, metadata)
+  values (p_user_id, p_type, p_title, p_message, p_link, coalesce(p_metadata, '{}'::jsonb));
+end;
+$$;
 
+revoke all on function public.notify_role (text, text, text, text, text, jsonb) from public;
+revoke all on function public.notify_user (uuid, text, text, text, text, jsonb) from public;
+grant execute on function public.notify_role (text, text, text, text, text, jsonb) to authenticated, service_role;
+grant execute on function public.notify_user (uuid, text, text, text, text, jsonb) to authenticated, service_role;
+
+
+-- The OJT shift starts at 13:00 (780 minutes after midnight, Asia/Manila).
+-- This used to live only in src/lib/constants.js, which the browser could
+-- change at will. It is now a real column so the lateness rule is decided
+-- server-side. `if not exists` keeps the migration safe to re-run and safe
+-- on a database that already has the column.
+--
+-- This is declared at migration level, NOT inside attendance_clock_in():
+-- plpgsql does not accept DDL in a function body.
+alter table public.settings
+  add column if not exists shift_start_minute integer not null default 780;
 
 -- ---------------------------------------------------------------------------
 -- H2 (1/4) - attendance: clock-in
@@ -231,14 +254,9 @@ begin
       using errcode = 'unique_violation';
   end if;
 
-  -- The OJT shift starts at 13:00 (780 minutes after midnight, Asia/Manila).
-  -- This used to live only in src/lib/constants.js, which the browser could
-  -- change at will. It is now a real column so the lateness rule is decided
-  -- server-side. `if not exists` keeps the migration safe to re-run and safe
-  -- on a database that already has the column.
-  alter table public.settings
-    add column if not exists shift_start_minute integer not null default 780;
-
+  -- The OJT shift start is read from settings.shift_start_minute (the column
+  -- is added at migration level above, since plpgsql cannot run DDL). 780
+  -- = 13:00 Asia/Manila, mirroring src/lib/constants.js SHIFT_START_MINUTE.
   select coalesce(
     (select s.shift_start_minute from public.settings s where s.id = 1),
     780
@@ -353,6 +371,43 @@ begin
   end if;
 
   select * into v_row from public.attendance
+   where id = p_record_id and intern_id = v_intern
+   for update;
+
+  if v_row.id is null then
+    raise exception 'Attendance record not found.'
+      using errcode = 'no_data_found';
+  end if;
+  if v_row.time_out is not null then
+    raise exception 'This attendance record already has a time out.'
+      using errcode = 'check_violation';
+  end if;
+  if v_row.claim_status = 'pending' then
+    raise exception 'You already have a pending claim for this record.'
+      using errcode = 'check_violation';
+  end if;
+  if v_row.claim_status = 'approved' then
+    raise exception 'This claim has already been approved.'
+      using errcode = 'check_violation';
+  end if;
+  if p_claimed_time_out is null or p_claimed_time_out <= v_row.time_in then
+    raise exception 'Claimed time out must be after time in.'
+      using errcode = 'check_violation';
+  end if;
+
+  update public.attendance
+     set claimed_time_out = p_claimed_time_out,
+         claim_status     = 'pending',
+         claim_remarks    = nullif(btrim(p_remarks), '')
+   where id = v_row.id
+   returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+revoke all on function public.attendance_submit_claim (uuid, timestamptz, text) from public;
+grant execute on function public.attendance_submit_claim (uuid, timestamptz, text) to authenticated, service_role;
 
 
 -- ---------------------------------------------------------------------------
@@ -501,6 +556,31 @@ as $$
 declare
   v_row public.documents;
 begin
+  if p_status not in ('pending', 'approved', 'rejected') then
+    raise exception 'Invalid document status.'
+      using errcode = 'check_violation';
+  end if;
+  if not public.is_admin() then
+    raise exception 'Only administrators may review documents.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  update public.documents
+     set status = p_status
+   where id = p_document_id
+   returning * into v_row;
+
+  if v_row.id is null then
+    raise exception 'Document not found.'
+      using errcode = 'no_data_found';
+  end if;
+
+  return v_row;
+end;
+$$;
+
+revoke all on function public.document_review (uuid, text) from public;
+grant execute on function public.document_review (uuid, text) to authenticated, service_role;
 
 
 -- ---------------------------------------------------------------------------
@@ -564,6 +644,21 @@ grant execute on function public.evaluation_create (uuid, integer, integer, inte
 -- H2 - revoke the direct table writes the RPCs now replace
 -- ---------------------------------------------------------------------------
 -- The RLS row checks remain as defence in depth, but without these revokes an
+-- intern could keep writing `status`, `total_hours` or `supervisor_comment`
+-- straight through PostgREST. Revoking makes the SECURITY DEFINER functions
+-- the ONLY path, which is what actually computes those values.
+revoke update on public.evaluations from authenticated;
+revoke update on public.documents from authenticated;
+revoke update on public.daily_journals from authenticated;
+
+-- Attendance: the intern may only touch the three claim columns directly;
+-- clock-in, clock-out and claim review all go through the RPCs.
+revoke insert, update on public.attendance from authenticated;
+grant update (claimed_time_out, claim_status, claim_remarks)
+  on public.attendance to authenticated;
+
+-- documents DELETE is intentionally still granted - an intern must be able to
+-- remove their own upload, and 0045 already scopes that at the row level.
 
 
 -- ---------------------------------------------------------------------------
@@ -620,99 +715,8 @@ revoke all on function public.profile_ids_by_role (text) from anon;
 --   H10 last-admin guard on user deletion    -> api/admin/delete-user.js
 -- ============================================================================
 
--- intern could keep writing `status`, `total_hours` or `supervisor_comment`
--- straight through PostgREST. Revoking makes the SECURITY DEFINER functions
--- the ONLY path, which is what actually computes those values.
-revoke update on public.evaluations from authenticated;
-revoke update on public.documents from authenticated;
-revoke update on public.daily_journals from authenticated;
 
--- Attendance: the intern may only touch the three claim columns directly;
--- clock-in, clock-out and claim review all go through the RPCs.
-revoke insert, update on public.attendance from authenticated;
-grant insert on public.attendance to authenticated;
-grant update (claimed_time_out, claim_status, claim_remarks)
-  on public.attendance to authenticated;
 
--- documents DELETE is intentionally still granted - an intern must be able to
--- remove their own upload, and 0045 already scopes that at the row level.
-
-  if p_status not in ('pending', 'approved', 'rejected') then
-    raise exception 'Invalid document status.'
-      using errcode = 'check_violation';
-  end if;
-  if not public.is_admin() then
-    raise exception 'Only administrators may review documents.'
-      using errcode = 'insufficient_privilege';
-  end if;
-
-  update public.documents
-     set status = p_status
-   where id = p_document_id
-  returning * into v_row;
-
-  if v_row.id is null then
-    raise exception 'Document not found.'
-      using errcode = 'no_data_found';
-  end if;
-
-  return v_row;
-end;
-$$;
-
-revoke all on function public.document_review (uuid, text) from public;
-grant execute on function public.document_review (uuid, text) to authenticated, service_role;
-
-   where id = p_record_id and intern_id = v_intern
-   for update;
-
-  if v_row.id is null then
-    raise exception 'Attendance record not found.'
-      using errcode = 'no_data_found';
-  end if;
-  if v_row.time_out is not null then
-    raise exception 'This attendance record already has a time out.'
-      using errcode = 'check_violation';
-  end if;
-  if v_row.claim_status = 'pending' then
-    raise exception 'You already have a pending claim for this record.'
-      using errcode = 'check_violation';
-  end if;
-  if v_row.claim_status = 'approved' then
-    raise exception 'This claim has already been approved.'
-      using errcode = 'check_violation';
-  end if;
-  if p_claimed_time_out is null or p_claimed_time_out <= v_row.time_in then
-    raise exception 'Claimed time out must be after time in.'
-      using errcode = 'check_violation';
-  end if;
-
-  update public.attendance
-     set claimed_time_out = p_claimed_time_out,
-         claim_status     = 'pending',
-         claim_remarks    = nullif(btrim(p_remarks), '')
-   where id = v_row.id
-  returning * into v_row;
-
-  return v_row;
-end;
-$$;
-
-revoke all on function public.attendance_submit_claim (uuid, timestamptz, text) from public;
-grant execute on function public.attendance_submit_claim (uuid, timestamptz, text) to authenticated, service_role;
-
-  if p_user_id is null then
-    return;
-  end if;
-  insert into public.notifications (user_id, type, title, message, link, metadata)
-  values (p_user_id, p_type, p_title, p_message, p_link, coalesce(p_metadata, '{}'::jsonb));
-end;
-$$;
-
-revoke all on function public.notify_role (text, text, text, text, text, jsonb) from public;
-revoke all on function public.notify_user (uuid, text, text, text, text, jsonb) from public;
-grant execute on function public.notify_role (text, text, text, text, text, jsonb) to authenticated, service_role;
-grant execute on function public.notify_user (uuid, text, text, text, text, jsonb) to authenticated, service_role;
 
 grant execute on function public.can_manage_settings () to authenticated, service_role;
 grant execute on function public.attendance_hours (timestamptz, timestamptz) to authenticated, service_role;
