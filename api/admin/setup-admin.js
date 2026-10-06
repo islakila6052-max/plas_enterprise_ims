@@ -28,13 +28,24 @@ function configError(res) {
   });
 }
 
-/** True while no admin/hr_staff profile exists anywhere in the system. */
+/**
+ * True while no admin/hr_staff profile exists anywhere in the system.
+ *
+ * FIX: this previously destructured ONLY `data` and ignored `error`. Any
+ * PostgREST failure (schema-cache miss, the 406 serialization error, a network
+ * blip) leaves `data === null`, which made the function return `false` — i.e.
+ * it reported "no admin exists" precisely when it could not tell. That is a
+ * fail-OPEN bug on the one endpoint that mints administrators. The error is now
+ * surfaced so the caller fails closed (500) instead of silently re-opening
+ * first-time setup.
+ */
 async function adminExists() {
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("profiles")
     .select("id")
     .in("role", ["admin", "hr_staff"])
     .limit(1);
+  if (error) throw error;
   return Boolean(data && data.length > 0);
 }
 
@@ -50,19 +61,44 @@ export default async function handler(req, res) {
   // H5: this endpoint is unauthenticated by design, so it is the single most
   // attractive target in the app - whoever finds /api/admin/setup-admin while
   // no admin exists can mint themselves an administrator. Cap attempts hard.
-  const limit = rateLimit(req, "setup-admin", 5, 60 * 60 * 1000);
-  if (!limit.ok) return denyRateLimit(res, limit.retryAfter);
+  //
+  // FIX (root cause of "Setup already completed" on an empty database):
+  // the availability CHECK (GET) is a side-effect-free read that returns a
+  // single boolean, so it is NOT rate-limited at all. Previously GET shared a
+  // 5/hour bucket with POST, and the Login page and the Setup page each fire a
+  // GET on every visit. Those reads alone exhausted the budget, so the endpoint
+  // started answering 429 - whose body is `{ error: "Too many requests..." }`
+  // with NO `setupRequired` field. The client read `Boolean(undefined)`, got
+  // false, and rendered "Setup already completed" while the database was
+  // completely empty and Supabase Auth had zero users.
+  //
+  // Rate limiting a read also bought nothing: `adminExists()` discloses only
+  // "an admin exists", which is not a secret worth protecting, and an attacker
+  // gains nothing by calling it - the POST below is the only mutating action
+  // and it keeps the strict limit. The in-memory limiter is additionally
+  // per-instance on Vercel, so counting reads on it was unreliable in both
+  // directions: it blocked real users and would not have stopped an attacker
+  // who landed on a fresh instance.
+  if (req.method === "POST") {
+    const limit = rateLimit(req, "setup-admin", 5, 60 * 60 * 1000);
+    if (!limit.ok) return denyRateLimit(res, limit.retryAfter);
+  }
 
   // ---- GET: report whether first-time setup is still available. ----------
   if (req.method === "GET") {
     try {
       const exists = await adminExists();
-      return res.status(200).json({ setupRequired: !exists });
+      // Always include the field so the client can never mistake an error
+      // response for "setup is finished".
+      return res.status(200).json({ setupRequired: !exists, adminExists: exists });
     } catch (err) {
       // M12: the raw error is logged, but the client only learns that the
       // check could not be completed - not the underlying database detail.
       console.error("Error checking setup availability:", err);
-      return res.status(500).json({ error: "Could not determine setup status." });
+      return res.status(500).json({
+        error: "Could not determine setup status.",
+        setupRequired: null,
+      });
     }
   }
 
@@ -120,16 +156,46 @@ export default async function handler(req, res) {
     const authUser = data.user;
 
     // Ensure the linked profiles row exists with the admin role.
-    const { error: profileErr } = await supabaseAdmin.from("profiles").upsert(
-      {
-        id: authUser.id,
-        full_name: String(full_name).trim(),
-        email: authUser.email,
-        role: "admin",
-      },
-      { onConflict: "id" },
-    );
-    if (profileErr) throw profileErr;
+    //
+    // FIX: this upsert used to share the outer try/catch with createUser. When
+    // it failed (e.g. the 406 serialization error on the circular profiles FK)
+    // the handler returned 400 — but the auth user had ALREADY been created,
+    // leaving an orphaned account with no profile row. The dashboard then showed
+    // zero admins, so the operator tried again and eventually hit the rate
+    // limit. We now retry a couple of times (the trigger on_auth_user_created
+    // normally creates the row already) and, if it still fails, roll the auth
+    // user back so the system is left exactly as it was before the attempt.
+    let profileErr = null;
+    for (let attempt = 0; attempt < 3 && !profileErr; attempt += 1) {
+      const { error } = await supabaseAdmin.from("profiles").upsert(
+        {
+          id: authUser.id,
+          full_name: String(full_name).trim(),
+          email: authUser.email,
+          role: "admin",
+        },
+        { onConflict: "id" },
+      );
+      profileErr = error ?? null;
+      if (profileErr && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
+    }
+
+    if (profileErr) {
+      // Compensating delete: never leave an admin-capable auth user without a
+      // profile. Deleting here also keeps `adminExists()` (which reads profiles)
+      // consistent with the real state, so setup stays available for a retry.
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authUser.id, true);
+      } catch (cleanupErr) {
+        console.error(
+          "Failed to roll back orphaned admin auth user:",
+          cleanupErr,
+        );
+      }
+      throw profileErr;
+    }
 
     // Audit the initial setup.
     try {

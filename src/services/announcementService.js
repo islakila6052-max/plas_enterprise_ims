@@ -42,7 +42,9 @@ function isMissingLikesTable(error) {
  */
 function shapeAnnouncement(row, likedIds) {
   const { announcement_likes: aggregate, ...rest } = row;
-  const total = Array.isArray(aggregate) ? aggregate[0]?.count : aggregate?.count;
+  const total = Array.isArray(aggregate)
+    ? aggregate[0]?.count
+    : aggregate?.count;
   return {
     ...rest,
     like_count: Number(total ?? 0),
@@ -56,7 +58,7 @@ async function countLikes(announcementId) {
     .from("announcement_likes")
     .select("*", { count: "exact", head: true })
     .eq("announcement_id", announcementId);
-  return error ? null : count ?? 0;
+  return error ? null : (count ?? 0);
 }
 
 export const announcementService = {
@@ -240,7 +242,9 @@ export const announcementService = {
    */
   async getStats() {
     const result = await safeQuery(() =>
-      supabase.from("announcements").select("*", { count: "exact", head: true })
+      supabase
+        .from("announcements")
+        .select("*", { count: "exact", head: true }),
     );
     return { totalAnnouncements: result?.count ?? 0 };
   },

@@ -139,9 +139,17 @@ export default function Login() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/admin/setup-admin")
-      .then((r) => r.json())
-      .then((d) => active && setSetupRequired(Boolean(d.setupRequired)))
+    // Only an explicit 200 with a real boolean counts. A 429/500 has no
+    // `setupRequired` field, and `Boolean(undefined)` is false — which silently
+    // hid the setup link whenever the availability check was throttled.
+    fetch("/api/admin/setup-admin", { headers: { Accept: "application/json" } })
+      .then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) }))
+      .then(({ ok, data }) => {
+        if (!active || !ok) return;
+        if (typeof data?.setupRequired === "boolean") {
+          setSetupRequired(data.setupRequired);
+        }
+      })
       .catch(() => {});
     return () => {
       active = false;

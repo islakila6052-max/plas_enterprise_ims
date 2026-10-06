@@ -23,6 +23,24 @@
 -- ============================================================================
 -- 0. TEARDOWN / RESET (blank-or-dirty safe)
 -- ============================================================================
+-- !!! DESTRUCTIVE - THIS DROPS EVERY TABLE AND ENUM (ALL DATA LOST) !!!
+-- The tripwire below must run BEFORE the teardown, so an accidental paste
+-- cannot destroy a populated database. Same session variable convention as
+-- scripts/wipe_public_schema.sql. To actually run:
+--   SET ims.allow_destructive_wipe = 'YES-I-AM-SURE';
+-- To REPAIR a database without losing data, use
+--   supabase/migrations/0053_canonical_repair.sql instead of this file.
+-- ============================================================================
+do $$
+begin
+  if current_setting('ims.allow_destructive_wipe', true) is distinct from 'YES-I-AM-SURE' then
+    raise exception
+      'Refusing to run. This drops all 15 public tables and every row in them. '
+      'Set the session variable first: SET ims.allow_destructive_wipe = ''YES-I-AM-SURE''; '
+      'For a non-destructive repair use supabase/migrations/0053_canonical_repair.sql.';
+  end if;
+end $$;
+
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS sync_profile_intern ON public.interns;
 DROP TRIGGER IF EXISTS sync_profile_supervisor ON public.supervisors;
@@ -116,6 +134,7 @@ CREATE TABLE public.profiles (id uuid PRIMARY KEY
   role public.user_role NOT NULL DEFAULT 'intern',
   intern_id uuid, supervisor_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE public.supervisors (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
   department_id uuid REFERENCES public.departments(id) ON DELETE SET NULL,
@@ -150,7 +169,7 @@ CREATE TABLE public.interns (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   status public.intern_status NOT NULL DEFAULT 'active',
   created_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE public.attendance (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   intern_id uuid NOT NULL REFERENCES public.interns(id) ON DELETE CASCADE,
   date date NOT NULL DEFAULT (now() AT TIME ZONE 'Asia/Manila')::date,
@@ -183,6 +202,9 @@ CREATE TABLE public.documents (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   file_size integer CHECK (file_size IS NULL OR file_size>=0), mime_type text,
   status public.document_status NOT NULL DEFAULT 'pending',
   reviewed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE public.evaluations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   intern_id uuid NOT NULL REFERENCES public.interns(id) ON DELETE CASCADE,
   supervisor_id uuid REFERENCES public.supervisors(id) ON DELETE SET NULL,
@@ -217,6 +239,7 @@ CREATE TABLE public.settings (id integer PRIMARY KEY DEFAULT 1 CHECK (id=1),
   shift_start_minute integer NOT NULL DEFAULT 780
     CHECK (shift_start_minute>=0 AND shift_start_minute<1440),
   is_configured boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE public.notifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   type text NOT NULL CHECK (type IN ('announcement','journal_review',
@@ -257,7 +280,6 @@ CREATE INDEX IF NOT EXISTS idx_attendance_remarks ON public.attendance(remarks)
 CREATE INDEX IF NOT EXISTS idx_attendance_claim_status ON public.attendance(claim_status)
   WHERE claim_status IS NOT NULL;
 
-  created_at timestamptz NOT NULL DEFAULT now(),
 CREATE INDEX IF NOT EXISTS journals_intern_idx ON public.daily_journals(intern_id);
 CREATE INDEX IF NOT EXISTS journals_status_idx ON public.daily_journals(status);
 CREATE INDEX IF NOT EXISTS journals_supervisor_idx ON public.daily_journals(supervisor_id);
@@ -355,8 +377,10 @@ BEGIN
   RETURNING * INTO v_row; RETURN v_row;
 END; $$;
 
-  updated_at timestamptz NOT NULL DEFAULT now());
 INSERT INTO public.settings (id, company_name, internship_duration,
+  required_hours, shift_start_minute, is_configured)
+VALUES (1, 'My Company', '6 months', 300, 780, false)
+ON CONFLICT (id) DO NOTHING;
 CREATE OR REPLACE FUNCTION public.attendance_clock_out(p_time_out timestamptz,
   p_remarks text DEFAULT NULL) RETURNS public.attendance
   LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
@@ -422,6 +446,20 @@ BEGIN
   IF v_row.claim_status IS NULL OR v_row.claim_status<>'pending' THEN RAISE EXCEPTION
     'No pending claim exists for this record.' USING ERRCODE='check_violation'; END IF;
   UPDATE public.attendance SET claim_status=p_decision,
+    claim_reviewed_by=auth.uid(), claim_reviewed_at=now(),
+    claim_review_comment=NULLIF(btrim(p_comment),''),
+    remarks=NULLIF(btrim(p_comment),''),
+    time_out=CASE WHEN p_decision='approved' THEN v_row.claimed_time_out
+                  ELSE time_out END,
+    total_hours=CASE WHEN p_decision='approved'
+                     THEN public.attendance_hours(v_row.time_in, v_row.claimed_time_out)
+                     ELSE total_hours END,
+    method=CASE WHEN p_decision='approved' THEN 'claimed' ELSE method END,
+    status=CASE WHEN p_decision='rejected' THEN 'absent'::public.attendance_status
+                ELSE status END
+    WHERE id=v_row.id RETURNING * INTO v_row;
+  RETURN v_row;
+END; $$;
 CREATE OR REPLACE FUNCTION public.journal_review(p_journal_id uuid,
   p_status text, p_comment text DEFAULT NULL) RETURNS public.daily_journals
   LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
@@ -483,6 +521,9 @@ BEGIN
     COALESCE(p_communication,0), COALESCE(p_teamwork,0),
     COALESCE(p_initiative,0), COALESCE(p_technical_skills,0),
     COALESCE(p_professionalism,0), COALESCE(p_overall_rating,0),
+    p_comments, p_final_recommendation, 'pending')
+  RETURNING * INTO v_row; RETURN v_row;
+END; $$;
 CREATE OR REPLACE FUNCTION public.notify_user(p_user_id uuid, p_type text,
   p_title text, p_message text, p_link text DEFAULT NULL,
   p_metadata jsonb DEFAULT '{}'::jsonb) RETURNS uuid
@@ -558,6 +599,15 @@ BEGIN
   IF NOT public.is_admin() THEN RAISE EXCEPTION
     'Only administrators may manage announcements.'
     USING ERRCODE='insufficient_privilege'; END IF;
+  SELECT * INTO v_before FROM public.announcements WHERE id=p_id;
+  IF v_before.id IS NULL THEN RAISE EXCEPTION 'Announcement not found.'
+    USING ERRCODE='no_data_found'; END IF;
+  DELETE FROM public.announcements WHERE id=p_id;
+  PERFORM public.write_audit_log('delete','announcement',p_id,
+    jsonb_build_object('title',v_before.title,'body',v_before.body,
+                       'category',v_before.category));
+  RETURN true;
+END; $$;
 CREATE OR REPLACE FUNCTION public.update_own_profile(
   p_full_name text DEFAULT NULL, p_contact_number text DEFAULT NULL,
   p_bio text DEFAULT NULL, p_avatar_url text DEFAULT NULL)
@@ -572,9 +622,26 @@ BEGIN UPDATE public.profiles SET full_name=COALESCE(p_full_name,full_name),
   RETURN v_row; END; $$;
 CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
-AS $$ BEGIN INSERT INTO public.profiles (id, full_name, email, role)
+AS $$
+DECLARE
+  v_role public.user_role := 'intern';
+  v_raw  text;
+BEGIN
+  -- Honour raw_user_meta_data.role so admin/supervisor signups keep their role.
+  v_raw := NEW.raw_user_meta_data ->> 'role';
+  IF v_raw IS NOT NULL THEN
+    BEGIN
+      v_role := v_raw::public.user_role;
+    EXCEPTION WHEN invalid_text_representation THEN
+      v_role := 'intern';
+    END;
+  END IF;
+  INSERT INTO public.profiles (id, full_name, email, role)
   VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name',''),
-    NEW.email, 'intern') ON CONFLICT (id) DO NOTHING; RETURN NEW; END; $$;
+    NEW.email, v_role)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END; $$;
 CREATE OR REPLACE FUNCTION public.ensure_role_rows() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
 AS $$ DECLARE v_dept uuid; mk boolean:=false; v_full text;
@@ -638,6 +705,7 @@ BEGIN
   RETURN NULL; END; $$;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 DROP TRIGGER IF EXISTS touch_profiles ON public.profiles;
 CREATE TRIGGER touch_profiles BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
@@ -802,6 +870,70 @@ CREATE TRIGGER sync_profile_intern AFTER INSERT OR UPDATE OR DELETE ON public.in
   FOR EACH ROW EXECUTE FUNCTION public.sync_profile_links();
 DROP TRIGGER IF EXISTS sync_profile_supervisor ON public.supervisors;
 CREATE TRIGGER sync_profile_supervisor AFTER INSERT OR UPDATE OR DELETE ON public.supervisors
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_links();
+
+-- ---------------------------------------------------------------------------
+-- 0021: self-healing intern/supervisor <-> profile links on EVERY write.
+-- Without these, an intern row written with profile_id / department_id NULL
+-- never self-corrects, so RLS (current_intern_id()) and the supervisor list
+-- silently come up empty. The teardown above does not drop these functions,
+-- but they must be defined for a blank database.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.ensure_intern_links() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
+AS $$
+declare
+  v_profile uuid;
+  v_dept    uuid;
+begin
+  if new.profile_id is null then
+    select p.id into v_profile from public.profiles p
+     where p.id = new.created_by and p.role = 'intern';
+    if v_profile is null and new.email is not null then
+      select p.id into v_profile from public.profiles p
+       where p.role = 'intern' and lower(p.email) = lower(new.email) limit 1;
+    end if;
+    if v_profile is not null then new.profile_id := v_profile; end if;
+  end if;
+
+  if new.department_id is null and new.supervisor_id is not null then
+    select s.department_id into v_dept from public.supervisors s
+     where s.id = new.supervisor_id;
+    if v_dept is not null then new.department_id := v_dept; end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ensure_supervisor_links() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
+AS $$
+declare
+  v_profile uuid;
+begin
+  if new.profile_id is null then
+    select p.id into v_profile from public.profiles p
+     where p.id = new.created_by and p.role = 'supervisor';
+    if v_profile is null and new.email is not null then
+      select p.id into v_profile from public.profiles p
+       where p.role = 'supervisor' and lower(p.email) = lower(new.email) limit 1;
+    end if;
+    if v_profile is not null then new.profile_id := v_profile; end if;
+  end if;
+  return new;
+end;
+$$;
+
+DROP TRIGGER IF EXISTS ensure_intern_links_trg ON public.interns;
+CREATE TRIGGER ensure_intern_links_trg
+  BEFORE INSERT OR UPDATE ON public.interns
+  FOR EACH ROW EXECUTE FUNCTION public.ensure_intern_links();
+DROP TRIGGER IF EXISTS ensure_supervisor_links_trg ON public.supervisors;
+CREATE TRIGGER ensure_supervisor_links_trg
+  BEFORE INSERT OR UPDATE ON public.supervisors
+  FOR EACH ROW EXECUTE FUNCTION public.ensure_supervisor_links();
+
 DROP POLICY IF EXISTS "evaluations select scoped" ON public.evaluations;
 CREATE POLICY "evaluations select scoped" ON public.evaluations
   FOR SELECT TO authenticated USING (public.is_admin()
