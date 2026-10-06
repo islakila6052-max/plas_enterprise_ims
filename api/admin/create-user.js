@@ -122,12 +122,20 @@ export default async function handler(req, res) {
 try {
     // Create user using admin API. Note: admin.createUser resolves to
     // { data: { user }, error } — the user object lives at data.user.
+    //
+    // IMPORTANT: createUser() does NOT send an email confirmation or invite.
+    // The admin is explicitly provisioning this account, so we confirm it on
+    // the server side and still trigger a best-effort invite email for the
+    // user. This avoids the "Your email is not confirmed yet" login error.
+    const createdEmail = String(email).trim();
+    const appBaseUrl =
+      process.env.VITE_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:5173");
+
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: createdEmail,
       password,
-      // Do NOT auto-confirm: a magic-link/confirmation email is delivered so
-      // the address is proven to belong to the new user before first login.
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: {
         full_name: user_metadata?.full_name || "",
         role: requestedRole,
@@ -136,6 +144,18 @@ try {
 
     if (error) throw error;
     const authUser = data.user;
+
+    try {
+      await supabaseAdmin.auth.admin.inviteUserByEmail(createdEmail, {
+        data: {
+          full_name: user_metadata?.full_name || "",
+          role: requestedRole,
+        },
+        redirectTo: `${appBaseUrl}/login`,
+      });
+    } catch (inviteErr) {
+      console.warn("Could not send invite email for newly created user:", inviteErr);
+    }
 
     // Ensure the linked profiles row exists. The on_auth_user_created trigger
     // normally creates it, but we upsert defensively so downstream inserts that
