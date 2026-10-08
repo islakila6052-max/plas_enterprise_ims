@@ -36,7 +36,14 @@ async function safeQuery(fn) {
 
 export const dashboardService = {
   async adminStats() {
-    const [totalInterns, activeInterns, completed, archived, pendingEvals, attendanceToday] = await Promise.all([
+    const [
+      totalInterns,
+      activeInterns,
+      completed,
+      archived,
+      pendingEvals,
+      attendanceToday,
+    ] = await Promise.all([
       count("interns"),
       count("interns", (q) => q.eq("status", "active")),
       count("interns", (q) => q.eq("status", "completed")),
@@ -60,22 +67,60 @@ export const dashboardService = {
   async supervisorStats(supervisorId) {
     // `attendance` has no supervisor_id column (only intern_id), so count
     // today's attendance via the supervisor's assigned interns.
+    //
+    // Scope MUST match SupervisorInterns: internService.list filters on
+    // `supervisor_id = me` and applies NO status filter, so archived and
+    // completed interns are still listed as assigned. The old card added
+    // `.eq("status", "active")` here, so an intern the admin had archived
+    // showed on /supervisor/interns but counted 0 on the dashboard
+    // ("Assigned Interns 0" while the list showed 1). Keep every status.
     const { data: internRows, error: internErr } = await supabase
       .from("interns")
       .select("id")
       .eq("supervisor_id", supervisorId);
-    if (internErr) return { assignedInterns: 0, attendanceToday: 0, pendingJournals: 0, pendingEvaluations: 0 };
+    if (internErr)
+      return {
+        assignedInterns: 0,
+        archivedInterns: 0,
+        attendanceToday: 0,
+        pendingJournals: 0,
+        pendingEvaluations: 0,
+      };
     const internIds = (internRows ?? []).map((i) => i.id);
     const today = todayDateInAttendanceTZ();
-    const [assigned, attendanceToday, pendingJournals, pendingEvals] = await Promise.all([
-      count("interns", (q) => q.eq("supervisor_id", supervisorId).eq("status", "active")),
+    const [
+      assigned,
+      archivedCount,
+      attendanceToday,
+      pendingJournals,
+      pendingEvals,
+    ] = await Promise.all([
+      // Total assigned (all statuses, incl. archived) — matches /supervisor/interns.
+      count("interns", (q) => q.eq("supervisor_id", supervisorId)),
+      // Of those, how many are currently archived (shown on the dashboard so a
+      // supervisor can see when the admin archived one of their interns).
+      count("interns", (q) =>
+        q.eq("supervisor_id", supervisorId).eq("status", "archived"),
+      ),
       internIds.length
-        ? count("attendance", (q) => q.in("intern_id", internIds).eq("date", today))
+        ? count("attendance", (q) =>
+            q.in("intern_id", internIds).eq("date", today),
+          )
         : Promise.resolve(0),
-      count("daily_journals", (q) => q.eq("supervisor_id", supervisorId).eq("status", "pending")),
-      count("evaluations", (q) => q.eq("supervisor_id", supervisorId).eq("status", "pending")),
+      count("daily_journals", (q) =>
+        q.eq("supervisor_id", supervisorId).eq("status", "pending"),
+      ),
+      count("evaluations", (q) =>
+        q.eq("supervisor_id", supervisorId).eq("status", "pending"),
+      ),
     ]);
-    return { assignedInterns: assigned, attendanceToday, pendingJournals, pendingEvaluations: pendingEvals };
+    return {
+      assignedInterns: assigned,
+      archivedInterns: archivedCount,
+      attendanceToday,
+      pendingJournals,
+      pendingEvaluations: pendingEvals,
+    };
   },
 
   async internStats(internId) {
@@ -86,7 +131,7 @@ export const dashboardService = {
             supabase
               .from("attendance")
               .select("total_hours")
-              .eq("intern_id", internId)
+              .eq("intern_id", internId),
           ).then((r) => r?.data ?? [])
         : Promise.resolve([]),
       internId
@@ -95,7 +140,7 @@ export const dashboardService = {
               .from("interns")
               .select("required_hours")
               .eq("id", internId)
-              .single()
+              .single(),
           ).then((r) => r?.data?.required_hours ?? 0)
         : Promise.resolve(0),
       count("attendance", (q) => q.eq("intern_id", internId).eq("date", today)),

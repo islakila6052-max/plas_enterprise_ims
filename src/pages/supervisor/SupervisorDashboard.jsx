@@ -12,6 +12,7 @@ import { formatNumber } from "@/utils/format";
 
 const ICONS = {
   assigned: "assigned",
+  archived: "archived",
   attendance: "attendance",
   journal: "journal",
   eval: "eval",
@@ -59,7 +60,24 @@ export default function SupervisorDashboard() {
   }
 
   const cards = [
-    { label: "Assigned Interns", value: formatNumber(stats.assignedInterns), icon: ICONS.assigned, tone: "brand" },
+    {
+      label: "Assigned Interns",
+      value: formatNumber(stats.assignedInterns),
+      // Show how many of the assigned interns are currently archived so the
+      // supervisor can see when the admin archives one of them.
+      hint:
+        stats.archivedInterns > 0
+          ? `${formatNumber(stats.archivedInterns)} archived`
+          : undefined,
+      icon: ICONS.assigned,
+      tone: "brand",
+    },
+    {
+      label: "Archived Interns",
+      value: formatNumber(stats.archivedInterns),
+      icon: ICONS.archived,
+      tone: "slate",
+    },
     { label: "Attendance Today", value: formatNumber(stats.attendanceToday), icon: ICONS.attendance, tone: "green" },
     { label: "Pending Journals", value: formatNumber(stats.pendingJournals), icon: ICONS.journal, tone: "amber" },
     { label: "Pending Evaluations", value: formatNumber(stats.pendingEvaluations), icon: ICONS.eval, tone: "red" },
@@ -69,6 +87,7 @@ export default function SupervisorDashboard() {
     { label: "Pending Journals", value: stats.pendingJournals },
     { label: "Pending Evals", value: stats.pendingEvaluations },
     { label: "Attendance Today", value: stats.attendanceToday },
+    { label: "Archived", value: stats.archivedInterns },
   ];
 
   return (
@@ -82,7 +101,7 @@ export default function SupervisorDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {cards.map((c) => (
           <StatCard key={c.label} {...c} />
         ))}
