@@ -29,6 +29,7 @@ import SupervisorInterns from "@/pages/supervisor/SupervisorInterns";
 import SupervisorAttendance from "@/pages/supervisor/SupervisorAttendance";
 import SupervisorJournals from "@/pages/supervisor/SupervisorJournals";
 import SupervisorEvaluations from "@/pages/supervisor/SupervisorEvaluations";
+import SupervisorDocuments from "@/pages/supervisor/SupervisorDocuments";
 
 import InternDashboard from "@/pages/intern/InternDashboard";
 import InternAttendance from "@/pages/intern/InternAttendance";
@@ -200,6 +201,14 @@ export default function App() {
           element={
             <RoleRoute roles={["supervisor"]}>
               <SupervisorEvaluations />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/supervisor/documents"
+          element={
+            <RoleRoute roles={["supervisor"]}>
+              <SupervisorDocuments />
             </RoleRoute>
           }
         />

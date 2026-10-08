@@ -76,6 +76,11 @@ export const NAVIGATION = {
       icon: icons.journal,
     },
     {
+      to: "/supervisor/documents",
+      label: "Documents",
+      icon: icons.documents,
+    },
+    {
       to: "/supervisor/evaluations",
       label: "Evaluations",
       icon: icons.evaluation,
